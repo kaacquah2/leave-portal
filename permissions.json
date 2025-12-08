@@ -1,0 +1,105 @@
+{
+  "description": "Role-Based Access Control (RBAC) Permissions Matrix for Staff & HR Management Portal",
+  "version": "1.0.0",
+  "roles": {
+    "hr": {
+      "name": "Human Resources Officer / HR Manager",
+      "description": "Managing employee lifecycle, HR data, payroll-related input, and compliance.",
+      "permissions": {
+        "employee": {
+          "create": "Create employee profiles",
+          "update": "Update employee profiles",
+          "view:all": "View all employee records",
+          "delete": "Delete employee records",
+          "salary:edit": "Enter or update salary adjustments, bonuses, promotions",
+          "contracts:edit": "Edit contracts and benefits",
+          "documents:upload": "Upload documents (certifications, contracts, warnings, promotion letters)",
+          "terminate": "Terminate and offboard employees",
+          "onboard": "Onboard new employees"
+        },
+        "leave": {
+          "create": "Create leave requests",
+          "approve:all": "Approve/decline leave requests (if HR-level approval required)",
+          "view:all": "View all leave requests",
+          "policy:manage": "Manage leave policies and holidays"
+        },
+        "performance": {
+          "view:all": "View all performance reviews, KPIs, and manager feedback",
+          "review:all": "Enter or update performance reviews"
+        },
+        "attendance": {
+          "view:all": "View all attendance data",
+          "correct:all": "Handle attendance corrections",
+          "timesheet:approve:all": "Approve timesheets"
+        },
+        "reports": {
+          "hr:view": "Run HR reports (headcount, turnover, attendance, leave balances)"
+        },
+        "disciplinary": {
+          "manage:all": "Manage disciplinary actions"
+        },
+        "recruitment": {
+          "create": "Create job requisitions",
+          "review": "Review candidates"
+        }
+      },
+      "restrictions": [
+        "Cannot create system roles or modify permission structures",
+        "Cannot manage system configuration or security settings"
+      ]
+    },
+    "manager": {
+      "name": "Department Manager / Team Lead",
+      "description": "Supervision of team members, operational approvals, performance reviews.",
+      "permissions": {
+        "employee": {
+          "view:team": "View only employees in their team/department"
+        },
+        "leave": {
+          "view:team": "View team leave requests",
+          "approve:team": "Approve/decline team members' leave requests"
+        },
+        "performance": {
+          "view:team": "View team performance metrics",
+          "review:team": "Conduct performance reviews for team members",
+          "promotion:request": "Submit promotion requests, warnings, or recognition notes"
+        },
+        "attendance": {
+          "view:team": "View team attendance history",
+          "correct:team": "Approve attendance disputes for team members",
+          "timesheet:approve:team": "Approve timesheets for team members"
+        },
+        "reports": {
+          "team:view": "View team reports"
+        },
+        "disciplinary": {
+          "manage:team": "Submit warnings or recognition notes for team members"
+        },
+        "recruitment": {
+          "create": "Create job requisitions (optional)",
+          "review": "Review candidates for their department (optional)"
+        }
+      },
+      "restrictions": [
+        "Cannot access HR-wide employee records",
+        "Cannot edit sensitive HR information (salary, documents, contracts)",
+        "Cannot view employees outside their team unless given cross-team visibility",
+        "Cannot change system settings, roles, or security configurations"
+      ]
+    }
+  },
+  "summary_table": {
+    "feature_permission": {
+      "create_employee_profiles": { "hr": true, "manager": false },
+      "edit_salary_contracts": { "hr": true, "manager": false },
+      "approve_leave_all_org": { "hr": true, "manager": false },
+      "approve_leave_team_only": { "hr": false, "manager": true },
+      "team_performance_reviews": { "hr": true, "manager": true },
+      "access_full_org_hr_data": { "hr": true, "manager": false },
+      "access_team_only_data": { "hr": false, "manager": true },
+      "run_hr_reports": { "hr": true, "manager": false },
+      "manage_disciplinary_actions": { "hr": true, "manager": true },
+      "recruitment_access": { "hr": true, "manager": "optional" }
+    }
+  }
+}

@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model StaffMember {
+  id        String   @id @default(cuid())
+  staffId   String   @unique
+  firstName String
+  lastName  String
+  email     String   @unique
+  phone     String
+  department String
+  position  String
+  grade     String
+  level     String
+  photoUrl  String?
+  active    Boolean  @default(true)
+  joinDate  DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  leaveRequests      LeaveRequest[]
+  leaveBalance       LeaveBalance?
+  payslips           Payslip[]
+  performanceReviews PerformanceReview[]
+}
+
+model LeaveRequest {
+  id            String   @id @default(cuid())
+  staffId       String
+  staffName     String
+  leaveType     String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  startDate     DateTime
+  endDate       DateTime
+  days          Int
+  reason        String
+  status        String   @default("pending") // 'pending' | 'approved' | 'rejected'
+  approvedBy    String?
+  approvalDate  DateTime?
+  templateId    String?
+  approvalLevels Json?   // Array of LeaveApprovalLevel
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  template LeaveRequestTemplate? @relation(fields: [templateId], references: [id])
+}
+
+model LeaveBalance {
+  id             String   @id @default(cuid())
+  staffId        String   @unique
+  annual         Float    @default(0)
+  sick           Float    @default(0)
+  unpaid         Float    @default(0)
+  specialService Float    @default(0)
+  training       Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  user      String
+  staffId   String?
+  details   String
+  timestamp DateTime @default(now())
+  ip        String?
+}
+
+model Payslip {
+  id          String   @id @default(cuid())
+  staffId     String
+  month       String   // YYYY-MM format
+  year        Int
+  basicSalary Float
+  allowances  Float
+  deductions  Float
+  netSalary   Float
+  tax         Float
+  pension     Float
+  pdfUrl      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+}
+
+model PerformanceReview {
+  id                   String   @id @default(cuid())
+  staffId              String
+  reviewPeriod         String   // e.g., "2024 Q1"
+  reviewDate           DateTime
+  reviewedBy           String
+  rating               Int      // 1-5
+  strengths            String[] // Array of strings
+  areasForImprovement  String[] // Array of strings
+  goals                String[] // Array of strings
+  comments             String
+  status               String   @default("draft") // 'draft' | 'completed'
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+}
+
+model LeavePolicy {
+  id              String   @id @default(cuid())
+  leaveType       String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  maxDays         Int
+  accrualRate     Float    // days per month
+  carryoverAllowed Boolean  @default(false)
+  maxCarryover    Int      @default(0)
+  requiresApproval Boolean  @default(true)
+  approvalLevels  Int      @default(1) // 1 = manager, 2 = manager + HR
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Holiday {
+  id        String   @id @default(cuid())
+  name      String
+  date      DateTime
+  type      String   // 'public' | 'company' | 'regional'
+  recurring Boolean  @default(false)
+  year      Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LeaveRequestTemplate {
+  id           String   @id @default(cuid())
+  name         String
+  leaveType    String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  defaultDays  Int
+  defaultReason String
+  department   String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  leaveRequests LeaveRequest[]
+}
