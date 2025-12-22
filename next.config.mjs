@@ -18,6 +18,8 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,
   },
+  // Mark server-only packages to prevent client-side bundling
+  serverComponentsExternalPackages: ['bcryptjs', 'jose'],
   // Use webpack instead of Turbopack to avoid symlink permission issues on Windows
   webpack: (config, { isServer }) => {
     // Ensure proper module resolution for server-side packages
@@ -27,6 +29,8 @@ const nextConfig = {
       }
       // Ensure node_modules are properly resolved
       config.resolve.modules = ['node_modules', ...(config.resolve.modules || [])]
+      // Don't externalize these packages - they need to be bundled
+      config.externals = config.externals || []
     }
     return config
   },
