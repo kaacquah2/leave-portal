@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
 // GET all leave policies
-export async function GET() {
+export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const policies = await prisma.leavePolicy.findMany({
       orderBy: { createdAt: 'desc' },
@@ -12,11 +13,19 @@ export async function GET() {
     console.error('Error fetching leave policies:', error)
     return NextResponse.json({ error: 'Failed to fetch leave policies' }, { status: 500 })
   }
-}
+})
 
 // POST create leave policy
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
+    // Only HR and admin can create leave policies
+    if (user.role !== 'hr' && user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const policy = await prisma.leavePolicy.create({
       data: {
@@ -35,5 +44,5 @@ export async function POST(request: NextRequest) {
     console.error('Error creating leave policy:', error)
     return NextResponse.json({ error: 'Failed to create leave policy' }, { status: 500 })
   }
-}
+}, { allowedRoles: ['hr', 'admin'] })
 

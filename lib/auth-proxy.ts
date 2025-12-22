@@ -1,0 +1,109 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getTokenFromRequest, getUserFromToken, type AuthUser } from './auth'
+
+export interface AuthContext {
+  user: AuthUser
+  request: NextRequest
+}
+
+export type AuthHandler<T = any> = (context: AuthContext) => Promise<NextResponse<T>>
+
+export interface AuthOptions {
+  /**
+   * Roles that are allowed to access this route
+   * If not provided, any authenticated user can access
+   */
+  allowedRoles?: string[]
+  /**
+   * If true, allows unauthenticated access
+   */
+  public?: boolean
+}
+
+/**
+ * Proxy function that handles authentication and role checking
+ * Use this to wrap your API route handlers instead of relying on middleware
+ */
+export function withAuth<T = any>(
+  handler: AuthHandler<T>,
+  options: AuthOptions = {}
+): (request: NextRequest) => Promise<NextResponse<T>> {
+  return async (request: NextRequest) => {
+    // Allow public routes (no auth required)
+    if (options.public) {
+      // For public routes, we still need to provide a user object structure
+      // but it won't be validated
+      const mockUser = { id: '', email: '', role: 'guest', staffId: null } as AuthUser
+      return handler({ user: mockUser, request })
+    }
+
+    // Check authentication
+    const token = getTokenFromRequest(request)
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Verify token
+    const user = await getUserFromToken(token)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      )
+    }
+
+    // Check role-based access
+    if (options.allowedRoles && options.allowedRoles.length > 0) {
+      if (!options.allowedRoles.includes(user.role)) {
+        return NextResponse.json(
+          { error: 'Forbidden' },
+          { status: 403 }
+        )
+      }
+    }
+
+    // Call the handler with authenticated context
+    return handler({ user, request })
+  }
+}
+
+/**
+ * Helper to get authenticated user from request
+ * Use this in routes that need to check auth manually
+ */
+export async function getAuthenticatedUser(
+  request: NextRequest
+): Promise<{ user: AuthUser } | { error: NextResponse }> {
+  const token = getTokenFromRequest(request)
+  if (!token) {
+    return {
+      error: NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+  }
+
+  const user = await getUserFromToken(token)
+  if (!user) {
+    return {
+      error: NextResponse.json(
+        { error: 'Invalid or expired token' },
+        { status: 401 }
+      )
+    }
+  }
+
+  return { user }
+}
+
+/**
+ * Helper to check if user has required role
+ */
+export function hasRole(user: AuthUser, allowedRoles: string[]): boolean {
+  return allowedRoles.includes(user.role)
+}
+
