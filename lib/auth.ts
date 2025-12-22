@@ -1,5 +1,5 @@
 import { prisma } from './prisma'
-import * as bcrypt from 'bcryptjs'
+import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 import { randomBytes } from 'crypto'
 
