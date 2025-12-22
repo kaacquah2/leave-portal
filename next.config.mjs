@@ -18,19 +18,35 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,
   },
-  // Mark server-only packages to prevent client-side bundling
-  serverComponentsExternalPackages: ['bcryptjs', 'jose'],
   // Use webpack instead of Turbopack to avoid symlink permission issues on Windows
   webpack: (config, { isServer }) => {
     // Ensure proper module resolution for server-side packages
     if (isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-      }
       // Ensure node_modules are properly resolved
+      if (!config.resolve) {
+        config.resolve = {}
+      }
       config.resolve.modules = ['node_modules', ...(config.resolve.modules || [])]
-      // Don't externalize these packages - they need to be bundled
-      config.externals = config.externals || []
+      
+      // Ensure bcryptjs and jose are properly resolved and bundled
+      if (typeof config.externals === 'function') {
+        const originalExternals = config.externals
+        config.externals = (context, request, callback) => {
+          if (request === 'bcryptjs' || request === 'jose') {
+            return callback()
+          }
+          return originalExternals(context, request, callback)
+        }
+      } else if (Array.isArray(config.externals)) {
+        config.externals = config.externals.filter(
+          (external) => {
+            if (typeof external === 'string') {
+              return external !== 'bcryptjs' && external !== 'jose'
+            }
+            return true
+          }
+        )
+      }
     }
     return config
   },
