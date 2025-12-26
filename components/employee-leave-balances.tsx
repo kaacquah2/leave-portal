@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, Plus } from 'lucide-react'
 import { useState } from 'react'
 import LeaveForm from './leave-form'
-import type { ReturnType } from '@/lib/data-store'
 
 interface EmployeeLeaveBalancesProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -15,9 +14,9 @@ interface EmployeeLeaveBalancesProps {
 
 export default function EmployeeLeaveBalances({ store, staffId }: EmployeeLeaveBalancesProps) {
   const [showForm, setShowForm] = useState(false)
-  const balance = store.balances.find(b => b.staffId === staffId)
-  const staff = store.staff.find(s => s.staffId === staffId)
-  const leavePolicies = store.leavePolicies.filter(p => p.active)
+  const balance = store.balances.find((b: any) => b.staffId === staffId)
+  const staff = store.staff.find((s: any) => s.staffId === staffId)
+  const leavePolicies = store.leavePolicies.filter((p: any) => p.active)
 
   if (!staff || !balance) {
     return <div className="p-8">Staff member not found</div>
@@ -29,6 +28,10 @@ export default function EmployeeLeaveBalances({ store, staffId }: EmployeeLeaveB
     { type: 'Special Service', balance: balance.specialService, color: 'bg-green-500' },
     { type: 'Training', balance: balance.training, color: 'bg-purple-500' },
     { type: 'Unpaid', balance: balance.unpaid, color: 'bg-gray-500' },
+    { type: 'Study', balance: balance.study, color: 'bg-indigo-500' },
+    { type: 'Maternity', balance: balance.maternity, color: 'bg-pink-500' },
+    { type: 'Paternity', balance: balance.paternity, color: 'bg-cyan-500' },
+    { type: 'Compassionate', balance: balance.compassionate, color: 'bg-amber-500' },
   ]
 
   return (
@@ -57,7 +60,7 @@ export default function EmployeeLeaveBalances({ store, staffId }: EmployeeLeaveB
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {leaveTypes.map(({ type, balance: bal, color }) => {
-          const policy = leavePolicies.find(p => p.leaveType === type)
+          const policy = leavePolicies.find((p: any) => p.leaveType === type)
           return (
             <Card key={type} className="border-2 border-blue-200">
               <CardHeader>
@@ -94,7 +97,7 @@ export default function EmployeeLeaveBalances({ store, staffId }: EmployeeLeaveB
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {leavePolicies.map(policy => (
+            {leavePolicies.map((policy: any) => (
               <div key={policy.id} className="border-b pb-4 last:border-0">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold">{policy.leaveType} Leave</h4>

@@ -2,6 +2,7 @@ import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 import { randomBytes } from 'crypto'
+import type { NextRequest } from 'next/server'
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -99,13 +100,21 @@ export async function getUserFromToken(token: string): Promise<AuthUser | null> 
   }
 }
 
-export function getTokenFromRequest(request: Request): string | null {
+export function getTokenFromRequest(request: Request | NextRequest): string | null {
   const authHeader = request.headers.get('authorization')
   if (authHeader?.startsWith('Bearer ')) {
     return authHeader.substring(7)
   }
 
-  // Also check cookies
+  // Check cookies using NextRequest.cookies API if available (preferred method)
+  if ('cookies' in request && request.cookies) {
+    const tokenCookie = request.cookies.get('token')
+    if (tokenCookie?.value) {
+      return tokenCookie.value
+    }
+  }
+
+  // Fallback: parse cookies from header string
   const cookies = request.headers.get('cookie')
   if (cookies) {
     const tokenMatch = cookies.match(/token=([^;]+)/)

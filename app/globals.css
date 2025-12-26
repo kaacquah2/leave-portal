@@ -4,51 +4,68 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* MoFA Color Palette: Blue-Green Theme */
-  --background: oklch(0.99 0.001 270);
-  --foreground: oklch(0.2 0.01 270);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.01 270);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.01 270);
-  --primary: oklch(0.35 0.15 200);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.5 0.12 165);
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.9 0.01 270);
-  --muted-foreground: oklch(0.5 0.01 270);
-  --accent: oklch(0.45 0.15 150);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.01 270);
-  --input: oklch(0.95 0.001 270);
-  --ring: oklch(0.35 0.15 200);
-  --chart-1: oklch(0.35 0.15 200);
-  --chart-2: oklch(0.45 0.15 150);
-  --chart-3: oklch(0.5 0.12 165);
-  --chart-4: oklch(0.6 0.1 180);
-  --chart-5: oklch(0.4 0.12 190);
+  /* MoFAD Official Color Palette: Blue & White Theme */
+  /* Primary Brand: Government Blue #0B5ED7 */
+  /* Background: White #FFFFFF */
+  /* Text: Dark Blue/Charcoal #1F2A37 */
+  /* Deep Navy: #0A2540 (Sidebar/Header Variant) */
+  /* Light Blue: #3B82F6 (Buttons/Highlights) */
+  /* Light Grey: #E5E7EB (Borders/Dividers) */
+  
+  --background: oklch(1 0 0); /* White #FFFFFF */
+  --foreground: oklch(0.25 0.01 250); /* Dark Blue/Charcoal #1F2A37 */
+  --card: oklch(1 0 0); /* White #FFFFFF */
+  --card-foreground: oklch(0.25 0.01 250); /* Dark Blue/Charcoal #1F2A37 */
+  --popover: oklch(1 0 0); /* White #FFFFFF */
+  --popover-foreground: oklch(0.25 0.01 250); /* Dark Blue/Charcoal #1F2A37 */
+  --primary: oklch(0.55 0.18 250); /* Government Blue #0B5ED7 */
+  --primary-foreground: oklch(1 0 0); /* White #FFFFFF */
+  --secondary: oklch(0.65 0.15 250); /* Light Blue #3B82F6 */
+  --secondary-foreground: oklch(1 0 0); /* White #FFFFFF */
+  --muted: oklch(0.92 0.001 270); /* Light Grey #E5E7EB */
+  --muted-foreground: oklch(0.5 0.01 270); /* Medium Grey */
+  --accent: oklch(0.65 0.15 250); /* Light Blue #3B82F6 */
+  --accent-foreground: oklch(1 0 0); /* White #FFFFFF */
+  --destructive: oklch(0.55 0.22 25); /* Red #DC2626 (for errors/rejections) */
+  --destructive-foreground: oklch(1 0 0); /* White #FFFFFF */
+  --border: oklch(0.92 0.001 270); /* Light Grey #E5E7EB */
+  --input: oklch(0.98 0.001 270); /* Very Light Grey */
+  --ring: oklch(0.55 0.18 250); /* Government Blue #0B5ED7 */
+  --chart-1: oklch(0.55 0.18 250); /* Government Blue #0B5ED7 */
+  --chart-2: oklch(0.65 0.15 250); /* Light Blue #3B82F6 */
+  --chart-3: oklch(0.2 0.03 250); /* Deep Navy #0A2540 */
+  --chart-4: oklch(0.65 0.15 150); /* Green #16A34A (Approved status) */
+  --chart-5: oklch(0.75 0.15 80); /* Amber #F59E0B (Pending status) */
   --radius: 0.625rem;
+  
+  /* MoFAD Status Colors (Use Sparingly) */
+  --status-approved: oklch(0.65 0.15 150); /* Green #16A34A */
+  --status-pending: oklch(0.75 0.15 80); /* Amber #F59E0B */
+  --status-rejected: oklch(0.55 0.22 25); /* Red #DC2626 */
+  
+  /* MoFAD Additional Colors */
+  --mofad-deep-navy: oklch(0.2 0.03 250); /* Deep Navy #0A2540 */
+  --mofad-light-blue: oklch(0.65 0.15 250); /* Light Blue #3B82F6 */
 }
 
 .dark {
-  --background: oklch(0.15 0.01 270);
-  --foreground: oklch(0.95 0.001 270);
-  --card: oklch(0.2 0.01 270);
-  --card-foreground: oklch(0.95 0.001 270);
-  --primary: oklch(0.5 0.15 200);
-  --secondary: oklch(0.6 0.12 165);
-  --muted: oklch(0.3 0.01 270);
-  --muted-foreground: oklch(0.7 0.01 270);
-  --accent: oklch(0.6 0.15 150);
-  --input: oklch(0.25 0.001 270);
-  --border: oklch(0.3 0.01 270);
+  /* Dark mode: Maintain blue theme with darker backgrounds */
+  --background: oklch(0.15 0.01 250); /* Very Dark Blue */
+  --foreground: oklch(0.95 0.001 270); /* Near White */
+  --card: oklch(0.2 0.02 250); /* Dark Blue Card */
+  --card-foreground: oklch(0.95 0.001 270); /* Near White */
+  --primary: oklch(0.6 0.18 250); /* Lighter Government Blue */
+  --secondary: oklch(0.7 0.15 250); /* Lighter Blue */
+  --muted: oklch(0.25 0.01 250); /* Dark Grey */
+  --muted-foreground: oklch(0.7 0.01 270); /* Light Grey */
+  --accent: oklch(0.7 0.15 250); /* Light Blue */
+  --input: oklch(0.2 0.01 250); /* Dark Input */
+  --border: oklch(0.3 0.01 250); /* Dark Border */
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

@@ -17,8 +17,8 @@ export default function RoleSelection({ onRoleSelected, onBack }: RoleSelectionP
       icon: Users,
       description: 'Manage employee lifecycle, HR data, payroll input, and compliance.',
       permissions: ['Employee Records', 'Salary & Contracts', 'Leave Processing', 'HR Reports', 'Performance Management'],
-      color: 'bg-green-100 text-green-700 border-green-200',
-      buttonColor: 'bg-green-600 hover:bg-green-700',
+      color: 'bg-white text-foreground border-primary border-2',
+      buttonColor: 'bg-primary hover:bg-primary/90',
     },
     {
       id: 'manager',
@@ -26,13 +26,13 @@ export default function RoleSelection({ onRoleSelected, onBack }: RoleSelectionP
       icon: UserCheck,
       description: 'Supervise team members, approve operational requests, and conduct performance reviews.',
       permissions: ['Team Leave Approval', 'Team Performance', 'Team Attendance', 'Team Reports'],
-      color: 'bg-amber-100 text-amber-700 border-amber-200',
-      buttonColor: 'bg-amber-600 hover:bg-amber-700',
+      color: 'bg-white text-foreground border-primary border-2',
+      buttonColor: 'bg-primary hover:bg-primary/90',
     },
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 py-12">
       {/* Header */}
       <div className="w-full max-w-4xl mb-12">
         <button

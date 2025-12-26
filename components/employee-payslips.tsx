@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Download, DollarSign } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 
 interface EmployeePayslipsProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -13,8 +12,8 @@ interface EmployeePayslipsProps {
 
 export default function EmployeePayslips({ store, staffId }: EmployeePayslipsProps) {
   const payslips = store.payslips
-    .filter(p => p.staffId === staffId)
-    .sort((a, b) => new Date(b.month).getTime() - new Date(a.month).getTime())
+    .filter((p: any) => p.staffId === staffId)
+    .sort((a: any, b: any) => new Date(b.month).getTime() - new Date(a.month).getTime())
 
   const handleDownload = (payslipId: string) => {
     // In a real app, this would download the PDF
@@ -46,7 +45,7 @@ export default function EmployeePayslips({ store, staffId }: EmployeePayslipsPro
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {payslips.map(payslip => (
+          {payslips.map((payslip: any) => (
             <Card key={payslip.id} className="border-2 border-blue-200">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -115,13 +114,13 @@ export default function EmployeePayslips({ store, staffId }: EmployeePayslipsPro
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Average Monthly Salary</span>
                 <span className="font-medium">
-                  KES {Math.round(payslips.reduce((sum, p) => sum + p.netSalary, 0) / payslips.length).toLocaleString()}
+                  KES {Math.round(payslips.reduce((sum: number, p: any) => sum + p.netSalary, 0) / payslips.length).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total YTD</span>
                 <span className="font-medium">
-                  KES {payslips.reduce((sum, p) => sum + p.netSalary, 0).toLocaleString()}
+                  KES {payslips.reduce((sum: number, p: any) => sum + p.netSalary, 0).toLocaleString()}
                 </span>
               </div>
             </div>

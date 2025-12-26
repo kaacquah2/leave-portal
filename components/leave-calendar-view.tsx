@@ -3,7 +3,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 
 interface LeaveCalendarViewProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -15,15 +14,15 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
   // Get leaves based on role
   let leaves = store.leaves
   if (userRole === 'employee' && staffId) {
-    leaves = leaves.filter(l => l.staffId === staffId)
+    leaves = leaves.filter((l: any) => l.staffId === staffId)
   } else if (userRole === 'manager') {
     // In production, filter by manager's team
-    leaves = leaves.filter(l => l.status === 'pending' || l.status === 'approved')
+    leaves = leaves.filter((l: any) => l.status === 'pending' || l.status === 'approved')
   }
 
   // Group leaves by month
   const leavesByMonth: Record<string, typeof leaves> = {}
-  leaves.forEach(leave => {
+  leaves.forEach((leave: any) => {
     const month = new Date(leave.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
     if (!leavesByMonth[month]) {
       leavesByMonth[month] = []
@@ -33,7 +32,7 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
 
   // Get holidays for the year
   const currentYear = new Date().getFullYear()
-  const holidays = store.holidays.filter(h => {
+  const holidays = store.holidays.filter((h: any) => {
     if (h.recurring) return true
     return h.year === currentYear
   })
@@ -69,7 +68,7 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {holidays
-              .sort((a, b) => {
+              .sort((a: any, b: any) => {
                 const dateA = new Date(a.date)
                 const dateB = new Date(b.date)
                 // For recurring holidays, use current year
@@ -77,7 +76,7 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
                 if (b.recurring) dateB.setFullYear(currentYear)
                 return dateA.getTime() - dateB.getTime()
               })
-              .map(holiday => {
+              .map((holiday: any) => {
                 const holidayDate = new Date(holiday.date)
                 if (holiday.recurring) holidayDate.setFullYear(currentYear)
                 return (
@@ -115,8 +114,8 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
             <CardContent>
               <div className="space-y-2">
                 {monthLeaves
-                  .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-                  .map(leave => {
+                  .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+                  .map((leave: any) => {
                     const startDate = new Date(leave.startDate)
                     const endDate = new Date(leave.endDate)
                     return (

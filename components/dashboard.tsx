@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Search, Users, FileText, BarChart3, UserCheck, Shield } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 
 interface DashboardProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -39,7 +38,7 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
     // Normalize search: trim whitespace, convert to uppercase, and handle variations
     const normalizedSearch = trimmedId.toUpperCase()
     
-    const found = store.staff.find(s => {
+    const found = store.staff.find((s: any) => {
       if (!s || !s.staffId) return false
       // Case-insensitive comparison with normalized staffId
       const normalizedStaffId = s.staffId.trim().toUpperCase()
@@ -124,17 +123,17 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
     switch (userRole) {
       case 'hr':
         // Count leaves that need HR approval (multi-level where manager approved, or single-level HR approval)
-        const hrPendingLeaves = store.leaves.filter(l => {
+        const hrPendingLeaves = store.leaves.filter((l: any) => {
           if (l.status !== 'pending') return false
           if (!l.approvalLevels || l.approvalLevels.length === 0) {
             // Single level - HR can approve all
             return true
           }
           // Multi-level: check if there's an HR level pending and manager has approved
-          const hrLevel = l.approvalLevels.find(al => al.approverRole === 'hr' && al.status === 'pending')
+          const hrLevel = l.approvalLevels.find((al: any) => al.approverRole === 'hr' && al.status === 'pending')
           if (!hrLevel) return false
           // Check if manager level (if exists) is approved
-          const managerLevel = l.approvalLevels.find(al => al.approverRole === 'manager')
+          const managerLevel = l.approvalLevels.find((al: any) => al.approverRole === 'manager')
           if (managerLevel) {
             return managerLevel.status === 'approved'
           }
@@ -142,34 +141,35 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
         }).length
         
         return {
-          totalStaff: store.staff.filter(s => s.active).length,
-          pendingLeaves: store.leaves.filter(l => l.status === 'pending').length,
+          totalStaff: (store.staff || []).length, // Total staff count (all staff, not just active)
+          pendingLeaves: store.leaves.filter((l: any) => l.status === 'pending').length,   
           hrPendingLeaves, // Leaves specifically needing HR approval
-          activeRequests: store.leaves.filter(l => l.status === 'approved').length,
+          activeRequests: store.leaves.filter((l: any) => l.status === 'approved').length,
           totalAudits: store.auditLogs.length,
         }
       case 'manager':
         // Count leaves that need manager approval
-        const managerPendingLeaves = store.leaves.filter(l => {
+        const managerPendingLeaves = store.leaves.filter((l: any) => {
           if (l.status !== 'pending') return false
           if (!l.approvalLevels || l.approvalLevels.length === 0) {
             // Single level - manager can approve team leaves
             return true
           }
           // Multi-level: check if there's a manager level pending
-          const managerLevel = l.approvalLevels.find(al => al.approverRole === 'manager' && al.status === 'pending')
+          const managerLevel = l.approvalLevels.find((al: any) => al.approverRole === 'manager' && al.status === 'pending')
           if (!managerLevel) return false
           // Check if previous levels are approved (should be none for level 1)
-          const previousLevels = l.approvalLevels.filter(al => al.level < managerLevel.level)
-          return previousLevels.every(al => al.status === 'approved')
+          const previousLevels = l.approvalLevels.filter((al: any) => al.level < managerLevel.level)
+          return previousLevels.every((al: any) => al.status === 'approved')
         }).length
         
         return {
-          teamMembers: store.staff.length, // In real app, filter by team
-          pendingApprovals: store.leaves.filter(l => l.status === 'pending').length,
+          teamMembers: store.staff.length, // In real app, filter by team/department
+          pendingApprovals: managerPendingLeaves, // Leaves specifically needing manager approval
           managerPendingLeaves, // Leaves specifically needing manager approval
-          approvedThisMonth: store.leaves.filter(l => l.status === 'approved').length,
+          approvedThisMonth: store.leaves.filter((l: any) => l.status === 'approved').length,
           teamLeaves: store.leaves.length,
+          totalStaff: store.staff.filter((s: any) => s.active).length,
         }
       default:
         return {}
@@ -177,30 +177,30 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
   }
 
   const metrics = getMetrics()
-  const pendingLeaves = store.leaves.filter(l => l.status === 'pending').length
-  const totalStaff = store.staff.filter(s => s.active).length
-  const activeRequests = store.leaves.filter(l => l.status === 'approved').length
+  const pendingLeaves = store.leaves.filter((l: any) => l.status === 'pending').length     
+  const totalStaff = store.staff.filter((s: any) => s.active).length
+  const activeRequests = store.leaves.filter((l: any) => l.status === 'approved').length
 
   return (
-    <div className={`p-8 space-y-8 bg-gradient-to-b ${theme.gradient}`}>
+    <div className={`p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 bg-gradient-to-b ${theme.gradient}`}>
       {/* Welcome Section */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
           <div className={`p-2 ${theme.iconBg} rounded-lg`}>
-            <WelcomeIcon className={`w-6 h-6 ${theme.iconColor}`} />
+            <WelcomeIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${theme.iconColor}`} />
           </div>
-          <h1 className="text-4xl font-bold text-foreground">Welcome Back</h1>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Welcome Back</h1>
         </div>
-        <div className="flex items-center gap-2 mb-4">
-          <span className={`inline-block px-3 py-1 ${theme.badgeBg} ${theme.badgeText} font-semibold rounded-full text-sm capitalize`}>
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <span className={`inline-block px-2 sm:px-3 py-1 ${theme.badgeBg} ${theme.badgeText} font-semibold rounded-full text-xs sm:text-sm capitalize`}>
             {userRole} Role
           </span>
         </div>
-        <p className="text-muted-foreground text-lg">{roleDescriptions[userRole as 'hr' | 'manager']}</p>
+        <p className="text-muted-foreground text-sm sm:text-base md:text-lg">{roleDescriptions[userRole as 'hr' | 'manager']}</p>
       </div>
 
       {/* KPI Cards - Role Specific */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {userRole === 'hr' && (
           <>
             <Card className={`border-2 ${theme.border}`}>
@@ -208,8 +208,13 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Staff</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.totalStaff}</p>
-                <p className="text-xs text-muted-foreground mt-1">Active employees</p>
+                <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.totalStaff ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {(metrics.totalStaff ?? 0) > 0 
+                    ? `${(store.staff || []).filter((s: any) => s.active).length} active employees`
+                    : 'No staff members'
+                  }
+                </p>
               </CardContent>
             </Card>
             <Card className={`border-2 ${theme.border}`}>
@@ -218,15 +223,15 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.pendingLeaves}</p>
-                  {metrics.hrPendingLeaves > 0 && metrics.hrPendingLeaves < metrics.pendingLeaves && (
+                  <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.pendingLeaves ?? 0}</p>
+                  {(metrics.hrPendingLeaves ?? 0) > 0 && (metrics.hrPendingLeaves ?? 0) < (metrics.pendingLeaves ?? 0) && (
                     <Badge variant="secondary" className="text-xs">
                       {metrics.hrPendingLeaves} need HR
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Leave requests</p>
-                {metrics.hrPendingLeaves > 0 && (
+                {(metrics.hrPendingLeaves ?? 0) > 0 && (
                   <p className="text-xs text-amber-600 font-medium mt-1">
                     {metrics.hrPendingLeaves} awaiting your approval
                   </p>
@@ -270,15 +275,15 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.pendingApprovals}</p>
-                  {metrics.managerPendingLeaves > 0 && (
+                  <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.pendingApprovals ?? 0}</p>
+                  {(metrics.managerPendingLeaves ?? 0) > 0 && (
                     <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
                       {metrics.managerPendingLeaves} ready
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Awaiting your review</p>
-                {metrics.managerPendingLeaves > 0 && (
+                {(metrics.managerPendingLeaves ?? 0) > 0 && (
                   <p className="text-xs text-amber-600 font-medium mt-1">
                     {metrics.managerPendingLeaves} ready for manager approval
                   </p>
@@ -309,9 +314,9 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
 
       {/* Quick Actions */}
       {onNavigate && currentActions.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-3 sm:mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {currentActions.map((action, idx) => {
               const Icon = action.icon
               return (
@@ -338,7 +343,7 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
           <CardDescription>Search employee by Staff ID</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               placeholder="Enter Staff ID (e.g., MFA-001)"
               value={searchId}
@@ -400,7 +405,7 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
               <p className="text-destructive text-sm">No staff member found with ID: {searchId}</p>
               {store.staff && store.staff.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Available staff IDs: {store.staff.map(s => s.staffId).join(', ')}
+                  Available staff IDs: {store.staff.map((s: any) => s.staffId).join(', ')}
                 </p>
               )}
             </div>
@@ -427,7 +432,7 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
         </CardHeader>
         <CardContent>
           <div className="space-y-3 max-h-64 overflow-y-auto">
-            {store.auditLogs.slice(0, 10).map(log => (
+            {store.auditLogs.slice(0, 10).map((log: any) => (
               <div key={log.id} className="flex items-start justify-between py-2 border-b border-border last:border-0">
                 <div className="space-y-1 flex-1">
                   <p className="font-medium text-sm">{log.action}</p>

@@ -1,6 +1,8 @@
-// File: C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\app\api\balances\route.ts
+// File: C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\app\api\balances\route.ts
 import * as entry from '../../../../../app/api/balances/route.js'
 import type { NextRequest } from 'next/server.js'
+
+import type { PrefetchForTypeCheckInternal } from 'next/dist/build/segment-config/app/app-segment-config.js'
 
 type TEntry = typeof import('../../../../../app/api/balances/route.js')
 
@@ -19,6 +21,7 @@ checkFields<Diff<{
   PATCH?: Function
   config?: {}
   generateStaticParams?: Function
+  unstable_prefetch?: PrefetchForTypeCheckInternal
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean

@@ -18,10 +18,19 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
   const currentStaff = staffId ? store.staff.find(s => s.staffId === staffId) : store.staff[0]
   const template = templateId ? store.leaveTemplates.find(t => t.id === templateId) : null
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    staffId: string
+    staffName: string
+    leaveType: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
+    startDate: string
+    endDate: string
+    days: number
+    reason: string
+    templateId?: string
+  }>({
     staffId: staffId || currentStaff?.staffId || '',
     staffName: currentStaff ? `${currentStaff.firstName} ${currentStaff.lastName}` : '',
-    leaveType: (template?.leaveType || 'Annual') as const,
+    leaveType: (template?.leaveType || 'Annual') as 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate',
     startDate: '',
     endDate: '',
     days: template?.defaultDays || 1,
@@ -41,7 +50,7 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
     }
   }, [template])
 
-  const leaveTypes = ['Annual', 'Sick', 'Unpaid', 'Special Service', 'Training'] as const
+  const leaveTypes = ['Annual', 'Sick', 'Unpaid', 'Special Service', 'Training', 'Study', 'Maternity', 'Paternity', 'Compassionate'] as const
 
   const calculateDays = (start: string, end: string) => {
     if (!start || !end) return 1
@@ -86,9 +95,21 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
         approvalLevels,
       })
       onClose()
-    } catch (error) {
+      // Show success message
+      if (typeof window !== 'undefined') {
+        alert('Leave request submitted successfully! Check the "Leave History" tab to view your request.')
+      }
+    } catch (error: any) {
       console.error('Error submitting leave request:', error)
-      alert('Failed to submit leave request. Please try again.')
+      const errorMessage = error?.message || 'Failed to submit leave request'
+      const troubleshooting = error?.troubleshooting || [
+        'Refresh the page and try again',
+        'Check the "Leave History" tab to see if the request was saved',
+        'Verify you are looking at the correct date range',
+        'Contact HR if the issue persists',
+      ]
+      
+      alert(`${errorMessage}\n\nTroubleshooting:\n${troubleshooting.map((t: string, i: number) => `${i + 1}. ${t}`).join('\n')}`)
     } finally {
       setIsSubmitting(false)
     }

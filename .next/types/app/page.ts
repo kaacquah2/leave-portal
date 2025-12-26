@@ -1,6 +1,8 @@
-// File: C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\app\page.tsx
+// File: C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\app\page.tsx
 import * as entry from '../../../app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
+
+import type { PrefetchForTypeCheckInternal } from 'next/dist/build/segment-config/app/app-segment-config.js'
 
 type TEntry = typeof import('../../../app/page.js')
 
@@ -13,6 +15,7 @@ checkFields<Diff<{
   default: Function
   config?: {}
   generateStaticParams?: Function
+  unstable_prefetch?: PrefetchForTypeCheckInternal
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
@@ -25,7 +28,6 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
-  experimental_ppr?: boolean
   
 }, TEntry, ''>>()
 

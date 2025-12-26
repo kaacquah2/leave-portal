@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import LeaveForm from './leave-form'
-import type { ReturnType } from '@/lib/data-store'
 import { PermissionChecks, type UserRole } from '@/lib/permissions'
+import ApprovalDelegation from './approval-delegation'
 
 interface LeaveManagementProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -32,7 +32,7 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
 
   // Handle approval with notifications
   const handleApprove = async (leaveId: string, status: 'approved' | 'rejected', approvedBy: string, level?: number) => {
-    const leave = store.leaves.find(l => l.id === leaveId)
+    const leave = store.leaves.find((l: any) => l.id === leaveId)
     if (!leave) return
 
     try {
@@ -40,9 +40,9 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
       
       // Show toast notification
       if (leave.approvalLevels && level !== undefined) {
-        const levelInfo = leave.approvalLevels.find(l => l.level === level)
+        const levelInfo = leave.approvalLevels.find((l: any) => l.level === level)
         const isFinalLevel = leave.approvalLevels.length === level
-        const allLevelsApproved = leave.approvalLevels.every(l => l.level === level ? status === 'approved' : l.status === 'approved')
+        const allLevelsApproved = leave.approvalLevels.every((l: any) => l.level === level ? status === 'approved' : l.status === 'approved')
         
         if (status === 'approved') {
           if (isFinalLevel || allLevelsApproved) {
@@ -70,13 +70,28 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
           variant: status === 'approved' ? 'default' : 'destructive',
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating leave request:', error)
+      const errorData = error?.response?.data || error
+      const troubleshooting = errorData?.troubleshooting || [
+        'Verify you have manager role',
+        'Check if you are the assigned approver',
+        'Refresh the page',
+        'Check browser console for errors',
+        'Contact IT support',
+      ]
+      
       toast({
-        title: "Error",
-        description: "Failed to update leave request. Please try again.",
+        title: errorData?.error || "Error",
+        description: errorData?.error || "Failed to update leave request. Please try again.",
         variant: "destructive",
+        duration: 8000,
       })
+      
+      // Show detailed troubleshooting in console for debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Troubleshooting steps:', troubleshooting)
+      }
     }
   }
 
@@ -117,12 +132,12 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
       // In production, filter by manager's team/department
       // For demo, showing all but focusing on pending
       if (filterStatus === 'all') {
-        leaves = leaves.filter(l => l.status === 'pending' || l.status === 'approved')
+        leaves = leaves.filter((l: any) => l.status === 'pending' || l.status === 'approved')
       }
     }
     
     // HR: See all leaves
-    return leaves.filter(l => 
+    return leaves.filter((l: any) => 
       filterStatus === 'all' ? true : l.status === filterStatus
     )
   }
@@ -197,7 +212,7 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold ${theme.accent}`}>{store.leaves.filter(l => l.status === 'pending').length}</p>
+            <p className={`text-2xl font-bold ${theme.accent}`}>{store.leaves.filter((l: any) => l.status === 'pending').length}</p>
           </CardContent>
         </Card>
         <Card className={`border-2 ${theme.border}`}>
@@ -205,7 +220,7 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
             <CardTitle className="text-sm font-medium text-muted-foreground">Approved</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-600">{store.leaves.filter(l => l.status === 'approved').length}</p>
+            <p className="text-2xl font-bold text-green-600">{store.leaves.filter((l: any) => l.status === 'approved').length}</p>
           </CardContent>
         </Card>
         {role !== 'manager' && (
@@ -214,7 +229,7 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
               <CardTitle className="text-sm font-medium text-muted-foreground">Rejected</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-red-600">{store.leaves.filter(l => l.status === 'rejected').length}</p>
+              <p className="text-2xl font-bold text-red-600">{store.leaves.filter((l: any) => l.status === 'rejected').length}</p>
             </CardContent>
           </Card>
         )}
@@ -266,7 +281,7 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
             {filteredLeaves.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No leave requests found</p>
             ) : (
-              filteredLeaves.map(leave => (
+              filteredLeaves.map((leave: any) => (
                 <div key={leave.id} className="border border-border rounded-lg p-4 hover:bg-secondary/5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -288,11 +303,11 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
                       {leave.approvalLevels && leave.approvalLevels.length > 0 && (
                         <div className="mt-2 pt-2 border-t">
                           <p className="text-xs font-semibold mb-1">Approval Status:</p>
-                          {leave.approvalLevels.map((level, idx) => {
+                          {leave.approvalLevels.map((level: any, idx: number) => {
                             const isPending = level.status === 'pending'
                             const isCurrentLevel = leave.approvalLevels!
-                              .filter(l => l.level < level.level)
-                              .every(l => l.status === 'approved') && isPending
+                              .filter((l: any) => l.level < level.level)
+                              .every((l: any) => l.status === 'approved') && isPending
                             
                             return (
                               <div key={idx} className={`text-xs flex items-center gap-2 mb-1 ${isCurrentLevel ? 'font-semibold text-amber-600' : 'text-muted-foreground'}`}>
@@ -316,10 +331,10 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
                               </div>
                             )
                           })}
-                          {leave.approvalLevels.some(l => l.status === 'pending') && (
+                          {leave.approvalLevels.some((l: any) => l.status === 'pending') && (
                             <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
                               <AlertCircle className="w-3 h-3 inline mr-1" />
-                              {leave.approvalLevels.filter(l => l.status === 'pending').length} level(s) pending approval
+                              {leave.approvalLevels.filter((l: any) => l.status === 'pending').length} level(s) pending approval
                             </div>
                           )}
                         </div>
@@ -330,19 +345,19 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
                         {leave.approvalLevels && leave.approvalLevels.length > 0 ? (
                           // Multi-level approval
                           leave.approvalLevels
-                            .filter(level => {
+                            .filter((level: any) => {
                               // Show approval buttons for the current level that needs approval
                               const previousLevelsApproved = leave.approvalLevels!
-                                .filter(l => l.level < level.level)
-                                .every(l => l.status === 'approved')
+                                .filter((l: any) => l.level < level.level)
+                                .every((l: any) => l.status === 'approved')
                               const isCurrentLevel = (
                                 (role === 'manager' && level.approverRole === 'manager' && level.status === 'pending') ||
                                 (role === 'hr' && level.approverRole === 'hr' && level.status === 'pending')
                               )
                               return previousLevelsApproved && isCurrentLevel
                             })
-                            .map((level, idx) => (
-                              <div key={idx} className="flex gap-2">
+                            .map((level: any, idx: number) => (
+                              <div key={idx} className="flex gap-2 items-center">
                                 <Button
                                   size="sm"
                                   variant="default"
@@ -359,6 +374,17 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
                                 >
                                   Reject
                                 </Button>
+                                {(level.status === 'pending' || level.status === 'delegated') && (
+                                  <ApprovalDelegation
+                                    leaveRequestId={leave.id}
+                                    level={level.level}
+                                    approverRole={level.approverRole}
+                                    onDelegated={() => {
+                                      // Refresh leave data
+                                      window.location.reload()
+                                    }}
+                                  />
+                                )}
                               </div>
                             ))
                         ) : (

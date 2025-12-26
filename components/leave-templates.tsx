@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Edit2, Trash2, FileText } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 import type { LeaveRequestTemplate } from '@/lib/data-store'
 
 interface LeaveTemplatesProps {
@@ -168,7 +167,7 @@ export default function LeaveTemplates({ store }: LeaveTemplatesProps) {
             {store.leaveTemplates.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No templates available</p>
             ) : (
-              store.leaveTemplates.map(template => (
+              store.leaveTemplates.map((template: any) => (
                 <div key={template.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">

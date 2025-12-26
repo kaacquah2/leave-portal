@@ -6,7 +6,7 @@ export interface AuthContext {
   request: NextRequest
 }
 
-export type AuthHandler<T = any> = (context: AuthContext) => Promise<NextResponse<T>>
+export type AuthHandler<T = any> = (context: AuthContext) => Promise<NextResponse<T> | NextResponse<{ error: string }>>
 
 export interface AuthOptions {
   /**
@@ -27,7 +27,7 @@ export interface AuthOptions {
 export function withAuth<T = any>(
   handler: AuthHandler<T>,
   options: AuthOptions = {}
-): (request: NextRequest) => Promise<NextResponse<T>> {
+): (request: NextRequest) => Promise<NextResponse<T> | NextResponse<{ error: string }>> {
   return async (request: NextRequest) => {
     // Allow public routes (no auth required)
     if (options.public) {

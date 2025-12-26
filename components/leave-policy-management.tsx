@@ -9,7 +9,6 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Edit2, Trash2 } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 import type { LeavePolicy } from '@/lib/data-store'
 
 interface LeavePolicyManagementProps {
@@ -189,7 +188,7 @@ export default function LeavePolicyManagement({ store }: LeavePolicyManagementPr
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {store.leavePolicies.map(policy => (
+            {store.leavePolicies.map((policy: any) => (
               <div key={policy.id} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">

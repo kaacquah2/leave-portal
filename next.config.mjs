@@ -12,6 +12,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Use static export for Electron builds
+  // Check for ELECTRON env variable or if building for Electron (electron-builder sets this)
+  output: process.env.ELECTRON || process.env.ELECTRON_BUILD ? 'export' : undefined,
   outputFileTracingRoot: resolve(__dirname),
   // Suppress middleware deprecation warning (middleware.ts is still the correct approach in Next.js 16)
   onDemandEntries: {

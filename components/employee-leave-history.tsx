@@ -3,10 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Plus, CheckCircle, XCircle, Clock, Download } from 'lucide-react'
 import { useState } from 'react'
 import LeaveForm from './leave-form'
-import type { ReturnType } from '@/lib/data-store'
 
 interface EmployeeLeaveHistoryProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -18,9 +17,9 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
   
   const myLeaves = store.leaves
-    .filter(l => l.staffId === staffId)
-    .filter(l => filterStatus === 'all' ? true : l.status === filterStatus)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .filter((l: any) => l.staffId === staffId)
+    .filter((l: any) => filterStatus === 'all' ? true : l.status === filterStatus)
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -83,7 +82,7 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
             {myLeaves.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No leave requests found</p>
             ) : (
-              myLeaves.map(leave => (
+              myLeaves.map((leave: any) => (
                 <div key={leave.id} className="border border-border rounded-lg p-4 hover:bg-secondary/5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -105,7 +104,7 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
                       {leave.approvalLevels && leave.approvalLevels.length > 0 && (
                         <div className="mt-2 pt-2 border-t">
                           <p className="text-xs font-semibold mb-1">Approval Status:</p>
-                          {leave.approvalLevels.map((level, idx) => (
+                          {leave.approvalLevels.map((level: any, idx: number) => (
                             <div key={idx} className="text-xs text-muted-foreground">
                               Level {level.level} ({level.approverRole}): {level.status}
                               {level.approverName && ` by ${level.approverName}`}
@@ -114,6 +113,46 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
                         </div>
                       )}
                     </div>
+                    {leave.status === 'approved' && (
+                      <div className="mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`/api/leaves/${leave.id}/approval-letter`, {
+                                credentials: 'include'
+                              })
+
+                              if (response.ok) {
+                                const data = await response.json()
+                                // Create a new window with the letter content for printing/downloading
+                                const printWindow = window.open('', '_blank')
+                                if (printWindow) {
+                                  printWindow.document.write(data.letterContent)
+                                  printWindow.document.close()
+                                  printWindow.focus()
+                                  // Wait a bit then trigger print dialog
+                                  setTimeout(() => {
+                                    printWindow.print()
+                                  }, 250)
+                                }
+                              } else {
+                                const error = await response.json()
+                                alert(error.error || 'Failed to download approval letter')
+                              }
+                            } catch (error) {
+                              console.error('Error downloading approval letter:', error)
+                              alert('Failed to download approval letter')
+                            }
+                          }}
+                        >
+                          <Download className="w-4 h-4" />
+                          Download Approval Letter
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))

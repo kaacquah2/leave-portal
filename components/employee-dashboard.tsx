@@ -3,7 +3,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, DollarSign, Award, Clock } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 
 interface EmployeeDashboardProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -11,14 +10,14 @@ interface EmployeeDashboardProps {
 }
 
 export default function EmployeeDashboard({ store, staffId }: EmployeeDashboardProps) {
-  const staff = store.staff.find(s => s.staffId === staffId)
-  const balance = store.balances.find(b => b.staffId === staffId)
-  const myLeaves = store.leaves.filter(l => l.staffId === staffId)
-  const pendingLeaves = myLeaves.filter(l => l.status === 'pending').length
-  const recentPayslip = store.payslips.filter(p => p.staffId === staffId).sort((a, b) => 
+  const staff = store.staff.find((s: any) => s.staffId === staffId)
+  const balance = store.balances.find((b: any) => b.staffId === staffId)
+  const myLeaves = store.leaves.filter((l: any) => l.staffId === staffId)
+  const pendingLeaves = myLeaves.filter((l: any) => l.status === 'pending').length
+  const recentPayslip = store.payslips.filter((p: any) => p.staffId === staffId).sort((a: any, b: any) => 
     new Date(b.month).getTime() - new Date(a.month).getTime()
   )[0]
-  const recentReview = store.performanceReviews.filter(r => r.staffId === staffId).sort((a, b) => 
+  const recentReview = store.performanceReviews.filter((r: any) => r.staffId === staffId).sort((a: any, b: any) => 
     new Date(b.reviewDate).getTime() - new Date(a.reviewDate).getTime()
   )[0]
 
@@ -148,6 +147,22 @@ export default function EmployeeDashboard({ store, staffId }: EmployeeDashboardP
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Training</span>
                   <span className="font-medium">{balance.training} days</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Study</span>
+                  <span className="font-medium">{balance.study} days</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Maternity</span>
+                  <span className="font-medium">{balance.maternity} days</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Paternity</span>
+                  <span className="font-medium">{balance.paternity} days</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Compassionate</span>
+                  <span className="font-medium">{balance.compassionate} days</span>
                 </div>
               </>
             )}

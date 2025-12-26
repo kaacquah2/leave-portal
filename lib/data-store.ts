@@ -1,5 +1,6 @@
 // Client-side data store with Neon database API calls
 import { useEffect, useState, useCallback } from 'react'
+import { applySelectiveUpdate, updateItemInArray, addItemToArray, removeItemFromArray } from './update-diff'
 
 export interface StaffMember {
   id: string
@@ -14,6 +15,9 @@ export interface StaffMember {
   level: string
   photoUrl?: string
   active: boolean
+  employmentStatus?: string
+  terminationDate?: string
+  terminationReason?: string
   joinDate: string
   createdAt: string
 }
@@ -22,7 +26,7 @@ export interface LeaveRequest {
   id: string
   staffId: string
   staffName: string
-  leaveType: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  leaveType: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
   startDate: string
   endDate: string
   days: number
@@ -43,6 +47,10 @@ export interface LeaveBalance {
   unpaid: number
   specialService: number
   training: number
+  study: number
+  maternity: number
+  paternity: number
+  compassionate: number
 }
 
 export interface AuditLog {
@@ -87,7 +95,7 @@ export interface PerformanceReview {
 
 export interface LeavePolicy {
   id: string
-  leaveType: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  leaveType: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
   maxDays: number
   accrualRate: number // days per month
   carryoverAllowed: boolean
@@ -120,7 +128,7 @@ export interface LeaveApprovalLevel {
 export interface LeaveRequestTemplate {
   id: string
   name: string
-  leaveType: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  leaveType: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
   defaultDays: number
   defaultReason: string
   department?: string | null // optional: department-specific
@@ -157,7 +165,7 @@ function transformDates(data: any): any {
   return data
 }
 
-export function useDataStore() {
+export function useDataStore(options?: { enablePolling?: boolean; pollingInterval?: number }) {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [leaves, setLeaves] = useState<LeaveRequest[]>([])
   const [balances, setBalances] = useState<LeaveBalance[]>([])
@@ -169,58 +177,101 @@ export function useDataStore() {
   const [leaveTemplates, setLeaveTemplates] = useState<LeaveRequestTemplate[]>([])
   const [initialized, setInitialized] = useState(false)
   const [loading, setLoading] = useState(true)
+  
+  // Polling configuration
+  const enablePolling = options?.enablePolling ?? true
+  const pollingInterval = options?.pollingInterval ?? 60000 // Default: 60 seconds
 
   // Fetch all data from API
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true)
       const [staffRes, leavesRes, balancesRes, payslipsRes, reviewsRes, policiesRes, holidaysRes, templatesRes, auditRes] = await Promise.all([
-        fetch('/api/staff').catch(() => ({ ok: false })),
-        fetch('/api/leaves').catch(() => ({ ok: false })),
-        fetch('/api/balances').catch(() => ({ ok: false })),
-        fetch('/api/payslips').catch(() => ({ ok: false })),
-        fetch('/api/performance-reviews').catch(() => ({ ok: false })),
-        fetch('/api/leave-policies').catch(() => ({ ok: false })),
-        fetch('/api/holidays').catch(() => ({ ok: false })),
-        fetch('/api/leave-templates').catch(() => ({ ok: false })),
-        fetch('/api/audit-logs?limit=100').catch(() => ({ ok: false })),
+        fetch('/api/staff', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/leaves', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/balances', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/payslips', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/performance-reviews', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/leave-policies', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/holidays', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/leave-templates', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/audit-logs?limit=100', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
       ])
 
-      if (staffRes.ok) {
-        const data = await staffRes.json()
-        setStaff(transformDates(data))
+      if (staffRes.ok && 'json' in staffRes) {
+        const data = transformDates(await staffRes.json())
+        setStaff(prev => applySelectiveUpdate(prev, data))
       }
-      if (leavesRes.ok) {
-        const data = await leavesRes.json()
-        setLeaves(transformDates(data))
+      if (leavesRes.ok && 'json' in leavesRes) {
+        const data = transformDates(await leavesRes.json())
+        // Use selective update to minimize re-renders
+        setLeaves(prev => applySelectiveUpdate(prev, data))
       }
-      if (balancesRes.ok) {
-        const data = await balancesRes.json()
-        setBalances(transformDates(data))
+      if (balancesRes.ok && 'json' in balancesRes) {
+        const data = transformDates(await balancesRes.json()) as LeaveBalance[]
+        // Use selective update to minimize re-renders
+        // For LeaveBalance, use staffId as the key since id is optional
+        setBalances(prev => {
+          // Create a map for efficient lookup by staffId
+          const prevMap = new Map<string, LeaveBalance>()
+          prev.forEach(b => prevMap.set(b.staffId, b))
+          
+          const updated: LeaveBalance[] = []
+          const processedStaffIds = new Set<string>()
+          
+          // Process existing items
+          prev.forEach(item => {
+            processedStaffIds.add(item.staffId)
+            const updatedItem = data.find(d => d.staffId === item.staffId)
+            if (updatedItem) {
+              // Check if changed (simple comparison)
+              if (JSON.stringify(item) !== JSON.stringify(updatedItem)) {
+                updated.push(updatedItem)
+              } else {
+                updated.push(item) // Keep original reference
+              }
+            }
+          })
+          
+          // Add new items
+          data.forEach(item => {
+            if (!processedStaffIds.has(item.staffId)) {
+              updated.push(item)
+            }
+          })
+          
+          return updated
+        })
       }
-      if (payslipsRes.ok) {
-        const data = await payslipsRes.json()
-        setPayslips(transformDates(data))
+      if (payslipsRes.ok && 'json' in payslipsRes) {
+        const data = transformDates(await payslipsRes.json())
+        setPayslips(prev => applySelectiveUpdate(prev, data))
       }
-      if (reviewsRes.ok) {
-        const data = await reviewsRes.json()
-        setPerformanceReviews(transformDates(data))
+      if (reviewsRes.ok && 'json' in reviewsRes) {
+        const data = transformDates(await reviewsRes.json())
+        setPerformanceReviews(prev => applySelectiveUpdate(prev, data))
       }
-      if (policiesRes.ok) {
-        const data = await policiesRes.json()
-        setLeavePolicies(transformDates(data))
+      if (policiesRes.ok && 'json' in policiesRes) {
+        const data = transformDates(await policiesRes.json())
+        setLeavePolicies(prev => applySelectiveUpdate(prev, data))
       }
-      if (holidaysRes.ok) {
-        const data = await holidaysRes.json()
-        setHolidays(transformDates(data))
+      if (holidaysRes.ok && 'json' in holidaysRes) {
+        const data = transformDates(await holidaysRes.json())
+        setHolidays(prev => applySelectiveUpdate(prev, data))
       }
-      if (templatesRes.ok) {
-        const data = await templatesRes.json()
-        setLeaveTemplates(transformDates(data))
+      if (templatesRes.ok && 'json' in templatesRes) {
+        const data = transformDates(await templatesRes.json())
+        setLeaveTemplates(prev => applySelectiveUpdate(prev, data))
       }
-      if (auditRes.ok) {
-        const data = await auditRes.json()
-        setAuditLogs(transformDates(data))
+      if (auditRes.ok && 'json' in auditRes) {
+        const data = transformDates(await auditRes.json())
+        // Audit logs are append-only, so prepend new ones
+        setAuditLogs(prev => {
+          const newLogs = data.filter((newLog: AuditLog) => 
+            !prev.some(existing => existing.id === newLog.id)
+          )
+          return [...newLogs, ...prev].slice(0, 100) // Keep last 100
+        })
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -230,21 +281,55 @@ export function useDataStore() {
     }
   }, [])
 
+  // Fetch critical data only (for polling)
+  const fetchCritical = useCallback(async () => {
+    try {
+      const [leavesRes, balancesRes] = await Promise.all([
+        fetch('/api/leaves', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        fetch('/api/balances', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+      ])
+
+      if (leavesRes.ok && 'json' in leavesRes) {
+        const data = await leavesRes.json()
+        setLeaves(transformDates(data))
+      }
+      if (balancesRes.ok && 'json' in balancesRes) {
+        const data = await balancesRes.json()
+        setBalances(transformDates(data))
+      }
+    } catch (error) {
+      console.error('Error fetching critical data:', error)
+    }
+  }, [])
+
   // Initialize from API
   useEffect(() => {
     fetchAll()
   }, [fetchAll])
+
+  // Set up automatic polling for critical data
+  useEffect(() => {
+    if (!enablePolling || !initialized) return
+
+    const interval = setInterval(() => {
+      fetchCritical()
+    }, pollingInterval)
+
+    return () => clearInterval(interval)
+  }, [enablePolling, initialized, pollingInterval, fetchCritical])
 
   const addStaff = async (member: Omit<StaffMember, 'id' | 'createdAt'>) => {
     try {
       const res = await fetch('/api/staff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(member),
       })
       if (!res.ok) throw new Error('Failed to create staff')
       const newMember = transformDates(await res.json())
-      setStaff((prev) => [...prev, newMember])
+      // Use selective add to preserve other items' references
+      setStaff((prev) => addItemToArray(prev, newMember))
       await logAudit('CREATE_STAFF', 'HR Officer', member.staffId, `Created staff member ${member.firstName} ${member.lastName}`)
       return newMember
     } catch (error) {
@@ -258,11 +343,13 @@ export function useDataStore() {
       const res = await fetch(`/api/staff/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error('Failed to update staff')
       const updated = transformDates(await res.json())
-      setStaff((prev) => prev.map((s) => (s.id === id ? updated : s)))
+      // Use selective update to preserve other items' references
+      setStaff((prev) => updateItemInArray(prev, updated))
       await logAudit('UPDATE_STAFF', 'HR Officer', id, `Updated staff member details`)
     } catch (error) {
       console.error('Error updating staff:', error)
@@ -270,16 +357,80 @@ export function useDataStore() {
     }
   }
 
+  const terminateStaff = async (
+    id: string,
+    terminationDate: string,
+    terminationReason: string,
+    employmentStatus: string
+  ) => {
+    try {
+      const res = await fetch(`/api/staff/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          terminationDate,
+          terminationReason,
+          employmentStatus,
+        }),
+      })
+      if (!res.ok) {
+        const errorData = await res.json()
+        const error = new Error(errorData.error || 'Failed to terminate staff')
+        ;(error as any).errorData = errorData
+        throw error
+      }
+      const result = await res.json()
+      const updated = transformDates(result.staff)
+      // Use selective update to preserve other items' references
+      setStaff((prev) => updateItemInArray(prev, updated))
+      await logAudit(
+        'TERMINATE_STAFF',
+        'HR Officer',
+        updated.staffId,
+        `Terminated staff member: ${terminationReason}`
+      )
+    } catch (error) {
+      console.error('Error terminating staff:', error)
+      throw error
+    }
+  }
+
   const addLeaveRequest = async (request: Omit<LeaveRequest, 'id' | 'createdAt' | 'status'>) => {
+    // Optimistic update: create temporary ID
+    const tempId = `temp-${Date.now()}`
+    const optimisticRequest: LeaveRequest = {
+      id: tempId,
+      ...request,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    }
+    
+    // Update UI immediately
+    setLeaves((prev) => [...prev, optimisticRequest])
+    
     try {
       const res = await fetch('/api/leaves', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(request),
       })
-      if (!res.ok) throw new Error('Failed to create leave request')
+      if (!res.ok) {
+        // Revert optimistic update on error
+        setLeaves((prev) => prev.filter((l) => l.id !== tempId))
+        const errorData = await res.json().catch(() => ({}))
+        const error = new Error(errorData?.error || 'Failed to create leave request')
+        ;(error as any).errorData = errorData
+        throw error
+      }
       const newRequest = transformDates(await res.json())
-      setLeaves((prev) => [...prev, newRequest])
+      // Replace optimistic update with real data using selective update
+      setLeaves((prev) => {
+        // Remove temp item and add real item
+        const withoutTemp = removeItemFromArray(prev, tempId)
+        return addItemToArray(withoutTemp, newRequest)
+      })
       await logAudit('CREATE_LEAVE', 'Staff', request.staffId, `Submitted ${request.leaveType} leave request for ${request.days} days`)
       return newRequest
     } catch (error) {
@@ -289,16 +440,45 @@ export function useDataStore() {
   }
 
   const updateLeaveRequest = async (id: string, status: 'approved' | 'rejected', approvedBy: string, level?: number) => {
+    // Optimistic update: store previous state for rollback
+    const previousLeave = leaves.find((l) => l.id === id)
+    if (!previousLeave) throw new Error('Leave request not found')
+
+    // Create optimistic update
+    const optimisticUpdate: LeaveRequest = {
+      ...previousLeave,
+      status,
+      approvedBy,
+      approvalDate: new Date().toISOString(),
+      approvalLevels: level !== undefined && previousLeave.approvalLevels
+        ? previousLeave.approvalLevels.map((al) =>
+            al.level === level
+              ? { ...al, status, approverName: approvedBy, approvalDate: new Date().toISOString() }
+              : al
+          )
+        : previousLeave.approvalLevels,
+    }
+
+    // Update UI immediately
+    setLeaves((prev) => prev.map((l) => (l.id === id ? optimisticUpdate : l)))
+
     try {
       const res = await fetch(`/api/leaves/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ status, approvedBy, level }),
       })
-      if (!res.ok) throw new Error('Failed to update leave request')
+      if (!res.ok) {
+        // Revert optimistic update on error
+        setLeaves((prev) => prev.map((l) => (l.id === id ? previousLeave : l)))
+        throw new Error('Failed to update leave request')
+      }
       const updated = transformDates(await res.json())
-      setLeaves((prev) => prev.map((l) => (l.id === id ? updated : l)))
+      // Replace optimistic update with real data using selective update
+      setLeaves((prev) => updateItemInArray(prev, updated))
       await logAudit('UPDATE_LEAVE', approvedBy, id, `${status === 'approved' ? 'Approved' : 'Rejected'} leave request`)
+      return updated
     } catch (error) {
       console.error('Error updating leave request:', error)
       throw error
@@ -310,6 +490,7 @@ export function useDataStore() {
       const res = await fetch('/api/leave-policies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(policy),
       })
       if (!res.ok) throw new Error('Failed to create leave policy')
@@ -328,6 +509,7 @@ export function useDataStore() {
       const res = await fetch(`/api/leave-policies/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error('Failed to update leave policy')
@@ -345,6 +527,7 @@ export function useDataStore() {
       const res = await fetch('/api/holidays', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(holiday),
       })
       if (!res.ok) throw new Error('Failed to create holiday')
@@ -363,6 +546,7 @@ export function useDataStore() {
       const res = await fetch(`/api/holidays/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error('Failed to update holiday')
@@ -379,6 +563,7 @@ export function useDataStore() {
     try {
       const res = await fetch(`/api/holidays/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       })
       if (!res.ok) throw new Error('Failed to delete holiday')
       setHolidays((prev) => prev.filter((h) => h.id !== id))
@@ -394,6 +579,7 @@ export function useDataStore() {
       const res = await fetch('/api/leave-templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(template),
       })
       if (!res.ok) throw new Error('Failed to create leave template')
@@ -412,6 +598,7 @@ export function useDataStore() {
       const res = await fetch(`/api/leave-templates/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error('Failed to update leave template')
@@ -429,6 +616,7 @@ export function useDataStore() {
       const res = await fetch('/api/audit-logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
       action,
       user,
@@ -459,6 +647,7 @@ export function useDataStore() {
     loading,
     addStaff,
     updateStaff,
+    terminateStaff,
     addLeaveRequest,
     updateLeaveRequest,
     addLeavePolicy,
@@ -470,5 +659,8 @@ export function useDataStore() {
     updateLeaveTemplate,
     logAudit,
     refresh: fetchAll,
+    refreshCritical: fetchCritical,
   }
 }
+
+export type DataStoreReturnType = ReturnType<typeof useDataStore>

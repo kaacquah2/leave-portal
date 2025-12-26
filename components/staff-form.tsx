@@ -33,6 +33,9 @@ export default function StaffForm({ store, editingId, userRole, onClose }: Staff
     level: editingStaff?.level || '',
     joinDate: editingStaff?.joinDate || '',
     active: editingStaff?.active ?? true,
+    employmentStatus: editingStaff?.employmentStatus || 'active',
+    terminationDate: editingStaff?.terminationDate || '',
+    terminationReason: editingStaff?.terminationReason || '',
     photoUrl: editingStaff?.photoUrl || '',
   })
 

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
 // GET all leave templates
-export async function GET() {
+export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const templates = await prisma.leaveRequestTemplate.findMany({
       orderBy: { createdAt: 'desc' },
@@ -12,11 +13,19 @@ export async function GET() {
     console.error('Error fetching leave templates:', error)
     return NextResponse.json({ error: 'Failed to fetch leave templates' }, { status: 500 })
   }
-}
+}, { allowedRoles: ['hr', 'admin', 'employee', 'manager'] })
 
 // POST create leave template
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
+    // Only HR and admin can create leave templates
+    if (user.role !== 'hr' && user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const template = await prisma.leaveRequestTemplate.create({
       data: {
@@ -33,5 +42,5 @@ export async function POST(request: NextRequest) {
     console.error('Error creating leave template:', error)
     return NextResponse.json({ error: 'Failed to create leave template' }, { status: 500 })
   }
-}
+}, { allowedRoles: ['hr', 'admin'] })
 

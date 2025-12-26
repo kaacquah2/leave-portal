@@ -9,7 +9,6 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Edit2, Trash2, Calendar } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 import type { Holiday } from '@/lib/data-store'
 
 interface HolidayCalendarProps {
@@ -73,7 +72,7 @@ export default function HolidayCalendar({ store }: HolidayCalendarProps) {
     const currentYear = new Date().getFullYear()
     const holidaysByYear: Record<number, Holiday[]> = {}
     
-    store.holidays.forEach(holiday => {
+    store.holidays.forEach((holiday: any) => {
       if (holiday.recurring) {
         // For recurring holidays, show for current and next year
         for (let year = currentYear; year <= currentYear + 1; year++) {
@@ -153,8 +152,8 @@ export default function HolidayCalendar({ store }: HolidayCalendarProps) {
                   <Label>Year</Label>
                   <Input
                     type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                    value={formData.year ?? ''}
+                    onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) || null })}
                     placeholder="YYYY"
                   />
                 </div>
@@ -214,7 +213,7 @@ export default function HolidayCalendar({ store }: HolidayCalendarProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleEdit(store.holidays.find(h => h.id === holiday.id)!)}
+                        onClick={() => handleEdit(store.holidays.find((h: any) => h.id === holiday.id)!)}
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>

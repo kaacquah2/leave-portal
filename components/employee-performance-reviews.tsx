@@ -3,7 +3,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Award, Star } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 
 interface EmployeePerformanceReviewsProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -12,8 +11,8 @@ interface EmployeePerformanceReviewsProps {
 
 export default function EmployeePerformanceReviews({ store, staffId }: EmployeePerformanceReviewsProps) {
   const reviews = store.performanceReviews
-    .filter(r => r.staffId === staffId)
-    .sort((a, b) => new Date(b.reviewDate).getTime() - new Date(a.reviewDate).getTime())
+    .filter((r: any) => r.staffId === staffId)
+    .sort((a: any, b: any) => new Date(b.reviewDate).getTime() - new Date(a.reviewDate).getTime())
 
   const getRatingColor = (rating: number) => {
     if (rating >= 4.5) return 'text-green-600'
@@ -40,7 +39,7 @@ export default function EmployeePerformanceReviews({ store, staffId }: EmployeeP
         </Card>
       ) : (
         <div className="space-y-4">
-          {reviews.map(review => (
+          {reviews.map((review: any) => (
             <Card key={review.id} className="border-2 border-blue-200">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -74,7 +73,7 @@ export default function EmployeePerformanceReviews({ store, staffId }: EmployeeP
                   <div>
                     <h4 className="font-semibold mb-2 text-green-700">Strengths</h4>
                     <ul className="list-disc list-inside space-y-1 text-sm">
-                      {review.strengths.map((strength, idx) => (
+                      {review.strengths.map((strength: string, idx: number) => (
                         <li key={idx}>{strength}</li>
                       ))}
                     </ul>
@@ -85,7 +84,7 @@ export default function EmployeePerformanceReviews({ store, staffId }: EmployeeP
                   <div>
                     <h4 className="font-semibold mb-2 text-amber-700">Areas for Improvement</h4>
                     <ul className="list-disc list-inside space-y-1 text-sm">
-                      {review.areasForImprovement.map((area, idx) => (
+                      {review.areasForImprovement.map((area: string, idx: number) => (
                         <li key={idx}>{area}</li>
                       ))}
                     </ul>
@@ -96,7 +95,7 @@ export default function EmployeePerformanceReviews({ store, staffId }: EmployeeP
                   <div>
                     <h4 className="font-semibold mb-2 text-blue-700">Goals</h4>
                     <ul className="list-disc list-inside space-y-1 text-sm">
-                      {review.goals.map((goal, idx) => (
+                      {review.goals.map((goal: string, idx: number) => (
                         <li key={idx}>{goal}</li>
                       ))}
                     </ul>
@@ -135,7 +134,7 @@ export default function EmployeePerformanceReviews({ store, staffId }: EmployeeP
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Average Rating</span>
                 <span className="font-medium">
-                  {(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)}/5
+                  {(reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length).toFixed(1)}/5
                 </span>
               </div>
               <div className="flex justify-between">

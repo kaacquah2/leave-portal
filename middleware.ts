@@ -20,40 +20,30 @@ const rolePageRoutes: Record<string, string[]> = {
 
 /**
  * Minimal middleware for Next.js 16
- * Only handles page route redirects - API routes use auth-proxy instead
+ * Only handles API route authentication - page routes use client-side auth
+ * 
+ * Note: Page routes (/hr, /manager, etc.) handle authentication client-side
+ * using cookies, so we don't redirect them here to avoid conflicts.
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes and API routes (handled by auth-proxy)
-  if (publicRoutes.some(route => pathname.startsWith(route)) || pathname.startsWith('/api/')) {
+  // Allow public routes
+  if (publicRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
-  // Only handle page route authentication checks
+  // Allow all page routes - they handle authentication client-side
+  // This prevents redirect loops when tokens are stored in httpOnly cookies
+  if (Object.keys(rolePageRoutes).some(route => pathname === route || pathname.startsWith(`${route}/`))) {
+    return NextResponse.next()
+  }
+
+  // Only enforce authentication for API routes (handled by auth-proxy)
   // API routes should use withAuth() from lib/auth-proxy.ts
-  const token = request.cookies.get('token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '')
-
-  if (!token) {
-    // Redirect to login for pages
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  // Verify token
-  const user = await verifyToken(token)
-  if (!user) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  // Check role-based access for page routes
-  for (const [route, allowedRoles] of Object.entries(rolePageRoutes)) {
-    if (pathname === route || pathname.startsWith(`${route}/`)) {
-      if (!allowedRoles.includes(user.role)) {
-        // Redirect to home if user doesn't have access
-        return NextResponse.redirect(new URL('/', request.url))
-      }
-    }
+  if (pathname.startsWith('/api/')) {
+    // API routes are handled by auth-proxy, so we just allow them through
+    return NextResponse.next()
   }
 
   return NextResponse.next()

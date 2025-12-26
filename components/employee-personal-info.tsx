@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Save } from 'lucide-react'
-import type { ReturnType } from '@/lib/data-store'
 
 interface EmployeePersonalInfoProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -14,7 +13,7 @@ interface EmployeePersonalInfoProps {
 }
 
 export default function EmployeePersonalInfo({ store, staffId }: EmployeePersonalInfoProps) {
-  const staff = store.staff.find(s => s.staffId === staffId)
+  const staff = store.staff.find((s: any) => s.staffId === staffId)
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     firstName: staff?.firstName || '',
@@ -30,7 +29,7 @@ export default function EmployeePersonalInfo({ store, staffId }: EmployeePersona
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = async () => {
-    const staffMember = store.staff.find(s => s.id === staff.id)
+    const staffMember = store.staff.find((s: any) => s.id === staff.id)
     if (staffMember) {
       setIsSaving(true)
       try {

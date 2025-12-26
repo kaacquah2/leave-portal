@@ -2,61 +2,113 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { APP_CONFIG } from '@/lib/app-config'
 
 interface LoginFormProps {
-  onLoginSuccess: (role: 'hr' | 'manager') => void
+  onLoginSuccess?: (role: 'hr' | 'manager' | 'employee' | 'admin', staffId?: string) => void
   onBack: () => void
 }
 
-// Mock credentials for demo purposes
-const DEMO_CREDENTIALS = {
-  hr: { email: 'hr@mofa.go.ke', password: 'hr123' },
-  manager: { email: 'manager@mofa.go.ke', password: 'manager123' },
+interface LoginError {
+  error: string
+  errorCode?: string
+  troubleshooting?: string[]
+  employmentStatus?: string
 }
 
 export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [errorDetails, setErrorDetails] = useState<LoginError | null>(null)
+  const [showTroubleshooting, setShowTroubleshooting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setErrorDetails(null)
+    setShowTroubleshooting(false)
     setIsLoading(true)
 
-    // Simulate login delay
-    await new Promise(resolve => setTimeout(resolve, 500))
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
 
-    // Check credentials against demo accounts
-    let userRole: 'hr' | 'manager' | null = null
+      const data = await response.json()
 
-    if (email === DEMO_CREDENTIALS.hr.email && password === DEMO_CREDENTIALS.hr.password) {
-      userRole = 'hr'
-    } else if (email === DEMO_CREDENTIALS.manager.email && password === DEMO_CREDENTIALS.manager.password) {
-      userRole = 'manager'
-    }
+      if (!response.ok) {
+        setError(data.error || 'Invalid email or password. Please try again.')
+        setErrorDetails(data as LoginError)
+        setShowTroubleshooting(!!data.troubleshooting)
+        setIsLoading(false)
+        return
+      }
 
-    if (userRole) {
-      setIsLoading(false)
-      onLoginSuccess(userRole)
-    } else {
-      setError('Invalid email or password. Please try again.')
+      // Clear any previous errors on successful login
+      setError('')
+      setErrorDetails(null)
+      setShowTroubleshooting(false)
+
+      // Token is stored in httpOnly cookie automatically
+      // No need to store in localStorage
+
+      // Redirect to appropriate portal based on role
+      const role = data.user.role as 'hr' | 'manager' | 'employee' | 'admin'
+      const roleRoutes: Record<string, string> = {
+        admin: '/admin',
+        hr: '/hr',
+        manager: '/manager',
+        employee: '/employee',
+      }
+      
+      const redirectPath = roleRoutes[role] || '/'
+      
+      // Call callback if provided (for backward compatibility)
+      if (onLoginSuccess) {
+        onLoginSuccess(role, data.user.staffId || undefined)
+      }
+      
+      router.push(redirectPath)
+    } catch (err) {
+      setError('An error occurred. Please try again.')
+      setErrorDetails({
+        error: 'An error occurred. Please try again.',
+        troubleshooting: [
+          'Check your internet connection',
+          'Clear browser cookies and try again',
+          'Try using a different browser',
+          'Contact IT support if the issue persists',
+        ],
+      })
+      setShowTroubleshooting(true)
+      console.error('Login error:', err)
+    } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4 sm:p-6">
+      {/* MoFAD Blue Header Bar */}
+      <div className="absolute top-0 left-0 right-0 h-2 bg-primary"></div>
+      
+      <Card className="w-full max-w-md shadow-lg border border-border">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-24 h-24 relative">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 relative">
               <Image
                 src="/mofa-logo.png"
                 alt={`${APP_CONFIG.organizationName} Logo`}
@@ -66,8 +118,8 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
               />
             </div>
           </div>
-          <CardTitle className="text-2xl text-foreground">{APP_CONFIG.organizationNameShort}</CardTitle>
-          <CardDescription className="text-base mt-2">{APP_CONFIG.appDescription}</CardDescription>
+          <CardTitle className="text-xl sm:text-2xl text-foreground">{APP_CONFIG.organizationNameShort}</CardTitle>
+          <CardDescription className="text-sm sm:text-base mt-2">{APP_CONFIG.appDescription}</CardDescription>
         </CardHeader>
 
         <CardContent>
@@ -86,20 +138,83 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
 
             <div>
               <label className="block text-sm font-medium mb-2">Password</label>
-              <Input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                  required
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <AlertCircle className="w-4 h-4 text-destructive" />
-                <p className="text-sm text-destructive">{error}</p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-destructive">{error}</p>
+                    {errorDetails?.employmentStatus && (
+                      <p className="text-xs text-destructive/80 mt-1">
+                        Status: {errorDetails.employmentStatus}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {errorDetails?.troubleshooting && errorDetails.troubleshooting.length > 0 && (
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => setShowTroubleshooting(!showTroubleshooting)}
+                    >
+                      {showTroubleshooting ? 'Hide' : 'Show'} Troubleshooting Steps
+                    </Button>
+                    
+                    {showTroubleshooting && (
+                      <div className="p-3 bg-muted/50 border border-border rounded-lg space-y-2">
+                        <p className="text-xs font-medium text-foreground mb-2">
+                          Try these steps to resolve the issue:
+                        </p>
+                        <ul className="space-y-1.5">
+                          {errorDetails.troubleshooting.map((step, index) => (
+                            <li key={index} className="text-xs text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="pt-2 mt-2 border-t border-border">
+                          <p className="text-xs text-muted-foreground">
+                            If the issue persists, please contact{' '}
+                            <span className="font-medium">HR</span> or{' '}
+                            <span className="font-medium">IT Support</span> for assistance.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -112,22 +227,50 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
             </Button>
           </form>
 
+          <div className="mt-4 text-center">
+            <Button
+              type="button"
+              variant="link"
+              className="text-sm"
+              onClick={async () => {
+                if (!email) {
+                  alert('Please enter your email address first')
+                  return
+                }
+                try {
+                  const response = await fetch('/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                  })
+                  const data = await response.json()
+                  if (response.ok) {
+                    alert(data.message || 'If an account with that email exists, your password reset request has been submitted and is pending admin approval. You will receive an email once it is approved.')
+                  } else {
+                    alert(data.error || 'Failed to process password reset request. Please contact HR for assistance.')
+                  }
+                } catch (err) {
+                  alert('An error occurred. Please contact HR for assistance.')
+                }
+              }}
+            >
+              Forgot Password?
+            </Button>
+          </div>
+
           <Button
             onClick={onBack}
             variant="ghost"
-            className="w-full mt-4"
+            className="w-full mt-2"
             disabled={isLoading}
           >
             Back to Home
           </Button>
 
-          {/* Demo credentials hint */}
-          <div className="mt-6 p-3 bg-secondary/10 border border-secondary/20 rounded-lg">
-            <p className="text-xs font-semibold text-foreground mb-2">Demo Credentials:</p>
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p><span className="font-semibold">HR Officer:</span> hr@mofa.go.ke / hr123</p>
-              <p><span className="font-semibold">Manager:</span> manager@mofa.go.ke / manager123</p>
-            </div>
+          <div className="mt-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Ministry of Fisheries and Aquaculture Development (MoFAD), Ghana
+            </p>
           </div>
         </CardContent>
       </Card>

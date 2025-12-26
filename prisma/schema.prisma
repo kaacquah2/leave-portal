@@ -10,35 +10,80 @@ datasource db {
   provider = "postgresql"
 }
 
-model StaffMember {
-  id        String   @id @default(cuid())
-  staffId   String   @unique
-  firstName String
-  lastName  String
-  email     String   @unique
-  phone     String
-  department String
-  position  String
-  grade     String
-  level     String
-  photoUrl  String?
-  active    Boolean  @default(true)
-  joinDate  DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  role          String   // 'hr' | 'manager' | 'employee' | 'admin'
+  staffId       String?  @unique
+  active        Boolean  @default(true)
+  emailVerified Boolean  @default(false)
+  lastLogin     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  leaveRequests      LeaveRequest[]
-  leaveBalance       LeaveBalance?
-  payslips           Payslip[]
+  staff         StaffMember? @relation(fields: [staffId], references: [staffId])
+  sessions      Session[]
+  notifications Notification[]
+  passwordResetTokens PasswordResetToken[]
+  passwordResetRequests PasswordResetRequest[]
+  pushSubscription PushSubscription?
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StaffMember {
+  id               String   @id @default(cuid())
+  staffId          String   @unique
+  firstName        String
+  lastName         String
+  email            String   @unique
+  phone            String
+  department       String
+  position         String
+  grade            String
+  level            String
+  photoUrl         String?
+  active           Boolean  @default(true)
+  employmentStatus String   @default("active") // 'active' | 'terminated' | 'resigned' | 'retired' | 'suspended'
+  terminationDate DateTime?
+  terminationReason String?
+  joinDate         DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user              User?
+  leaveRequests     LeaveRequest[]
+  leaveBalance      LeaveBalance?
+  payslips          Payslip[]
   performanceReviews PerformanceReview[]
+  attendances      Attendance[]
+  timesheets        Timesheet[]
+  disciplinaryActions DisciplinaryAction[]
+  documents         Document[]
+  salaryStructures  SalaryStructure[]
+  trainings         TrainingAttendance[]
+  onboardingChecklist OnboardingChecklist?
+  offboardingChecklist OffboardingChecklist?
 }
 
 model LeaveRequest {
   id            String   @id @default(cuid())
   staffId       String
   staffName     String
-  leaveType     String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  leaveType     String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
   startDate     DateTime
   endDate       DateTime
   days          Int
@@ -64,11 +109,62 @@ model LeaveBalance {
   unpaid         Float    @default(0)
   specialService Float    @default(0)
   training       Float    @default(0)
+  study          Float    @default(0)
+  maternity      Float    @default(0)
+  paternity      Float    @default(0)
+  compassionate  Float    @default(0)
+  
+  // Accrual tracking
+  lastAccrualDate DateTime? // Last date when accrual was processed
+  accrualPeriod   String?    // 'monthly' | 'annual' | 'quarterly'
+  
+  // Carry-forward tracking (for each leave type)
+  annualCarryForward         Float @default(0)
+  sickCarryForward           Float @default(0)
+  specialServiceCarryForward Float @default(0)
+  trainingCarryForward       Float @default(0)
+  studyCarryForward          Float @default(0)
+  
+  // Expiration tracking
+  annualExpiresAt         DateTime? // When unused annual leave expires
+  sickExpiresAt           DateTime? // When unused sick leave expires (if applicable)
+  specialServiceExpiresAt DateTime?
+  trainingExpiresAt       DateTime?
+  studyExpiresAt          DateTime?
+  
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   // Relations
-  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  staff          StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  accrualHistory LeaveAccrualHistory[]
+  
+  @@index([lastAccrualDate])
+  @@index([annualExpiresAt])
+}
+
+model LeaveAccrualHistory {
+  id              String   @id @default(cuid())
+  staffId         String
+  leaveType       String   // 'Annual' | 'Sick' | 'Special Service' | 'Training' | 'Study'
+  accrualDate     DateTime @default(now())
+  accrualPeriod   String   // 'monthly' | 'annual' | 'quarterly' | 'pro-rata' | 'carry-forward' | 'expiration'
+  daysAccrued     Float    // Days added (positive) or removed (negative)
+  daysBefore      Float    // Balance before accrual
+  daysAfter       Float    // Balance after accrual
+  proRataFactor   Float?   // Pro-rata calculation factor (e.g., 0.5 for half month)
+  carryForwardDays Float?  // Days carried forward (if applicable)
+  expiredDays     Float?   // Days expired (if applicable)
+  notes           String?  // Additional notes about the accrual
+  processedBy     String?  // User/system that processed the accrual
+  createdAt       DateTime @default(now())
+
+  // Relations
+  balance LeaveBalance @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId, accrualDate])
+  @@index([accrualDate])
+  @@index([leaveType])
 }
 
 model AuditLog {
@@ -121,11 +217,13 @@ model PerformanceReview {
 
 model LeavePolicy {
   id              String   @id @default(cuid())
-  leaveType       String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  leaveType       String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
   maxDays         Int
   accrualRate     Float    // days per month
+  accrualFrequency String  @default("monthly") // 'monthly' | 'annual' | 'quarterly'
   carryoverAllowed Boolean  @default(false)
   maxCarryover    Int      @default(0)
+  expiresAfterMonths Int?  // Number of months after which unused leave expires (null = never expires)
   requiresApproval Boolean  @default(true)
   approvalLevels  Int      @default(1) // 1 = manager, 2 = manager + HR
   active          Boolean  @default(true)
@@ -147,7 +245,7 @@ model Holiday {
 model LeaveRequestTemplate {
   id           String   @id @default(cuid())
   name         String
-  leaveType    String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training'
+  leaveType    String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
   defaultDays  Int
   defaultReason String
   department   String?
@@ -157,4 +255,413 @@ model LeaveRequestTemplate {
 
   // Relations
   leaveRequests LeaveRequest[]
+}
+
+model Attendance {
+  id            String   @id @default(cuid())
+  staffId       String
+  date          DateTime
+  clockIn       DateTime?
+  clockOut      DateTime?
+  breakDuration Int?     // in minutes
+  totalHours    Float?
+  status        String   // 'present' | 'absent' | 'late' | 'half-day' | 'on-leave'
+  notes         String?
+  correctedBy  String?
+  correctionReason String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@unique([staffId, date])
+  @@index([staffId, date])
+}
+
+model AttendanceCorrection {
+  id          String   @id @default(cuid())
+  attendanceId String
+  staffId     String
+  requestDate DateTime @default(now())
+  correctionDate DateTime
+  reason      String
+  status      String   @default("pending") // 'pending' | 'approved' | 'rejected'
+  reviewedBy String?
+  reviewedAt DateTime?
+  comments   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([staffId, status])
+}
+
+model Timesheet {
+  id          String   @id @default(cuid())
+  staffId     String
+  weekStart   DateTime
+  weekEnd     DateTime
+  hours       Json     // Array of daily hours: [{date, hours, project, task}]
+  totalHours  Float
+  status      String   @default("draft") // 'draft' | 'submitted' | 'approved' | 'rejected'
+  submittedAt DateTime?
+  approvedBy  String?
+  approvedAt  DateTime?
+  rejectedBy String?
+  rejectedAt DateTime?
+  comments    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@unique([staffId, weekStart])
+  @@index([staffId, status])
+}
+
+model DisciplinaryAction {
+  id          String   @id @default(cuid())
+  staffId     String
+  actionType  String   // 'verbal_warning' | 'written_warning' | 'suspension' | 'termination'
+  severity    String   // 'low' | 'medium' | 'high' | 'critical'
+  title       String
+  description String
+  incidentDate DateTime
+  issuedBy    String
+  issuedDate  DateTime @default(now())
+  documentUrl String?
+  status      String   @default("active") // 'active' | 'resolved' | 'expired'
+  resolvedDate DateTime?
+  resolvedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId, status])
+  @@index([actionType, status])
+}
+
+model Document {
+  id              String   @id @default(cuid())
+  staffId         String?
+  name            String
+  type            String   // 'contract' | 'certificate' | 'warning' | 'promotion' | 'other'
+  category        String
+  fileUrl         String
+  fileSize        Int
+  mimeType        String
+  uploadedBy      String
+  uploadedAt      DateTime @default(now())
+  description     String?
+  isPublic        Boolean  @default(false)
+  expiresAt       DateTime?
+  
+  // Enhanced features
+  version         Int      @default(1) // Document version number
+  parentId        String?  // Reference to parent document (for versioning)
+  tags            String[] // Array of tags for categorization
+  searchText      String?  // Full-text search field (name + description + tags)
+  templateId      String?  // Reference to document template if created from template
+  signedBy        String?  // User who digitally signed
+  signedAt        DateTime? // When document was signed
+  signatureHash   String?  // Hash of digital signature for verification
+  status          String   @default("active") // 'active' | 'archived' | 'expired' | 'deleted'
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  staff           StaffMember? @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  parent          Document?    @relation("DocumentVersions", fields: [parentId], references: [id])
+  versions        Document[]   @relation("DocumentVersions")
+  template        DocumentTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([staffId, type])
+  @@index([type, category])
+  @@index([parentId])
+  @@index([templateId])
+  @@index([status, expiresAt])
+  @@index([tags]) // PostgreSQL supports array indexing
+}
+
+model DocumentTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String
+  type        String   // Document type this template is for
+  fileUrl     String?  // Template file URL (optional)
+  fields      Json?    // Template fields structure (JSON)
+  isActive    Boolean  @default(true)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  documents   Document[]
+
+  @@index([category, type])
+  @@index([isActive])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String?
+  staffId     String?
+  type        String   // 'leave_approved' | 'leave_rejected' | 'timesheet_approved' | 'attendance_correction' | 'system'
+  title       String
+  message     String
+  link        String?
+  read        Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([staffId, read])
+}
+
+model JobPosting {
+  id          String   @id @default(cuid())
+  title       String
+  department  String
+  position    String
+  description String
+  requirements String
+  status      String   @default("draft") // 'draft' | 'published' | 'closed' | 'filled'
+  postedBy    String
+  postedDate  DateTime @default(now())
+  closingDate DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  candidates Candidate[]
+
+  @@index([status, department])
+}
+
+model Candidate {
+  id            String   @id @default(cuid())
+  jobPostingId String
+  firstName    String
+  lastName     String
+  email        String
+  phone        String
+  resumeUrl    String?
+  coverLetter  String?
+  status       String   @default("applied") // 'applied' | 'screening' | 'interview' | 'offered' | 'rejected' | 'hired'
+  appliedDate  DateTime @default(now())
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  jobPosting JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  interviews Interview[]
+
+  @@index([jobPostingId, status])
+}
+
+model Interview {
+  id          String   @id @default(cuid())
+  candidateId String
+  scheduledDate DateTime
+  interviewType String // 'phone' | 'video' | 'in-person'
+  interviewers String[] // Array of interviewer names/IDs
+  location    String?
+  notes       String?
+  rating      Int?     // 1-5
+  status      String   @default("scheduled") // 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId, status])
+}
+
+model SalaryStructure {
+  id          String   @id @default(cuid())
+  staffId     String   @unique
+  basicSalary Float
+  allowances  Json?    // {housing: 0, transport: 0, medical: 0, etc.}
+  deductions  Json?    // {tax: 0, pension: 0, loan: 0, etc.}
+  effectiveDate DateTime
+  endDate     DateTime?
+  approvedBy  String
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId, effectiveDate])
+}
+
+model Payroll {
+  id          String   @id @default(cuid())
+  period      String   // YYYY-MM format
+  month       Int
+  year        Int
+  totalStaff  Int
+  totalAmount Float
+  status      String   @default("draft") // 'draft' | 'processing' | 'approved' | 'paid'
+  processedBy String?
+  processedAt DateTime?
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([period])
+  @@index([year, month, status])
+}
+
+model TrainingProgram {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  provider    String
+  type        String   // 'internal' | 'external' | 'online'
+  startDate   DateTime
+  endDate     DateTime
+  location    String?
+  capacity    Int?
+  status      String   @default("scheduled") // 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  attendees TrainingAttendance[]
+
+  @@index([status, startDate])
+}
+
+model TrainingAttendance {
+  id              String   @id @default(cuid())
+  trainingProgramId String
+  staffId         String
+  status          String   @default("registered") // 'registered' | 'attended' | 'completed' | 'absent'
+  certificateUrl String?
+  rating          Int?     // 1-5
+  feedback        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  trainingProgram TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@unique([trainingProgramId, staffId])
+  @@index([staffId, status])
+}
+
+model OnboardingChecklist {
+  id          String   @id @default(cuid())
+  staffId     String   @unique
+  items       Json     // Array of {task, completed, completedBy, completedAt}
+  status      String   @default("pending") // 'pending' | 'in-progress' | 'completed'
+  startedDate DateTime @default(now())
+  completedDate DateTime?
+  assignedTo String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+}
+
+model OffboardingChecklist {
+  id          String   @id @default(cuid())
+  staffId     String   @unique
+  items       Json     // Array of {task, completed, completedBy, completedAt}
+  status      String   @default("pending") // 'pending' | 'in-progress' | 'completed'
+  startedDate DateTime @default(now())
+  completedDate DateTime?
+  exitInterviewCompleted Boolean @default(false)
+  exitInterviewNotes String?
+  assignedTo String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+}
+
+model SystemSettings {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  type        String   // 'string' | 'number' | 'boolean' | 'json'
+  category    String   // 'general' | 'email' | 'leave' | 'attendance' | 'payroll'
+  description String?
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
+model PasswordResetRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  status    String   @default("pending") // 'pending' | 'approved' | 'rejected' | 'completed'
+  requestedAt DateTime @default(now())
+  approvedAt DateTime?
+  approvedBy String?
+  rejectedAt DateTime?
+  rejectedBy String?
+  rejectionReason String?
+  completedAt DateTime?
+  resetToken String?  @unique // Token generated after approval
+  tokenExpiresAt DateTime?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, requestedAt])
+  @@index([userId])
+  @@index([email])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token, expiresAt])
+  @@index([userId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([endpoint])
 }
