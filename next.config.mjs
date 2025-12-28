@@ -17,6 +17,7 @@ const nextConfig = {
   // Check for ELECTRON env variable or if building for Electron (electron-builder sets this)
   // Note: API routes cannot be statically exported, so Electron app should point to remote API
   // We'll handle API routes by excluding them from the static build
+  // The warning about static export disabling API routes is EXPECTED and INTENTIONAL for Electron builds
   output: process.env.ELECTRON || process.env.ELECTRON_BUILD ? 'export' : undefined,
   outputFileTracingRoot: resolve(__dirname),
   // Suppress middleware deprecation warning (middleware.ts is still the correct approach in Next.js 16)
