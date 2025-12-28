@@ -5,12 +5,21 @@ import { LayoutDashboard, Users, Calendar, BarChart3, LogOut, FileText, Calendar
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
+import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
 
 interface NavigationProps {
   activeTab: string
   setActiveTab: (tab: string) => void
   userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
   onLogout?: () => void
+}
+
+interface NavItem {
+  id: string
+  label: string | ((role: string) => string)
+  icon: React.ComponentType<{ className?: string }>
+  roles?: string[]
+  permission?: Permission
 }
 
 export default function Navigation({ activeTab, setActiveTab, userRole, onLogout }: NavigationProps) {
@@ -30,21 +39,98 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
 
   const theme = getRoleTheme()
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
-    { id: 'staff', label: (userRole === 'hr' || userRole === 'hr_assistant') ? 'Staff Management' : 'My Team', icon: Users, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
-    { id: 'manager-assignment', label: 'Manager Assignment', icon: UserCog, roles: ['hr'] },
-    { id: 'leave', label: (userRole === 'manager' || userRole === 'deputy_director') ? 'Approve Leaves' : 'Leave Management', icon: Calendar, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
-    { id: 'leave-calendar', label: 'Leave Calendar', icon: CalendarDays, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
-    { id: 'delegation', label: 'Delegation', icon: UserCheck, roles: ['hr', 'manager', 'deputy_director'] },
-    { id: 'leave-policies', label: 'Leave Policies', icon: FileCheck, roles: ['hr'] },
-    { id: 'holidays', label: 'Holidays', icon: CalendarCheck, roles: ['hr'] },
-    { id: 'leave-templates', label: 'Leave Templates', icon: FileText, roles: ['hr'] },
-    { id: 'year-end', label: 'Year-End Processing', icon: CalendarClock, roles: ['hr'] },
-    { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
+  const navItems: NavItem[] = [
+    { 
+      id: 'dashboard', 
+      label: 'Dashboard', 
+      icon: LayoutDashboard, 
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      permission: 'employee:view:all' // Basic view permission
+    },
+    { 
+      id: 'staff', 
+      label: (userRole === 'hr' || userRole === 'hr_assistant') ? 'Staff Management' : 'My Team', 
+      icon: Users, 
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      permission: 'employee:view:all' // HR can view all, managers view team
+    },
+    { 
+      id: 'manager-assignment', 
+      label: 'Manager Assignment', 
+      icon: UserCog, 
+      roles: ['hr'],
+      permission: 'employee:update' // Only HR can assign managers
+    },
+    { 
+      id: 'leave', 
+      label: (userRole === 'manager' || userRole === 'deputy_director') ? 'Approve Leaves' : 'Leave Management', 
+      icon: Calendar, 
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      permission: 'leave:view:all' // HR views all, managers view team
+    },
+    { 
+      id: 'leave-calendar', 
+      label: 'Leave Calendar', 
+      icon: CalendarDays, 
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      permission: 'leave:view:all' // View calendar
+    },
+    { 
+      id: 'delegation', 
+      label: 'Delegation', 
+      icon: UserCheck, 
+      roles: ['hr', 'manager', 'deputy_director'],
+      permission: 'leave:approve:team' // Can delegate approvals
+    },
+    { 
+      id: 'leave-policies', 
+      label: 'Leave Policies', 
+      icon: FileCheck, 
+      roles: ['hr'],
+      permission: 'leave:policy:manage' // Only HR can manage policies
+    },
+    { 
+      id: 'holidays', 
+      label: 'Holidays', 
+      icon: CalendarCheck, 
+      roles: ['hr'],
+      permission: 'leave:policy:manage' // Part of policy management
+    },
+    { 
+      id: 'leave-templates', 
+      label: 'Leave Templates', 
+      icon: FileText, 
+      roles: ['hr'],
+      permission: 'leave:policy:manage' // Part of policy management
+    },
+    { 
+      id: 'year-end', 
+      label: 'Year-End Processing', 
+      icon: CalendarClock, 
+      roles: ['hr'],
+      permission: 'leave:policy:manage' // Year-end processing
+    },
+    { 
+      id: 'reports', 
+      label: 'Reports', 
+      icon: BarChart3, 
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      permission: 'reports:hr:view' // View reports
+    },
   ]
 
-  const visibleItems = navItems.filter(item => item.roles.includes(userRole))
+  // Filter by both role and permission
+  const visibleItems = navItems.filter(item => {
+    // First check if role is allowed
+    if (item.roles && !item.roles.includes(userRole)) {
+      return false
+    }
+    // Then check permission if specified
+    if (item.permission) {
+      return hasPermission(userRole as UserRole, item.permission)
+    }
+    return true
+  })
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -80,7 +166,7 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
               onClick={() => handleTabChange(item.id)}
             >
               <Icon className="w-5 h-5" />
-              {item.label}
+              {typeof item.label === 'function' ? item.label(userRole) : item.label}
             </Button>
           )
         })}
