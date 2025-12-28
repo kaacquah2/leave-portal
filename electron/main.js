@@ -66,49 +66,145 @@ function createWindow() {
     mainWindow.show();
     
     // Focus on window
-    if (isDev) {
+    // Temporarily enable DevTools for debugging (remove in production)
+    if (isDev || process.env.ENABLE_DEVTOOLS === 'true') {
       mainWindow.webContents.openDevTools();
     }
   });
+  
+  // Also show window after a delay if ready-to-show doesn't fire (fallback)
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      console.log('[Electron] Showing window after timeout (ready-to-show may not have fired)');
+      mainWindow.show();
+    }
+  }, 2000); // 2 second fallback
 
   // Load the app
+  // Default Vercel URL for production builds
+  const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
+  
   // Check if we have a remote API URL (Vercel deployment)
-  const remoteApiUrl = process.env.ELECTRON_API_URL || process.env.NEXT_PUBLIC_API_URL;
+  // Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL
+  const remoteApiUrl = process.env.ELECTRON_API_URL || 
+                       process.env.NEXT_PUBLIC_API_URL || 
+                       (isDev ? null : DEFAULT_VERCEL_URL);
   
   let startUrl;
   if (isDev) {
     // Development: always use localhost
     startUrl = 'http://localhost:3000';
+    console.log('[Electron] Development mode - loading from localhost:3000');
   } else if (remoteApiUrl) {
     // Production with remote API: load from Vercel/hosted URL
     // Remove trailing slash and ensure proper format
     startUrl = remoteApiUrl.replace(/\/$/, '');
-    console.log('[Electron] Loading from remote URL:', startUrl);
+    console.log('[Electron] Production mode - loading from remote URL:', startUrl);
+    console.log('[Electron] API calls will be made to:', startUrl);
   } else {
-    // Production without remote API: load from local files (standalone build)
-    // Use app.getAppPath() for packaged apps, __dirname for development
-    const appPath = app.isPackaged 
-      ? path.join(process.resourcesPath, 'app.asar', 'out')
-      : path.join(__dirname, '../out');
-    
-    startUrl = `file://${path.join(appPath, 'index.html')}`;
-    console.log('[Electron] Loading from local files:', startUrl);
-    console.log('[Electron] App path:', appPath);
-    console.log('[Electron] WARNING: No remote API URL set. API calls will fail.');
-    console.log('[Electron] Set ELECTRON_API_URL environment variable to point to your API server.');
+    // Fallback: This should not happen in production, but if it does, use Vercel
+    startUrl = DEFAULT_VERCEL_URL;
+    console.log('[Electron] WARNING: No API URL configured, using default Vercel URL:', startUrl);
   }
   
-  // Add error handling
+  // Add error handling with better connection status
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
     console.error('[Electron] Failed to load:', validatedURL, errorCode, errorDescription);
+    
+    // Don't show error for navigation cancellations (common in SPAs)
+    if (errorCode === -3) {
+      console.log('[Electron] Navigation cancelled (likely SPA routing)');
+      return;
+    }
+    
+    const errorHtml = `
+      <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif; padding: 20px; text-align: center; background: #f9fafb;">
+        <div style="max-width: 600px; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <h1 style="color: #dc2626; margin-bottom: 20px; font-size: 24px;">Failed to Load Application</h1>
+          <p style="color: #666; margin: 10px 0; font-size: 14px;"><strong>Error:</strong> ${errorDescription}</p>
+          <p style="color: #666; margin: 10px 0; font-size: 14px;"><strong>Error Code:</strong> ${errorCode}</p>
+          <p style="color: #666; margin: 10px 0; font-size: 14px;"><strong>URL:</strong> ${validatedURL}</p>
+          <div style="margin-top: 30px; padding: 20px; background: #f3f4f6; border-radius: 8px;">
+            <p style="color: #374151; margin-bottom: 10px; font-weight: 600;"><strong>Possible Solutions:</strong></p>
+            <ul style="text-align: left; color: #6b7280; margin: 10px 0; padding-left: 20px; font-size: 14px;">
+              <li style="margin: 8px 0;">Check your internet connection</li>
+              <li style="margin: 8px 0;">Verify the server is accessible: ${startUrl}</li>
+              <li style="margin: 8px 0;">Check if the server is running and responding</li>
+              <li style="margin: 8px 0;">Try restarting the application</li>
+              <li style="margin: 8px 0;">Check firewall settings</li>
+            </ul>
+          </div>
+          <button onclick="window.location.reload()" style="margin-top: 20px; padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500;">Retry Connection</button>
+        </div>
+      </div>
+    `;
+    
     mainWindow.webContents.executeJavaScript(`
-      document.body.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif;">
-        <h1 style="color: #dc2626;">Failed to Load Application</h1>
-        <p style="color: #666; margin: 20px 0;">Error: ${errorDescription}</p>
-        <p style="color: #666;">URL: ${validatedURL}</p>
-        <p style="color: #666; margin-top: 20px;">Please check the console for more details.</p>
-      </div>';
+      if (document.body) {
+        document.body.innerHTML = ${JSON.stringify(errorHtml)};
+      }
     `);
+  });
+  
+  // Add timeout for page load with better connection status
+  let loadTimeout;
+  let connectionCheckInterval;
+  
+  mainWindow.webContents.on('did-start-loading', () => {
+    console.log('[Electron] Page started loading from:', startUrl);
+    
+    // Set a 45-second timeout for page load (increased for remote connections)
+    loadTimeout = setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        console.error('[Electron] Page load timeout after 45 seconds');
+        mainWindow.webContents.executeJavaScript(`
+          (function() {
+            if (document.body && !document.body.querySelector('.timeout-message')) {
+              const timeoutDiv = document.createElement('div');
+              timeoutDiv.className = 'timeout-message';
+              timeoutDiv.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #fef3c7; border-bottom: 2px solid #f59e0b; padding: 15px; text-align: center; z-index: 10000; font-family: Arial, sans-serif;';
+              timeoutDiv.innerHTML = '<p style="margin: 0; color: #92400e;"><strong>Loading is taking longer than expected.</strong> The application is connecting to: ${startUrl}. If this persists, please check your internet connection.</p>';
+              document.body.appendChild(timeoutDiv);
+            }
+          })();
+        `);
+      }
+    }, 45000); // 45 seconds for remote connections
+    
+    // Check connection status periodically
+    connectionCheckInterval = setInterval(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.executeJavaScript(`
+          (function() {
+            const apiUrl = window.__ELECTRON_API_URL__ || window.electronAPI?.apiUrl || '';
+            if (apiUrl) {
+              console.log('[Renderer] API URL configured:', apiUrl);
+            } else {
+              console.warn('[Renderer] API URL not configured');
+            }
+          })();
+        `).catch(err => console.error('[Electron] Connection check error:', err));
+      }
+    }, 5000); // Check every 5 seconds
+  });
+  
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (loadTimeout) {
+      clearTimeout(loadTimeout);
+      console.log('[Electron] Page finished loading successfully');
+    }
+    if (connectionCheckInterval) {
+      clearInterval(connectionCheckInterval);
+    }
+  });
+  
+  mainWindow.webContents.on('did-stop-loading', () => {
+    if (loadTimeout) {
+      clearTimeout(loadTimeout);
+    }
+    if (connectionCheckInterval) {
+      clearInterval(connectionCheckInterval);
+    }
   });
   
   // Log console messages from renderer

@@ -21,24 +21,50 @@ export default function Page() {
     const checkAuth = async () => {
       try {
         // Check if we're in Electron and have API URL configured
-        const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__);
+        const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
         const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '';
         
-        // If in Electron without API URL, show error
+        // Log connection info for debugging
+        if (isElectron) {
+          console.log('[App] Running in Electron');
+          console.log('[App] API Base URL:', apiBaseUrl || 'Not configured (will use current origin)');
+          console.log('[App] Current location:', window.location.href);
+        }
+        
+        // If in Electron loading from file:// without API URL, show error
         if (isElectron && !apiBaseUrl && window.location.protocol === 'file:') {
-          console.error('[App] Electron app detected but no API URL configured');
+          console.error('[App] Electron app detected but no API URL configured and loading from file://');
+          console.error('[App] This build may not have been configured correctly.');
           setStage('landing'); // Show landing page which will show login form
           return;
         }
         
-        const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/auth/me` : '/api/auth/me';
+        // Build API URL - use apiBaseUrl if available, otherwise use relative URL
+        // If we're loading from HTTPS in Electron, the API URL should be the same origin
+        let apiUrl: string;
+        if (apiBaseUrl && apiBaseUrl.trim() !== '') {
+          apiUrl = `${apiBaseUrl}/api/auth/me`;
+        } else if (isElectron && window.location.protocol === 'https:') {
+          // In Electron loading from remote, use current origin
+          apiUrl = `${window.location.origin}/api/auth/me`;
+        } else {
+          // Development or same-origin
+          apiUrl = '/api/auth/me';
+        }
+        
+        console.log('[App] Checking authentication at:', apiUrl);
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        // Increase timeout for remote connections (10 seconds)
+        const timeout = isElectron && window.location.protocol === 'https:' ? 10000 : 5000;
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
         
         const response = await fetch(apiUrl, {
           credentials: 'include',
           signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
         })
         
         clearTimeout(timeoutId);
@@ -46,6 +72,8 @@ export default function Page() {
         if (response.ok) {
           const user = await response.json()
           const role = user.role as 'hr' | 'manager' | 'employee' | 'admin'
+          
+          console.log('[App] Authentication successful, role:', role);
           
           // Redirect to role-specific page if on root
           if (role === 'hr' && window.location.pathname === '/') {
@@ -68,15 +96,34 @@ export default function Page() {
           setStage('portal')
         } else {
           // No auth found, show landing page
+          console.log('[App] No authentication found, showing landing page');
           setStage('landing')
         }
       } catch (error: any) {
         // Error fetching user, show landing page
         console.error('[App] Auth check failed:', error);
-        // If it's a network error in Electron, we might want to show a different message
+        
+        // Handle different error types
         if (error.name === 'AbortError') {
           console.error('[App] Request timeout - API server may not be reachable');
+          // If we're loading from a remote URL and it times out, the page might still be loading
+          // Don't immediately show landing page, wait a bit more for remote connections
+          const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
+          const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '';
+          
+          if ((apiBaseUrl || window.location.protocol === 'https:') && isElectron) {
+            console.log('[App] Remote connection detected, waiting a bit longer...');
+            // Wait a bit longer for the page to fully load
+            setTimeout(() => {
+              setStage('landing');
+            }, 3000);
+            return;
+          }
+        } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+          console.error('[App] Network error - check internet connection');
         }
+        
+        // Show landing page after error handling
         setStage('landing')
       }
     }
@@ -106,21 +153,56 @@ export default function Page() {
   }
 
   const handleLogout = async () => {
-    // Call logout API to clear cookie
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    })
-    setStage('landing')
-    setUserRole('hr')
-    setStaffId(undefined)
+    try {
+      // Get API base URL for logout
+      const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '';
+      const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
+      
+      let logoutUrl: string;
+      if (apiBaseUrl && apiBaseUrl.trim() !== '') {
+        logoutUrl = `${apiBaseUrl}/api/auth/logout`;
+      } else if (isElectron && window.location.protocol === 'https:') {
+        logoutUrl = `${window.location.origin}/api/auth/logout`;
+      } else {
+        logoutUrl = '/api/auth/logout';
+      }
+      
+      // Call logout API to clear cookie
+      await fetch(logoutUrl, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch (error) {
+      console.error('[App] Logout error:', error);
+    } finally {
+      setStage('landing')
+      setUserRole('hr')
+      setStaffId(undefined)
+    }
   }
 
   // Show loading while checking authentication
   if (stage === 'checking') {
+    const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
+    const apiBaseUrl = typeof window !== 'undefined' ? ((window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '') : '';
+    const isRemote = typeof window !== 'undefined' && (window.location.protocol === 'https:' || (apiBaseUrl && apiBaseUrl.startsWith('http')));
+    
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center flex-col">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+        <div className="text-muted-foreground text-lg">Loading HR Leave Portal...</div>
+        <div className="text-sm text-muted-foreground mt-2">
+          {isRemote 
+            ? 'Connecting to server...' 
+            : isElectron
+            ? 'Initializing application...'
+            : 'Initializing application...'}
+        </div>
+        {isElectron && apiBaseUrl && (
+          <div className="text-xs text-muted-foreground mt-1 opacity-70">
+            API: {apiBaseUrl}
+          </div>
+        )}
       </div>
     )
   }

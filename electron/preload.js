@@ -1,8 +1,18 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Default Vercel URL for production builds
+const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
+
 // Get API URL from environment variable (set at build time or runtime)
+// Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL (production only)
 // This allows the Electron app to point to a remote API server
-const apiUrl = process.env.ELECTRON_API_URL || process.env.NEXT_PUBLIC_API_URL || '';
+const isDev = process.env.NODE_ENV === 'development' || require('electron-is-dev');
+const apiUrl = process.env.ELECTRON_API_URL || 
+               process.env.NEXT_PUBLIC_API_URL || 
+               (isDev ? '' : DEFAULT_VERCEL_URL);
+
+// Normalize API URL (remove trailing slash)
+const normalizedApiUrl = apiUrl ? apiUrl.replace(/\/$/, '') : '';
 
 // Expose protected methods that allow the renderer process
 // to use Electron APIs without exposing the entire object
@@ -12,7 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   versions: process.versions,
   
   // API URL for remote server connection
-  apiUrl: apiUrl || null,
+  apiUrl: normalizedApiUrl || null,
   
   // Example: Get app version
   getVersion: () => ipcRenderer.invoke('get-version'),
@@ -34,15 +44,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
 });
 
-// Also expose API URL directly on window for easier access
+// Always expose API URL directly on window for easier access
 // This is safe because we control the value
-if (apiUrl) {
-  contextBridge.exposeInMainWorld('__ELECTRON_API_URL__', apiUrl);
-  console.log('[Preload] Electron API URL configured:', apiUrl);
+// In production, this will always have a value (either from env or default Vercel URL)
+if (normalizedApiUrl) {
+  contextBridge.exposeInMainWorld('__ELECTRON_API_URL__', normalizedApiUrl);
+  console.log('[Preload] Electron API URL configured:', normalizedApiUrl);
 } else {
-  console.log('[Preload] Electron API URL not set - using relative URLs (localhost or same origin)');
+  console.log('[Preload] Development mode - using relative URLs (localhost)');
+  // Still expose empty string so the app knows it's in Electron
+  contextBridge.exposeInMainWorld('__ELECTRON_API_URL__', '');
 }
 
 // Log that preload script has loaded
-console.log('Electron preload script loaded');
-
+console.log('[Preload] Electron preload script loaded');
+console.log('[Preload] Environment:', isDev ? 'development' : 'production');
