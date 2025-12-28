@@ -45,9 +45,8 @@ export default function EmployeeCertifications() {
   const fetchCertifications = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/employee/certifications', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/certifications')
       if (response.ok) {
         const data = await response.json()
         setCertifications(data)
@@ -62,10 +61,9 @@ export default function EmployeeCertifications() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await fetch('/api/employee/certifications', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/certifications', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           ...formData,
           id: editingCert?.id,

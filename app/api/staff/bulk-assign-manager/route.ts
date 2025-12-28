@@ -6,7 +6,7 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {
-      // Only HR and admin can perform bulk assignments
+      // Only HR (not HR Assistant) and admin can perform bulk assignments
       if (user.role !== 'hr' && user.role !== 'admin') {
         return NextResponse.json(
           { error: 'Forbidden - Only HR and Admin can perform bulk assignments' },

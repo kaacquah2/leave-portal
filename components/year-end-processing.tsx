@@ -43,9 +43,8 @@ export default function YearEndProcessing() {
 
   const fetchStaffList = async () => {
     try {
-      const response = await fetch('/api/staff', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/staff')
       if (response.ok) {
         const data = await response.json()
         setStaffList(data.filter((s: any) => s.active))
@@ -58,10 +57,9 @@ export default function YearEndProcessing() {
   const handleProcess = async () => {
     setProcessing(true)
     try {
-      const response = await fetch('/api/leave-rules/year-end', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/leave-rules/year-end', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           processAll,
           ...(processAll ? {} : { staffId: selectedStaffId }),

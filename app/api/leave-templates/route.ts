@@ -14,7 +14,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error fetching leave templates:', error)
     return NextResponse.json({ error: 'Failed to fetch leave templates' }, { status: 500 })
   }
-}, { allowedRoles: ['hr', 'admin', 'employee', 'manager'] })
+}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })
 
 // POST create leave template
 export const POST = withAuth(async ({ user, request }: AuthContext) => {

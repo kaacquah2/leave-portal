@@ -125,9 +125,8 @@ export default function EnhancedDocumentManagement({ userRole }: { userRole: str
       if (showExpired) params.append('expired', 'true')
       if (searchTerm) params.append('search', searchTerm)
 
-      const response = await fetch(`/api/documents?${params.toString()}`, {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest(`/api/documents?${params.toString()}`)
 
       if (!response.ok) throw new Error('Failed to fetch documents')
       const data = await response.json()
@@ -146,9 +145,8 @@ export default function EnhancedDocumentManagement({ userRole }: { userRole: str
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('/api/documents/templates', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/documents/templates')
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
@@ -160,9 +158,8 @@ export default function EnhancedDocumentManagement({ userRole }: { userRole: str
 
   const fetchVersions = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}/version`, {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest(`/api/documents/${documentId}/version`)
       if (response.ok) {
         const data = await response.json()
         setVersions(data)
@@ -183,10 +180,9 @@ export default function EnhancedDocumentManagement({ userRole }: { userRole: str
     }
 
     try {
-      const response = await fetch('/api/documents/bulk', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/documents/bulk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           operation,
           documentIds: selectedDocuments,
@@ -404,11 +400,10 @@ export default function EnhancedDocumentManagement({ userRole }: { userRole: str
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        fetch('/api/documents/expiring', {
+                      onClick={async () => {
+                        const { apiRequest } = await import('@/lib/api-config')
+                        apiRequest('/api/documents/expiring', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          credentials: 'include',
                           body: JSON.stringify({ days: 30 }),
                         }).then(() => {
                           toast({

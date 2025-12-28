@@ -41,7 +41,8 @@ export default function ManagerLeaveApproval() {
   const fetchLeaves = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/leaves', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/leaves', {
         credentials: 'include',
       })
       if (!response.ok) throw new Error('Failed to fetch leaves')
@@ -86,12 +87,9 @@ export default function ManagerLeaveApproval() {
     })
 
     try {
-      const response = await fetch(`/api/leaves/${leaveId}`, {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest(`/api/leaves/${leaveId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({
           status,
           approvedBy: 'Manager', // Get from auth context

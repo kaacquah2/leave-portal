@@ -193,6 +193,7 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
 
       // Upload attachments if any
       if (attachments.length > 0 && leaveRequest?.id) {
+        const { apiRequest, API_BASE_URL } = await import('@/lib/api-config')
         for (const attachment of attachments) {
           try {
             const formData = new FormData()
@@ -201,7 +202,12 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
             formData.append('attachmentType', attachment.type)
             formData.append('description', attachment.description)
 
-            const response = await fetch(`/api/leaves/${leaveRequest.id}/attachments`, {
+            // Use apiRequest for proper API URL handling in Electron
+            const attachmentUrl = API_BASE_URL 
+              ? `${API_BASE_URL}/api/leaves/${leaveRequest.id}/attachments`
+              : `/api/leaves/${leaveRequest.id}/attachments`
+            
+            const response = await fetch(attachmentUrl, {
               method: 'POST',
               credentials: 'include',
               body: formData,

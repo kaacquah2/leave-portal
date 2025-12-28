@@ -25,9 +25,8 @@ export default function AdminAuditLogs() {
 
   const fetchLogs = async () => {
     try {
-      const response = await fetch('/api/admin/audit-logs?limit=50', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/admin/audit-logs?limit=50')
 
       if (response.ok) {
         const data = await response.json()

@@ -40,9 +40,8 @@ export default function EmployeeBankAccount() {
   const fetchBankAccount = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/employee/bank-account', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/bank-account')
       if (response.ok) {
         const data = await response.json()
         if (data) {
@@ -60,10 +59,9 @@ export default function EmployeeBankAccount() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await fetch('/api/employee/bank-account', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/bank-account', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(formData),
       })
 

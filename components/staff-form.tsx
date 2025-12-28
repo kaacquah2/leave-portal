@@ -11,7 +11,7 @@ import type { StaffMember, useDataStore } from '@/lib/data-store'
 interface StaffFormProps {
   store: ReturnType<typeof useDataStore>
   editingId: string | null
-  userRole?: 'admin' | 'hr' | 'manager'
+  userRole?: 'admin' | 'hr' | 'manager' | 'hr_assistant' | 'deputy_director'
   onClose: () => void
 }
 

@@ -16,13 +16,10 @@ export default function AdminDashboard() {
     // Fetch admin dashboard stats
     const fetchStats = async () => {
       try {
+        const { apiRequest } = await import('@/lib/api-config')
         const [usersRes, auditRes] = await Promise.all([
-          fetch('/api/admin/users', {
-            credentials: 'include',
-          }),
-          fetch('/api/admin/audit-logs?limit=1', {
-            credentials: 'include',
-          })
+          apiRequest('/api/admin/users'),
+          apiRequest('/api/admin/audit-logs?limit=1')
         ])
 
         if (usersRes.ok) {

@@ -32,6 +32,6 @@ export async function GET(
       console.error('Error fetching balance:', error)
       return NextResponse.json({ error: 'Failed to fetch balance' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'admin', 'employee', 'manager'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })(request)
 }
 

@@ -43,7 +43,8 @@ export default function ApprovalDelegation({
       // Fetch users with the same role or HR/Admin who can approve
       const roles = approverRole === 'manager' ? ['manager', 'hr', 'admin'] : ['hr', 'admin']
       
-      const response = await fetch('/api/staff', { credentials: 'include' })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/staff')
       if (response.ok) {
         const staff = await response.json()
         // Filter staff by role (simplified - in production, check user role)
@@ -83,7 +84,8 @@ export default function ApprovalDelegation({
       }
 
       // Find delegate user ID
-      const userResponse = await fetch(`/api/staff/${delegate.staffId}`, { credentials: 'include' })
+      const { apiRequest } = await import('@/lib/api-config')
+      const userResponse = await apiRequest(`/api/staff/${delegate.staffId}`)
       if (!userResponse.ok) {
         throw new Error('Failed to fetch delegate user')
       }
@@ -91,10 +93,8 @@ export default function ApprovalDelegation({
       const staffData = await userResponse.json()
       const delegateUserId = staffData.userId || delegate.id
 
-      const response = await fetch('/api/approvals/delegate', {
+      const response = await apiRequest('/api/approvals/delegate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           leaveRequestId,
           level,

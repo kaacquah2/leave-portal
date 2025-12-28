@@ -5,7 +5,7 @@
 
 export interface ApprovalLevel {
   level: number
-  approverRole: 'manager' | 'hr' | 'director' | 'admin'
+  approverRole: 'manager' | 'deputy_director' | 'hr' | 'hr_assistant' | 'director' | 'admin'
   approverId?: string // Specific approver user ID
   approverStaffId?: string // Specific approver staff ID
   status: 'pending' | 'approved' | 'rejected' | 'delegated'

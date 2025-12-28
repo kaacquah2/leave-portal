@@ -6,7 +6,7 @@ import { Calendar } from 'lucide-react'
 
 interface LeaveCalendarViewProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
-  userRole?: 'hr' | 'manager' | 'employee'
+  userRole?: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee'
   staffId?: string
 }
 

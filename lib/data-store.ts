@@ -1,6 +1,7 @@
 // Client-side data store with Neon database API calls
 import { useEffect, useState, useCallback } from 'react'
 import { applySelectiveUpdate, updateItemInArray, addItemToArray, removeItemFromArray } from './update-diff'
+import { apiRequest, API_BASE_URL } from './api-config'
 
 export interface StaffMember {
   id: string
@@ -192,15 +193,15 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
     try {
       setLoading(true)
       const [staffRes, leavesRes, balancesRes, payslipsRes, reviewsRes, policiesRes, holidaysRes, templatesRes, auditRes] = await Promise.all([
-        fetch('/api/staff', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/leaves', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/balances', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/payslips', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/performance-reviews', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/leave-policies', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/holidays', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/leave-templates', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/audit-logs?limit=100', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/staff').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/leaves').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/balances').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/payslips').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/performance-reviews').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/leave-policies').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/holidays').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/leave-templates').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/audit-logs?limit=100').catch(() => ({ ok: false } as Response)),
       ])
 
       if (staffRes.ok && 'json' in staffRes) {
@@ -290,8 +291,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
   const fetchCritical = useCallback(async () => {
     try {
       const [leavesRes, balancesRes] = await Promise.all([
-        fetch('/api/leaves', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
-        fetch('/api/balances', { credentials: 'include' }).catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/leaves').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/balances').catch(() => ({ ok: false } as Response)),
       ])
 
       if (leavesRes.ok && 'json' in leavesRes) {
@@ -325,10 +326,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const addStaff = async (member: Omit<StaffMember, 'id' | 'createdAt'>) => {
     try {
-      const res = await fetch('/api/staff', {
+      const res = await apiRequest('/api/staff', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(member),
       })
       if (!res.ok) throw new Error('Failed to create staff')
@@ -345,10 +344,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const updateStaff = async (id: string, updates: Partial<StaffMember>) => {
     try {
-      const res = await fetch(`/api/staff/${id}`, {
+      const res = await apiRequest(`/api/staff/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error('Failed to update staff')
@@ -369,10 +366,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
     employmentStatus: string
   ) => {
     try {
-      const res = await fetch(`/api/staff/${id}`, {
+      const res = await apiRequest(`/api/staff/${id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           terminationDate,
           terminationReason,
@@ -415,10 +410,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
     setLeaves((prev) => [...prev, optimisticRequest])
     
     try {
-      const res = await fetch('/api/leaves', {
+      const res = await apiRequest('/api/leaves', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(request),
       })
       if (!res.ok) {
@@ -468,10 +461,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
     setLeaves((prev) => prev.map((l) => (l.id === id ? optimisticUpdate : l)))
 
     try {
-      const res = await fetch(`/api/leaves/${id}`, {
+      const res = await apiRequest(`/api/leaves/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ status, approvedBy, level }),
       })
       if (!res.ok) {
@@ -492,10 +483,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const addLeavePolicy = async (policy: Omit<LeavePolicy, 'id' | 'createdAt'>) => {
     try {
-      const res = await fetch('/api/leave-policies', {
+      const res = await apiRequest('/api/leave-policies', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(policy),
       })
       if (!res.ok) throw new Error('Failed to create leave policy')
@@ -511,10 +500,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const updateLeavePolicy = async (id: string, updates: Partial<LeavePolicy>) => {
     try {
-      const res = await fetch(`/api/leave-policies/${id}`, {
+      const res = await apiRequest(`/api/leave-policies/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error('Failed to update leave policy')
@@ -529,10 +516,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const addHoliday = async (holiday: Omit<Holiday, 'id' | 'createdAt'>) => {
     try {
-      const res = await fetch('/api/holidays', {
+      const res = await apiRequest('/api/holidays', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(holiday),
       })
       if (!res.ok) throw new Error('Failed to create holiday')
@@ -548,10 +533,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const updateHoliday = async (id: string, updates: Partial<Holiday>) => {
     try {
-      const res = await fetch(`/api/holidays/${id}`, {
+      const res = await apiRequest(`/api/holidays/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error('Failed to update holiday')
@@ -566,9 +549,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const deleteHoliday = async (id: string) => {
     try {
-      const res = await fetch(`/api/holidays/${id}`, {
+      const res = await apiRequest(`/api/holidays/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
       })
       if (!res.ok) throw new Error('Failed to delete holiday')
       setHolidays((prev) => prev.filter((h) => h.id !== id))
@@ -581,10 +563,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const addLeaveTemplate = async (template: Omit<LeaveRequestTemplate, 'id' | 'createdAt'>) => {
     try {
-      const res = await fetch('/api/leave-templates', {
+      const res = await apiRequest('/api/leave-templates', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(template),
       })
       if (!res.ok) throw new Error('Failed to create leave template')
@@ -600,10 +580,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const updateLeaveTemplate = async (id: string, updates: Partial<LeaveRequestTemplate>) => {
     try {
-      const res = await fetch(`/api/leave-templates/${id}`, {
+      const res = await apiRequest(`/api/leave-templates/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(updates),
       })
       if (!res.ok) throw new Error('Failed to update leave template')
@@ -618,10 +596,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const logAudit = async (action: string, user: string, staffId: string | undefined, details: string) => {
     try {
-      const res = await fetch('/api/audit-logs', {
+      const res = await apiRequest('/api/audit-logs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
       action,
       user,

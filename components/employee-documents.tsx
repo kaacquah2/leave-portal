@@ -53,9 +53,8 @@ export default function EmployeeDocuments() {
   const fetchDocuments = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/documents?category=personal', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/documents?category=personal')
       if (response.ok) {
         const data = await response.json()
         setDocuments(data)
@@ -102,7 +101,11 @@ export default function EmployeeDocuments() {
       uploadFormData.append('category', formData.category)
       uploadFormData.append('description', formData.description)
 
-      const response = await fetch('/api/documents/upload', {
+      const { API_BASE_URL } = await import('@/lib/api-config')
+      const uploadUrl = API_BASE_URL 
+        ? `${API_BASE_URL}/api/documents/upload`
+        : '/api/documents/upload'
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         credentials: 'include',
         body: uploadFormData,

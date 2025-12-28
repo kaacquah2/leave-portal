@@ -6,8 +6,8 @@ import { checkSystemHealth, runHealthChecks } from '@/lib/monitoring'
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {
-      // Only HR and admin can view system health
-      if (user.role !== 'hr' && user.role !== 'admin') {
+      // Only HR, HR Assistant, and admin can view system health
+      if (user.role !== 'hr' && user.role !== 'hr_assistant' && user.role !== 'admin') {
         return NextResponse.json(
           { error: 'Forbidden' },
           { status: 403 }
@@ -28,6 +28,6 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin'] })(request)
 }
 

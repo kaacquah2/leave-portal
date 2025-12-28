@@ -39,10 +39,9 @@ export default function EmployeeProfileView({ store, staffId }: EmployeeProfileV
     setIsSubmitting(true)
     try {
       // Submit change request to HR
-      const response = await fetch('/api/employee/change-request', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/change-request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           staffId,
           section: requestChangeDialog.section,

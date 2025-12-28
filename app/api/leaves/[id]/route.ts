@@ -35,7 +35,7 @@ export async function GET(
       console.error('Error fetching leave:', error)
       return NextResponse.json({ error: 'Failed to fetch leave' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'admin', 'employee', 'manager'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })(request)
 }
 
 // PATCH update leave request (for approval/rejection)
@@ -67,22 +67,27 @@ export async function PATCH(
     // Check if user has permission to approve this leave
     if (body.status && ['approved', 'rejected'].includes(body.status)) {
       // Verify user role for approval
-      if (user.role !== 'hr' && user.role !== 'admin' && user.role !== 'manager') {
+      if (user.role !== 'hr' && user.role !== 'hr_assistant' && user.role !== 'admin' && 
+          user.role !== 'manager' && user.role !== 'deputy_director') {
         return NextResponse.json({
           error: 'You do not have permission to approve leave requests',
           errorCode: 'PERMISSION_DENIED',
           troubleshooting: [
-            'Only managers, HR, and admins can approve leave requests',
+            'Only managers, deputy directors, HR, and admins can approve leave requests',
             'Verify you have the correct role assigned',
             'Contact IT support if you believe this is an error',
           ],
         }, { status: 403 })
       }
       
-      // For managers, verify they're the assigned approver (if applicable)
-      if (user.role === 'manager' && leave.approvalLevels) {
+      // For managers and deputy directors, verify they're the assigned approver (if applicable)
+      if ((user.role === 'manager' || user.role === 'deputy_director') && leave.approvalLevels) {
         const approvalLevels = leave.approvalLevels as any[]
-        const pendingLevel = approvalLevels.find((al: any) => al.status === 'pending' && al.approverRole === 'manager')
+        const approverRole = user.role === 'deputy_director' ? 'deputy_director' : 'manager'
+        const pendingLevel = approvalLevels.find((al: any) => 
+          al.status === 'pending' && 
+          (al.approverRole === 'manager' || al.approverRole === 'deputy_director')
+        )
         if (pendingLevel && body.level !== pendingLevel.level) {
           return NextResponse.json({
             error: 'You are not the assigned approver for this level',
@@ -381,6 +386,6 @@ export async function PATCH(
       console.error('Error updating leave:', error)
       return NextResponse.json({ error: 'Failed to update leave request' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'admin', 'manager'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'manager', 'deputy_director'] })(request)
 }
 

@@ -86,7 +86,8 @@ export default function ManagerAssignment({ store, staffId }: ManagerAssignmentP
     try {
       if (isBulkMode) {
         // Bulk assignment
-        const response = await fetch('/api/staff/bulk-assign-manager', {
+        const { apiRequest } = await import('@/lib/api-config')
+        const response = await apiRequest('/api/staff/bulk-assign-manager', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',

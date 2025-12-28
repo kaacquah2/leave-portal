@@ -381,7 +381,7 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
                                     approverRole={level.approverRole}
                                     onDelegated={() => {
                                       // Refresh leave data
-                                      window.location.reload()
+                                      store.refreshCritical()
                                     }}
                                   />
                                 )}

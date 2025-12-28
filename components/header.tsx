@@ -8,7 +8,7 @@ import { useIsMobile } from '@/components/ui/use-mobile'
 
 interface HeaderProps {
   onLogout?: () => void
-  userRole?: 'hr' | 'manager' | 'employee' | 'admin'
+  userRole?: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
 }
 
 export default function Header({ onLogout, userRole }: HeaderProps) {
@@ -23,8 +23,20 @@ export default function Header({ onLogout, userRole }: HeaderProps) {
         icon: Users,
         subtitle: 'MoFAD Staff Management & Leave Portal',
       },
+      hr_assistant: {
+        label: 'HR Assistant',
+        bgColor: 'bg-primary', // Government Blue
+        icon: Users,
+        subtitle: 'MoFAD Staff Management & Leave Portal',
+      },
       manager: {
         label: 'Manager',
+        bgColor: 'bg-primary', // Government Blue
+        icon: UserCheck,
+        subtitle: 'MoFAD Staff Management & Leave Portal',
+      },
+      deputy_director: {
+        label: 'Deputy Director',
         bgColor: 'bg-primary', // Government Blue
         icon: UserCheck,
         subtitle: 'MoFAD Staff Management & Leave Portal',

@@ -36,7 +36,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['hr', 'admin', 'employee', 'manager'] })
+}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })
 
 // POST create notification
 export const POST = withAuth(async ({ user, request }: AuthContext) => {

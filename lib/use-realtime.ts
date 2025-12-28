@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { API_BASE_URL } from './api-config'
 
 interface RealtimeEvent {
   type: string
@@ -17,9 +18,14 @@ export function useRealtime(enabled: boolean = true) {
   useEffect(() => {
     if (!enabled) return
 
+    // Build real-time API URL with proper base URL for Electron
+    const realtimeUrl = API_BASE_URL 
+      ? `${API_BASE_URL}/api/realtime`
+      : '/api/realtime'
+
     // EventSource automatically sends cookies for same-origin requests
     // No need to pass token - API reads from cookies
-    const eventSource = new EventSource('/api/realtime')
+    const eventSource = new EventSource(realtimeUrl)
 
     eventSource.onopen = () => {
       setConnected(true)

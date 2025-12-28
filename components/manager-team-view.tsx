@@ -64,7 +64,8 @@ export default function ManagerTeamView({ managerStaffId }: ManagerTeamViewProps
       setLoading(true)
       // Fetch manager's team members
       // In a real app, this would filter by department or team assignment
-      const response = await fetch('/api/staff', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/staff', {
         credentials: 'include',
       })
       if (!response.ok) throw new Error('Failed to fetch team members')
@@ -80,8 +81,8 @@ export default function ManagerTeamView({ managerStaffId }: ManagerTeamViewProps
         team.map(async (member: any) => {
           try {
             const [balanceRes, leavesRes] = await Promise.all([
-              fetch(`/api/balances/${member.staffId}`, { credentials: 'include' }),
-              fetch(`/api/leaves?staffId=${member.staffId}`, { credentials: 'include' }),
+              apiRequest(`/api/balances/${member.staffId}`),
+              apiRequest(`/api/leaves?staffId=${member.staffId}`),
             ])
             
             const balance = balanceRes.ok ? await balanceRes.json() : null
@@ -252,7 +253,13 @@ export default function ManagerTeamView({ managerStaffId }: ManagerTeamViewProps
                     className="w-full"
                     onClick={() => {
                       // Navigate to leave approval for this team member
-                      window.location.href = `/portal?tab=leave&staffId=${member.staffId}`
+                      // Use router for navigation instead of window.location
+                      if (typeof window !== 'undefined' && (window as any).__ELECTRON_API_URL__) {
+                        // In Electron, use current origin
+                        window.location.href = `${window.location.origin}/portal?tab=leave&staffId=${member.staffId}`
+                      } else {
+                        window.location.href = `/portal?tab=leave&staffId=${member.staffId}`
+                      }
                     }}
                   >
                     View Leaves

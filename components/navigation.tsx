@@ -9,7 +9,7 @@ import { useIsMobile } from '@/components/ui/use-mobile'
 interface NavigationProps {
   activeTab: string
   setActiveTab: (tab: string) => void
-  userRole: 'hr' | 'manager' | 'employee' | 'admin'
+  userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
   onLogout?: () => void
 }
 
@@ -31,17 +31,17 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
   const theme = getRoleTheme()
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['hr', 'manager'] },
-    { id: 'staff', label: userRole === 'hr' ? 'Staff Management' : 'My Team', icon: Users, roles: ['hr', 'manager'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
+    { id: 'staff', label: (userRole === 'hr' || userRole === 'hr_assistant') ? 'Staff Management' : 'My Team', icon: Users, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
     { id: 'manager-assignment', label: 'Manager Assignment', icon: UserCog, roles: ['hr'] },
-    { id: 'leave', label: userRole === 'manager' ? 'Approve Leaves' : 'Leave Management', icon: Calendar, roles: ['hr', 'manager'] },
-    { id: 'leave-calendar', label: 'Leave Calendar', icon: CalendarDays, roles: ['hr', 'manager'] },
-    { id: 'delegation', label: 'Delegation', icon: UserCheck, roles: ['hr', 'manager'] },
+    { id: 'leave', label: (userRole === 'manager' || userRole === 'deputy_director') ? 'Approve Leaves' : 'Leave Management', icon: Calendar, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
+    { id: 'leave-calendar', label: 'Leave Calendar', icon: CalendarDays, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
+    { id: 'delegation', label: 'Delegation', icon: UserCheck, roles: ['hr', 'manager', 'deputy_director'] },
     { id: 'leave-policies', label: 'Leave Policies', icon: FileCheck, roles: ['hr'] },
     { id: 'holidays', label: 'Holidays', icon: CalendarCheck, roles: ['hr'] },
     { id: 'leave-templates', label: 'Leave Templates', icon: FileText, roles: ['hr'] },
     { id: 'year-end', label: 'Year-End Processing', icon: CalendarClock, roles: ['hr'] },
-    { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['hr', 'manager'] },
+    { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'] },
   ]
 
   const visibleItems = navItems.filter(item => item.roles.includes(userRole))

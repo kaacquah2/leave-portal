@@ -6,14 +6,14 @@ import Landing from '@/components/landing'
 import LoginForm from '@/components/login-form'
 import Portal from '@/components/portal'
 
-function PortalWrapper({ userRole, onLogout, staffId }: { userRole: 'hr' | 'manager' | 'employee' | 'admin', onLogout: () => void, staffId?: string }) {
+function PortalWrapper({ userRole, onLogout, staffId }: { userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin', onLogout: () => void, staffId?: string }) {
   return <Portal userRole={userRole} onLogout={onLogout} staffId={staffId} />
 }
 
 export default function Page() {
   const router = useRouter()
   const [stage, setStage] = useState<'landing' | 'login' | 'portal' | 'checking'>('checking')
-  const [userRole, setUserRole] = useState<'hr' | 'manager' | 'employee' | 'admin'>('hr')
+  const [userRole, setUserRole] = useState<'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'>('hr')
   const [staffId, setStaffId] = useState<string | undefined>(undefined)
 
   // Check if user is already logged in on page load/reload
@@ -71,15 +71,15 @@ export default function Page() {
 
         if (response.ok) {
           const user = await response.json()
-          const role = user.role as 'hr' | 'manager' | 'employee' | 'admin'
+          const role = user.role as 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
           
           console.log('[App] Authentication successful, role:', role);
           
           // Redirect to role-specific page if on root
-          if (role === 'hr' && window.location.pathname === '/') {
+          if ((role === 'hr' || role === 'hr_assistant') && window.location.pathname === '/') {
             router.push('/hr')
             return
-          } else if (role === 'manager' && window.location.pathname === '/') {
+          } else if ((role === 'manager' || role === 'deputy_director') && window.location.pathname === '/') {
             router.push('/manager')
             return
           } else if (role === 'admin' && window.location.pathname === '/') {

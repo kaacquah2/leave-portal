@@ -79,7 +79,8 @@ export default function AdminUserManagement() {
 
   const fetchStaffMembers = async () => {
     try {
-      const response = await fetch('/api/staff', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/staff', {
         credentials: 'include',
       })
 
@@ -94,9 +95,8 @@ export default function AdminUserManagement() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/admin/users', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/admin/users')
 
       if (response.ok) {
         const data = await response.json()
@@ -124,12 +124,9 @@ export default function AdminUserManagement() {
         return
       }
 
-      const response = await fetch('/api/admin/users', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/admin/users', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({
           // User account fields
           email: formData.email,

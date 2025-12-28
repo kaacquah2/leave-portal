@@ -37,9 +37,8 @@ export default function EmployeeTaxInfo() {
   const fetchTaxInfo = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/employee/tax-info', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/tax-info')
       if (response.ok) {
         const data = await response.json()
         if (data) {
@@ -57,10 +56,9 @@ export default function EmployeeTaxInfo() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await fetch('/api/employee/tax-info', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/tax-info', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(formData),
       })
 

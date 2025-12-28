@@ -39,11 +39,9 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ email, password }),
       })
 
@@ -238,9 +236,9 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
                   return
                 }
                 try {
-                  const response = await fetch('/api/auth/reset-password', {
+                  const { apiRequest } = await import('@/lib/api-config')
+                  const response = await apiRequest('/api/auth/reset-password', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email }),
                   })
                   const data = await response.json()

@@ -10,7 +10,7 @@ export async function PATCH(
   const { id } = await params
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {
-      // Only HR and admin can assign managers
+      // Only HR (not HR Assistant) and admin can assign managers
       if (user.role !== 'hr' && user.role !== 'admin') {
         return NextResponse.json(
           { error: 'Forbidden - Only HR and Admin can assign managers' },
@@ -165,6 +165,6 @@ export async function GET(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin', 'manager'] })(request)
+  }, { allowedRoles: ['hr', 'admin'] })(request)
 }
 

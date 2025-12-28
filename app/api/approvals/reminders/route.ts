@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
             where: {
               OR: [
                 { role: 'hr' },
+                { role: 'hr_assistant' },
                 { role: 'admin' },
                 // Add manager role if they're the assigned manager
                 {
@@ -127,6 +128,10 @@ export async function POST(request: NextRequest) {
                   staff: {
                     staffId: leave.staffId,
                   },
+                },
+                // Add deputy director role
+                {
+                  role: 'deputy_director',
                 },
               ],
             },

@@ -64,9 +64,8 @@ export default function DelegationManagement() {
   const fetchDelegations = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/delegations', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/delegations')
       if (response.ok) {
         const data = await response.json()
         setDelegations(data)
@@ -86,9 +85,8 @@ export default function DelegationManagement() {
 
   const fetchStaffList = async () => {
     try {
-      const response = await fetch('/api/staff', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/staff')
       if (response.ok) {
         const data = await response.json()
         setStaffList(data.filter((s: any) => s.active))
@@ -109,10 +107,9 @@ export default function DelegationManagement() {
     }
 
     try {
-      const response = await fetch('/api/delegations', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/delegations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           delegateeId: formData.delegateeId,
           startDate: formData.startDate,
@@ -151,10 +148,9 @@ export default function DelegationManagement() {
 
   const handleRevoke = async (id: string) => {
     try {
-      const response = await fetch(`/api/delegations/${id}`, {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest(`/api/delegations/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ action: 'revoke' }),
       })
 

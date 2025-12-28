@@ -31,9 +31,8 @@ export default function TwoFactorSetup({ onComplete }: TwoFactorSetupProps) {
 
   const checkStatus = async () => {
     try {
-      const response = await fetch('/api/auth/2fa/status', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/auth/2fa/status')
       if (response.ok) {
         const data = await response.json()
         setEnabled(data.enabled || false)
@@ -51,9 +50,9 @@ export default function TwoFactorSetup({ onComplete }: TwoFactorSetupProps) {
   const generateSecret = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/auth/2fa/generate', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/auth/2fa/generate', {
         method: 'POST',
-        credentials: 'include',
       })
 
       if (response.ok) {
@@ -100,10 +99,9 @@ export default function TwoFactorSetup({ onComplete }: TwoFactorSetupProps) {
 
     try {
       setLoading(true)
-      const response = await fetch('/api/auth/2fa/verify', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/auth/2fa/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           code: verificationCode,
           secret,
@@ -142,9 +140,9 @@ export default function TwoFactorSetup({ onComplete }: TwoFactorSetupProps) {
 
     try {
       setLoading(true)
-      const response = await fetch('/api/auth/2fa/disable', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/auth/2fa/disable', {
         method: 'POST',
-        credentials: 'include',
       })
 
       if (response.ok) {

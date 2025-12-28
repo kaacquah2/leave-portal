@@ -87,13 +87,17 @@ export default function AnalyticsDashboard({ userRole }: AnalyticsDashboardProps
 
   // Fetch departments
   useEffect(() => {
-    fetch('/api/staff', { credentials: 'include' })
-      .then((res) => res.json())
-      .then((data) => {
+    (async () => {
+      try {
+        const { apiRequest } = await import('@/lib/api-config')
+        const res = await apiRequest('/api/staff')
+        const data = await res.json()
         const depts = [...new Set(data.map((s: any) => s.department))].sort() as string[]
         setDepartments(depts)
-      })
-      .catch(console.error)
+      } catch (error) {
+        console.error('Error fetching departments:', error)
+      }
+    })()
   }, [])
 
   // Fetch analytics
@@ -122,10 +126,9 @@ export default function AnalyticsDashboard({ userRole }: AnalyticsDashboardProps
 
   const handleExport = async (format: 'pdf' | 'excel') => {
     try {
-      const response = await fetch('/api/reports/export', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/reports/export', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           format,
           reportType: 'leave-requests',

@@ -44,9 +44,8 @@ export default function EmployeeEmergencyContacts() {
   const fetchContacts = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/employee/emergency-contacts', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/emergency-contacts')
       if (response.ok) {
         const data = await response.json()
         // Parse contacts from Document table if needed
@@ -63,10 +62,9 @@ export default function EmployeeEmergencyContacts() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await fetch('/api/employee/emergency-contacts', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/emergency-contacts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(formData),
       })
 

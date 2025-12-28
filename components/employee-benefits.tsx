@@ -48,9 +48,8 @@ export default function EmployeeBenefits() {
   const fetchBenefits = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/employee/benefits', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/benefits')
       if (response.ok) {
         const data = await response.json()
         setBenefits(data)
@@ -73,10 +72,9 @@ export default function EmployeeBenefits() {
     }
 
     try {
-      const response = await fetch('/api/employee/benefits', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/benefits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           benefitType: selectedBenefit,
           action: 'enroll',
@@ -109,10 +107,9 @@ export default function EmployeeBenefits() {
     if (!confirm('Are you sure you want to cancel this benefit?')) return
 
     try {
-      const response = await fetch('/api/employee/benefits', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/benefits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           benefitType,
           action: 'cancel',

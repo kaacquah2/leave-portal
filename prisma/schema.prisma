@@ -14,7 +14,7 @@ model User {
   id            String   @id @default(cuid())
   email         String   @unique
   passwordHash  String
-  role          String   // 'hr' | 'manager' | 'employee' | 'admin'
+  role          String   // 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
   staffId       String?  @unique
   active        Boolean  @default(true)
   emailVerified Boolean  @default(false)

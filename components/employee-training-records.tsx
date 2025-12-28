@@ -37,9 +37,8 @@ export default function EmployeeTrainingRecords() {
   const fetchTrainingRecords = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/employee/training-records', {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/employee/training-records')
 
       if (response.ok) {
         const data = await response.json()

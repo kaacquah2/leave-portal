@@ -24,7 +24,7 @@ import ManagerAssignment from '@/components/manager-assignment'
 import AdminPortal from '@/components/admin-portal'
 
 interface PortalProps {
-  userRole: 'hr' | 'manager' | 'employee' | 'admin'
+  userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
   onLogout: () => void
   staffId?: string // Required for employee role
 }
@@ -93,14 +93,14 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
       case 'dashboard':
         return <Dashboard store={store} userRole={userRole} onNavigate={setActiveTab} />
       case 'staff':
-        if (userRole === 'manager') {
+        if (userRole === 'manager' || userRole === 'deputy_director') {
           return <ManagerTeamView managerStaffId={staffId} />
         }
         return <StaffManagement store={store} userRole={userRole} />
       case 'manager-assignment':
         return <ManagerAssignment store={store} />
       case 'leave':
-        if (userRole === 'manager') {
+        if (userRole === 'manager' || userRole === 'deputy_director') {
           return <ManagerLeaveApproval />
         }
         return <LeaveManagement store={store} userRole={userRole} />
@@ -126,16 +126,20 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
   const getRoleBackground = () => {
     switch (userRole) {
       case 'hr':
+      case 'hr_assistant':
         return 'bg-gradient-to-br from-green-50/50 via-background to-green-50/30'
       case 'manager':
+      case 'deputy_director':
         return 'bg-gradient-to-br from-amber-50/50 via-background to-amber-50/30'
       default:
         return 'bg-background'
     }
   }
 
-  // Type narrowing: at this point userRole can only be 'hr' | 'manager'
-  const navRole = userRole as 'hr' | 'manager'
+  // Type narrowing: map roles to navigation roles
+  const navRole = (userRole === 'hr' || userRole === 'hr_assistant') ? 'hr' : 
+                  (userRole === 'manager' || userRole === 'deputy_director') ? 'manager' : 
+                  userRole as 'hr' | 'manager'
   
   return (
     <div className={`min-h-screen ${getRoleBackground()}`}>

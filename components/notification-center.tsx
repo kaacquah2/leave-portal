@@ -30,7 +30,8 @@ export default function NotificationCenter() {
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch('/api/notifications', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/notifications', {
         credentials: 'include',
       })
 
@@ -57,7 +58,8 @@ export default function NotificationCenter() {
 
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch('/api/notifications/mark-read', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/notifications/mark-read', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

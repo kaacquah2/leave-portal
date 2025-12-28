@@ -10,8 +10,8 @@ export async function GET(
   const { id } = await params
   return withAuth(async ({ user }: AuthContext) => {
     try {
-      // Only HR and admin can view audit logs
-      if (user.role !== 'hr' && user.role !== 'admin') {
+      // Only HR, HR Assistant, and admin can view audit logs
+      if (user.role !== 'hr' && user.role !== 'hr_assistant' && user.role !== 'admin') {
         return NextResponse.json(
           { error: 'Forbidden' },
           { status: 403 }
@@ -37,7 +37,7 @@ export async function GET(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin'] })(request)
 }
 
 // DELETE audit log - IMMUTABLE: Audit logs cannot be deleted
@@ -60,7 +60,7 @@ export async function DELETE(
       },
       { status: 403 }
     )
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin'] })(request)
 }
 
 // PATCH audit log - IMMUTABLE: Audit logs cannot be modified
@@ -83,6 +83,6 @@ export async function PATCH(
       },
       { status: 403 }
     )
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin'] })(request)
 }
 

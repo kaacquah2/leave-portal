@@ -60,9 +60,8 @@ export default function AdminPasswordResetRequests() {
   const fetchRequests = async () => {
     try {
       const statusParam = filter === 'all' ? '' : `?status=${filter}`
-      const response = await fetch(`/api/admin/password-reset-requests${statusParam}`, {
-        credentials: 'include',
-      })
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest(`/api/admin/password-reset-requests${statusParam}`)
 
       if (response.ok) {
         const data = await response.json()
@@ -78,12 +77,9 @@ export default function AdminPasswordResetRequests() {
   const handleApprove = async (request: PasswordResetRequest) => {
     setIsProcessing(true)
     try {
-      const response = await fetch('/api/admin/password-reset-requests', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/admin/password-reset-requests', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({
           requestId: request.id,
           action: 'approve',
@@ -112,12 +108,9 @@ export default function AdminPasswordResetRequests() {
 
     setIsProcessing(true)
     try {
-      const response = await fetch('/api/admin/password-reset-requests', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/admin/password-reset-requests', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({
           requestId: selectedRequest.id,
           action: 'reject',

@@ -5,7 +5,7 @@
  * based on the Staff & HR Management Portal requirements.
  */
 
-export type UserRole = 'hr' | 'manager' | 'employee'
+export type UserRole = 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
 
 /**
  * Permission types for different actions
@@ -155,6 +155,103 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'employee:leave:create:own',
     'employee:payslip:view:own',
     'employee:performance:view:own',
+  ],
+  
+  // Deputy Director: Between Manager and HR, can approve across directorates
+  deputy_director: [
+    // Can view all employees in their directorate
+    'employee:view:team', // Extended to directorate level
+    
+    // Directorate-level Leave Management
+    'leave:view:team', // Extended to directorate level
+    'leave:approve:team', // Can approve for entire directorate
+    
+    // Directorate Performance Management
+    'performance:view:team', // Extended to directorate level
+    'performance:review:team', // Can review directorate staff
+    
+    // Directorate Attendance & Timesheets
+    'attendance:view:team', // Extended to directorate level
+    'attendance:correct:team', // Can correct directorate attendance
+    'timesheet:approve:team', // Can approve directorate timesheets
+    
+    // Directorate Reports
+    'reports:team:view', // Extended to directorate level
+    
+    // Directorate Disciplinary Actions
+    'disciplinary:manage:team', // Extended to directorate level
+    
+    // Can delegate approvals
+    'leave:create', // Can create leave on behalf of staff if needed
+  ],
+  
+  // HR Assistant: Restricted HR access for data entry and document management
+  hr_assistant: [
+    // Limited Employee Management (view and basic updates only)
+    'employee:view:all',
+    'employee:update', // Can update basic info, but not salary/contracts
+    'employee:documents:upload', // Can upload documents
+    
+    // Leave Management (view and basic operations)
+    'leave:view:all',
+    'leave:create', // Can create leave requests on behalf of staff
+    
+    // Limited Performance Management (view only)
+    'performance:view:all',
+    
+    // Limited Attendance & Timesheets (view only)
+    'attendance:view:all',
+    
+    // Limited Reports (view HR reports)
+    'reports:hr:view',
+    
+    // Cannot:
+    // - Delete employees
+    // - Terminate employees
+    // - Edit salaries/contracts
+    // - Approve leaves (unless delegated)
+    // - Manage leave policies
+    // - Manage disciplinary actions
+  ],
+  
+  // Admin role (already exists in schema, adding permissions)
+  admin: [
+    // System Administration
+    'system:config:manage',
+    'system:users:manage',
+    'system:roles:assign',
+    'system:reports:view',
+    'system:audit:view',
+    'system:backup:manage',
+    'system:org:manage',
+    
+    // Full Employee Management (for system admin purposes)
+    'employee:view:all',
+    'employee:create',
+    'employee:update',
+    'employee:delete',
+    
+    // Full Leave Management
+    'leave:view:all',
+    'leave:approve:all',
+    'leave:policy:manage',
+    
+    // Full Performance Management
+    'performance:view:all',
+    'performance:review:all',
+    
+    // Full Attendance & Timesheets
+    'attendance:view:all',
+    'attendance:correct:all',
+    'timesheet:approve:all',
+    
+    // All Reports
+    'reports:hr:view',
+    'reports:system:view',
+    'reports:team:view',
+    
+    // Full Disciplinary Actions
+    'disciplinary:manage:all',
   ],
 }
 

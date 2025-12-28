@@ -61,6 +61,7 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
   const getRoleTheme = () => {
     switch (userRole) {
       case 'hr':
+      case 'hr_assistant':
         return {
           gradient: 'from-green-50 to-background',
           accent: 'text-green-600',
@@ -72,6 +73,7 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
           welcomeIcon: Users,
         }
       case 'manager':
+      case 'deputy_director':
         return {
           gradient: 'from-amber-50 to-background',
           accent: 'text-amber-600',
@@ -101,7 +103,9 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
 
   const roleDescriptions = {
     hr: 'Manage staff records, process leave requests, and generate reports.',
+    hr_assistant: 'View staff records, upload documents, and assist with leave management.',
     manager: 'Review team leaves and approve or reject leave requests.',
+    deputy_director: 'Review directorate leaves and approve or reject leave requests.',
   }
 
   const quickActions = {
@@ -110,18 +114,28 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
       { label: 'Process Leaves', icon: FileText, action: 'leave' },
       { label: 'View Reports', icon: BarChart3, action: 'reports' },
     ],
+    hr_assistant: [
+      { label: 'View Staff', icon: Users, action: 'staff' },
+      { label: 'View Leaves', icon: FileText, action: 'leave' },
+      { label: 'View Reports', icon: BarChart3, action: 'reports' },
+    ],
     manager: [
       { label: 'View Team', icon: Users, action: 'staff' },
       { label: 'Approve Leaves', icon: FileText, action: 'leave' },
     ],
+    deputy_director: [
+      { label: 'View Directorate', icon: Users, action: 'staff' },
+      { label: 'Approve Leaves', icon: FileText, action: 'leave' },
+    ],
   }
 
-  const currentActions = quickActions[userRole as 'hr' | 'manager'] || []
+  const currentActions = quickActions[userRole as 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'] || []
 
   // Role-specific metrics
   const getMetrics = () => {
     switch (userRole) {
       case 'hr':
+      case 'hr_assistant':
         // Count leaves that need HR approval (multi-level where manager approved, or single-level HR approval)
         const hrPendingLeaves = store.leaves.filter((l: any) => {
           if (l.status !== 'pending') return false
@@ -148,15 +162,20 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
           totalAudits: store.auditLogs.length,
         }
       case 'manager':
-        // Count leaves that need manager approval
+      case 'deputy_director':
+        // Count leaves that need manager/deputy director approval
         const managerPendingLeaves = store.leaves.filter((l: any) => {
           if (l.status !== 'pending') return false
           if (!l.approvalLevels || l.approvalLevels.length === 0) {
-            // Single level - manager can approve team leaves
+            // Single level - manager/deputy director can approve team/directorate leaves
             return true
           }
-          // Multi-level: check if there's a manager level pending
-          const managerLevel = l.approvalLevels.find((al: any) => al.approverRole === 'manager' && al.status === 'pending')
+          // Multi-level: check if there's a manager or deputy_director level pending
+          const approverRole = userRole === 'deputy_director' ? 'deputy_director' : 'manager'
+          const managerLevel = l.approvalLevels.find((al: any) => 
+            (al.approverRole === 'manager' || al.approverRole === 'deputy_director') && 
+            al.status === 'pending'
+          )
           if (!managerLevel) return false
           // Check if previous levels are approved (should be none for level 1)
           const previousLevels = l.approvalLevels.filter((al: any) => al.level < managerLevel.level)
@@ -164,9 +183,9 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
         }).length
         
         return {
-          teamMembers: store.staff.length, // In real app, filter by team/department
-          pendingApprovals: managerPendingLeaves, // Leaves specifically needing manager approval
-          managerPendingLeaves, // Leaves specifically needing manager approval
+          teamMembers: store.staff.length, // In real app, filter by team/department/directorate
+          pendingApprovals: managerPendingLeaves, // Leaves specifically needing approval
+          managerPendingLeaves, // Leaves specifically needing approval
           approvedThisMonth: store.leaves.filter((l: any) => l.status === 'approved').length,
           teamLeaves: store.leaves.length,
           totalStaff: store.staff.filter((s: any) => s.active).length,
@@ -196,12 +215,12 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
             {userRole} Role
           </span>
         </div>
-        <p className="text-muted-foreground text-sm sm:text-base md:text-lg">{roleDescriptions[userRole as 'hr' | 'manager']}</p>
+        <p className="text-muted-foreground text-sm sm:text-base md:text-lg">{roleDescriptions[userRole as 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'] || 'Welcome to the HR Leave Portal'}</p>
       </div>
 
       {/* KPI Cards - Role Specific */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {userRole === 'hr' && (
+        {(userRole === 'hr' || userRole === 'hr_assistant') && (
           <>
             <Card className={`border-2 ${theme.border}`}>
               <CardHeader className="pb-2">
@@ -258,7 +277,7 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
             </Card>
           </>
         )}
-        {userRole === 'manager' && (
+        {(userRole === 'manager' || userRole === 'deputy_director') && (
           <>
             <Card className={`border-2 ${theme.border}`}>
               <CardHeader className="pb-2">
@@ -335,8 +354,8 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
         </div>
       )}
 
-      {/* Staff Search - Only for HR */}
-      {userRole === 'hr' && (
+      {/* Staff Search - Only for HR and HR Assistant */}
+      {(userRole === 'hr' || userRole === 'hr_assistant') && (
       <Card className={theme.border ? `border-2 ${theme.border}` : ''}>
         <CardHeader>
           <CardTitle>Staff Lookup</CardTitle>
@@ -422,12 +441,12 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
       <Card className={theme.border ? `border-2 ${theme.border}` : ''}>
         <CardHeader>
           <CardTitle>
-            {userRole === 'hr' && 'Recent Activities'}
-            {userRole === 'manager' && 'Team Activities'}
+            {(userRole === 'hr' || userRole === 'hr_assistant') && 'Recent Activities'}
+            {(userRole === 'manager' || userRole === 'deputy_director') && 'Team Activities'}
           </CardTitle>
           <CardDescription>
-            {userRole === 'hr' && 'Recent HR activities and changes'}
-            {userRole === 'manager' && 'Recent team leave activities'}
+            {(userRole === 'hr' || userRole === 'hr_assistant') && 'Recent HR activities and changes'}
+            {(userRole === 'manager' || userRole === 'deputy_director') && 'Recent team leave activities'}
           </CardDescription>
         </CardHeader>
         <CardContent>

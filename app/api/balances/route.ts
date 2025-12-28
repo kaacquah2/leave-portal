@@ -12,10 +12,12 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     
     if (user.role === 'employee' && user.staffId) {
       where.staffId = user.staffId
-    } else if (user.role === 'manager' && user.staffId) {
-      where.staffId = user.staffId
+    } else if ((user.role === 'manager' || user.role === 'deputy_director') && user.staffId) {
+      // Managers and deputy directors see their team/directorate balances
+      // In a full implementation, this would filter by team/directorate
+      // For now, they see all (can be enhanced later)
     }
-    // HR and admin see all (no where clause)
+    // HR, HR Assistant, and admin see all (no where clause)
 
     const balances = await prisma.leaveBalance.findMany({
       where,
@@ -28,7 +30,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error fetching balances:', error)
     return NextResponse.json({ error: 'Failed to fetch balances' }, { status: 500 })
   }
-}, { allowedRoles: ['hr', 'admin', 'employee', 'manager'] })
+}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })
 
 // POST create or update leave balance
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
