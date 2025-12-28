@@ -14,18 +14,37 @@ import EmployeeDocuments from '@/components/employee-documents'
 import LeaveForm from '@/components/leave-form'
 import EmployeeProfileView from '@/components/employee-profile-view'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { type UserRole } from '@/lib/permissions'
+import { hasPermission } from '@/lib/permissions'
 
 interface EmployeePortalProps {
   staffId: string
+  userRole: UserRole
   onLogout: () => void
 }
 
-export default function EmployeePortal({ staffId, onLogout }: EmployeePortalProps) {
+export default function EmployeePortal({ staffId, userRole, onLogout }: EmployeePortalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('dashboard')
-  const store = useDataStore({ enablePolling: true, pollingInterval: 60000 }) // Poll every 60 seconds
+  const store = useDataStore({ enablePolling: true, pollingInterval: 60000, userRole }) // Poll every 60 seconds
   const { connected } = useRealtime(true) // Enable real-time updates
+
+  // Debug logging
+  useEffect(() => {
+    const currentStaff = store.staff.find(s => s.staffId === staffId)
+    console.log('[EmployeePortal] Render state:', {
+      staffId,
+      userRole,
+      activeTab,
+      staffFound: !!currentStaff,
+      staffCount: store.staff.length,
+      loading: store.loading,
+      initialized: store.initialized,
+      error: store.error,
+      realtimeConnected: connected
+    })
+  }, [staffId, userRole, activeTab, store, connected])
 
   // Sync activeTab state with URL on mount and when URL changes
   useEffect(() => {
@@ -73,6 +92,7 @@ export default function EmployeePortal({ staffId, onLogout }: EmployeePortalProp
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading your profile...</p>
         </div>
       </div>
@@ -82,8 +102,20 @@ export default function EmployeePortal({ staffId, onLogout }: EmployeePortalProp
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <EmployeeDashboard store={store} staffId={staffId} onNavigate={handleTabChange} />
+        return <EmployeeDashboard store={store} staffId={staffId} userRole={userRole} onNavigate={handleTabChange} />
       case 'apply-leave':
+        // Check permission before showing leave form
+        if (!hasPermission(userRole, 'employee:leave:create:own')) {
+          return (
+            <div className="p-8">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">You don't have permission to apply for leave.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
         return (
           <div className="space-y-6">
             <div>
@@ -105,33 +137,127 @@ export default function EmployeePortal({ staffId, onLogout }: EmployeePortalProp
           </div>
         )
       case 'leave-balances':
+        if (!hasPermission(userRole, 'employee:leave:view:own')) {
+          return (
+            <div className="p-8">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">You don't have permission to view leave balances.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
         return <EmployeeLeaveBalances store={store} staffId={staffId} />
       case 'leave-history':
+        if (!hasPermission(userRole, 'employee:leave:view:own')) {
+          return (
+            <div className="p-8">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">You don't have permission to view leave history.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
         return <EmployeeLeaveHistory store={store} staffId={staffId} />
       case 'notifications':
+        if (!hasPermission(userRole, 'employee:self:view')) {
+          return (
+            <div className="p-8">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">You don't have permission to view notifications.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
         return <NotificationCenter />
       case 'profile':
+        if (!hasPermission(userRole, 'employee:self:view')) {
+          return (
+            <div className="p-8">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">You don't have permission to view your profile.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
         return <EmployeeProfileView store={store} staffId={staffId} />
       case 'documents':
+        if (!hasPermission(userRole, 'employee:self:view')) {
+          return (
+            <div className="p-8">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">You don't have permission to view documents.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
         return <EmployeeDocuments />
+      case 'payslips':
+        if (!hasPermission(userRole, 'employee:payslip:view:own')) {
+          return (
+            <div className="p-8">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">You don't have permission to view payslips.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
+        // Payslips component would go here when implemented
+        return (
+          <div className="p-8">
+            <Card>
+              <CardContent className="py-8 text-center">
+                <p className="text-muted-foreground">Payslips feature coming soon.</p>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      case 'performance':
+        if (!hasPermission(userRole, 'employee:performance:view:own')) {
+          return (
+            <div className="p-8">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <p className="text-muted-foreground">You don't have permission to view performance reviews.</p>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
+        // Performance component would go here when implemented
+        return (
+          <div className="p-8">
+            <Card>
+              <CardContent className="py-8 text-center">
+                <p className="text-muted-foreground">Performance reviews feature coming soon.</p>
+              </CardContent>
+            </Card>
+          </div>
+        )
       default:
-        return <EmployeeDashboard store={store} staffId={staffId} onNavigate={handleTabChange} />
+        return <EmployeeDashboard store={store} staffId={staffId} userRole={userRole} onNavigate={handleTabChange} />
     }
   }
 
-  if (!currentStaff) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Staff member not found</p>
-      </div>
-    )
-  }
+  // Don't block rendering if staff is not found - let the dashboard component handle that
+  // The dashboard has better error messages and retry functionality
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-background to-blue-50/30">
       <Header onLogout={onLogout} userRole="employee" />
       <div className="flex">
-        <EmployeeNavigation activeTab={activeTab} setActiveTab={handleTabChange} onLogout={onLogout} />
+        <EmployeeNavigation activeTab={activeTab} setActiveTab={handleTabChange} userRole={userRole} onLogout={onLogout} />
         <main className="flex-1 overflow-auto min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-96px)]">
           <div className="p-4 sm:p-6 md:p-8">
             {renderContent()}
