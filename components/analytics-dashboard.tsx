@@ -112,16 +112,29 @@ export default function AnalyticsDashboard({ userRole }: AnalyticsDashboardProps
       metric: 'all',
     })
 
-    fetch(`/api/reports/analytics?${params}`, { credentials: 'include' })
-      .then((res) => res.json())
-      .then((data) => {
+    ;(async () => {
+      try {
+        const { apiRequest, API_BASE_URL } = await import('@/lib/api-config')
+        console.log('[AnalyticsDashboard] Fetching analytics. API Base URL:', API_BASE_URL || 'relative');
+        
+        const response = await apiRequest(`/api/reports/analytics?${params}`, {
+          credentials: 'include',
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          console.error('[AnalyticsDashboard] API error:', response.status, errorText);
+          throw new Error(`Failed to fetch analytics: ${response.status} ${errorText}`)
+        }
+        
+        const data = await response.json()
         setAnalytics(data)
+      } catch (error) {
+        console.error('[AnalyticsDashboard] Error fetching analytics:', error)
+      } finally {
         setLoading(false)
-      })
-      .catch((error) => {
-        console.error('Error fetching analytics:', error)
-        setLoading(false)
-      })
+      }
+    })()
   }, [startDate, endDate, department])
 
   const handleExport = async (format: 'pdf' | 'excel') => {

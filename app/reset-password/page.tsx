@@ -51,7 +51,8 @@ function ResetPasswordForm() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/auth/reset-password', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

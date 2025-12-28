@@ -50,10 +50,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 if (normalizedApiUrl) {
   contextBridge.exposeInMainWorld('__ELECTRON_API_URL__', normalizedApiUrl);
   console.log('[Preload] Electron API URL configured:', normalizedApiUrl);
+  // Also log to window for debugging
+  if (typeof window !== 'undefined') {
+    window.__ELECTRON_API_URL_DEBUG__ = normalizedApiUrl;
+  }
 } else {
   console.log('[Preload] Development mode - using relative URLs (localhost)');
   // Still expose empty string so the app knows it's in Electron
   contextBridge.exposeInMainWorld('__ELECTRON_API_URL__', '');
+  // In production, if no API URL is set, this is an error
+  if (!isDev) {
+    console.error('[Preload] WARNING: Production build but no API URL configured!');
+    console.error('[Preload] Set ELECTRON_API_URL or NEXT_PUBLIC_API_URL environment variable');
+  }
 }
 
 // Log that preload script has loaded

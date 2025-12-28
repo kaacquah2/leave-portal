@@ -183,6 +183,7 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
   const [leaveTemplates, setLeaveTemplates] = useState<LeaveRequestTemplate[]>([])
   const [initialized, setInitialized] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
   // Polling configuration
   const enablePolling = options?.enablePolling ?? true
@@ -192,17 +193,73 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
+      
+      // Log API base URL for debugging (especially in Electron)
+      if (typeof window !== 'undefined') {
+        const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || API_BASE_URL || 'relative';
+        console.log('[DataStore] Fetching data from API. Base URL:', apiBaseUrl);
+      }
+      
       const [staffRes, leavesRes, balancesRes, payslipsRes, reviewsRes, policiesRes, holidaysRes, templatesRes, auditRes] = await Promise.all([
-        apiRequest('/api/staff').catch(() => ({ ok: false } as Response)),
-        apiRequest('/api/leaves').catch(() => ({ ok: false } as Response)),
-        apiRequest('/api/balances').catch(() => ({ ok: false } as Response)),
-        apiRequest('/api/payslips').catch(() => ({ ok: false } as Response)),
-        apiRequest('/api/performance-reviews').catch(() => ({ ok: false } as Response)),
-        apiRequest('/api/leave-policies').catch(() => ({ ok: false } as Response)),
-        apiRequest('/api/holidays').catch(() => ({ ok: false } as Response)),
-        apiRequest('/api/leave-templates').catch(() => ({ ok: false } as Response)),
-        apiRequest('/api/audit-logs?limit=100').catch(() => ({ ok: false } as Response)),
+        apiRequest('/api/staff').catch((err) => {
+          console.error('[DataStore] Error fetching staff:', err);
+          return { ok: false, error: err } as any;
+        }),
+        apiRequest('/api/leaves').catch((err) => {
+          console.error('[DataStore] Error fetching leaves:', err);
+          return { ok: false, error: err } as any;
+        }),
+        apiRequest('/api/balances').catch((err) => {
+          console.error('[DataStore] Error fetching balances:', err);
+          return { ok: false, error: err } as any;
+        }),
+        apiRequest('/api/payslips').catch((err) => {
+          console.error('[DataStore] Error fetching payslips:', err);
+          return { ok: false, error: err } as any;
+        }),
+        apiRequest('/api/performance-reviews').catch((err) => {
+          console.error('[DataStore] Error fetching reviews:', err);
+          return { ok: false, error: err } as any;
+        }),
+        apiRequest('/api/leave-policies').catch((err) => {
+          console.error('[DataStore] Error fetching policies:', err);
+          return { ok: false, error: err } as any;
+        }),
+        apiRequest('/api/holidays').catch((err) => {
+          console.error('[DataStore] Error fetching holidays:', err);
+          return { ok: false, error: err } as any;
+        }),
+        apiRequest('/api/leave-templates').catch((err) => {
+          console.error('[DataStore] Error fetching templates:', err);
+          return { ok: false, error: err } as any;
+        }),
+        apiRequest('/api/audit-logs?limit=100').catch((err) => {
+          console.error('[DataStore] Error fetching audit logs:', err);
+          return { ok: false, error: err } as any;
+        }),
       ])
+      
+      // Check for critical errors
+      const criticalErrors: string[] = [];
+      if (!staffRes.ok) {
+        const errorMsg = (staffRes as any).error?.message || 'Failed to fetch staff';
+        criticalErrors.push(`Staff: ${errorMsg}`);
+      }
+      if (!leavesRes.ok) {
+        const errorMsg = (leavesRes as any).error?.message || 'Failed to fetch leave requests';
+        criticalErrors.push(`Leaves: ${errorMsg}`);
+      }
+      if (!balancesRes.ok) {
+        const errorMsg = (balancesRes as any).error?.message || 'Failed to fetch balances';
+        criticalErrors.push(`Balances: ${errorMsg}`);
+      }
+      
+      if (criticalErrors.length > 0) {
+        const errorMessage = `Failed to load critical data: ${criticalErrors.join(', ')}`;
+        console.error('[DataStore]', errorMessage);
+        setError(errorMessage);
+      }
 
       if (staffRes.ok && 'json' in staffRes) {
         const data = transformDates(await staffRes.json())
@@ -280,7 +337,9 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
         })
       }
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.error('[DataStore] Error fetching data:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load data. Please check your connection and try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false)
       setInitialized(true)
@@ -626,6 +685,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
     leaveTemplates,
     initialized,
     loading,
+    error,
+    refresh: fetchAll,
     addStaff,
     updateStaff,
     terminateStaff,
@@ -639,7 +700,6 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
     addLeaveTemplate,
     updateLeaveTemplate,
     logAudit,
-    refresh: fetchAll,
     refreshCritical: fetchCritical,
   }
 }

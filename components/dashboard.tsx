@@ -195,6 +195,33 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
     }
   }
 
+  // Show error state if data failed to load
+  if (store.error && !store.loading) {
+    return (
+      <div className="p-8 space-y-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Failed to Load Data</h2>
+          <p className="text-red-700 mb-4">{store.error}</p>
+          <Button onClick={() => store.refresh?.()} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state
+  if (store.loading && !store.initialized) {
+    return (
+      <div className="p-8 space-y-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   const metrics = getMetrics()
   const pendingLeaves = store.leaves.filter((l: any) => l.status === 'pending').length     
   const totalStaff = store.staff.filter((s: any) => s.active).length

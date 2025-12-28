@@ -64,25 +64,42 @@ export default function ManagerTeamView({ managerStaffId }: ManagerTeamViewProps
       setLoading(true)
       // Fetch manager's team members
       // In a real app, this would filter by department or team assignment
-      const { apiRequest } = await import('@/lib/api-config')
+      const { apiRequest, API_BASE_URL } = await import('@/lib/api-config')
+      
+      // Log API URL for debugging
+      console.log('[ManagerTeamView] Fetching team members. API Base URL:', API_BASE_URL || 'relative');
+      
       const response = await apiRequest('/api/staff', {
         credentials: 'include',
       })
-      if (!response.ok) throw new Error('Failed to fetch team members')
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('[ManagerTeamView] API error:', response.status, errorText);
+        throw new Error(`Failed to fetch team members: ${response.status} ${errorText}`)
+      }
       
       const allStaff = await response.json()
+      console.log('[ManagerTeamView] Loaded', allStaff.length, 'staff members');
       
       // Filter to show only active team members
       // In production, this would filter by manager's department/team
       const team = allStaff.filter((s: any) => s.active)
+      console.log('[ManagerTeamView] Filtered to', team.length, 'active team members');
       
       // Fetch leave balances and pending leaves for each member
       const membersWithData = await Promise.all(
         team.map(async (member: any) => {
           try {
             const [balanceRes, leavesRes] = await Promise.all([
-              apiRequest(`/api/balances/${member.staffId}`),
-              apiRequest(`/api/leaves?staffId=${member.staffId}`),
+              apiRequest(`/api/balances/${member.staffId}`).catch((err) => {
+                console.warn(`[ManagerTeamView] Failed to fetch balance for ${member.staffId}:`, err);
+                return { ok: false } as Response;
+              }),
+              apiRequest(`/api/leaves?staffId=${member.staffId}`).catch((err) => {
+                console.warn(`[ManagerTeamView] Failed to fetch leaves for ${member.staffId}:`, err);
+                return { ok: false } as Response;
+              }),
             ])
             
             const balance = balanceRes.ok ? await balanceRes.json() : null
@@ -94,19 +111,22 @@ export default function ManagerTeamView({ managerStaffId }: ManagerTeamViewProps
               pendingLeaves: leaves.filter((l: any) => l.status === 'pending').length,
               activeLeaves: leaves.filter((l: any) => l.status === 'approved').length,
             }
-          } catch {
+          } catch (err) {
+            console.warn(`[ManagerTeamView] Error processing member ${member.staffId}:`, err);
             return member
           }
         })
       )
       
+      console.log('[ManagerTeamView] Processed', membersWithData.length, 'team members with data');
       setTeamMembers(membersWithData)
       setFilteredMembers(membersWithData)
     } catch (error) {
-      console.error('Error fetching team members:', error)
+      console.error('[ManagerTeamView] Error fetching team members:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load team members';
       toast({
         title: 'Error',
-        description: 'Failed to load team members',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {

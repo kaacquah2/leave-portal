@@ -70,9 +70,9 @@ export async function apiRequest(
     ? `${baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`
     : endpoint.startsWith('/') ? endpoint : '/' + endpoint;
   
-  // Log in development for debugging
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[API Request]', fullUrl);
+  // Log in development and Electron for debugging
+  if (process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && (window as any).electronAPI)) {
+    console.log('[API Request]', fullUrl, options.method || 'GET');
   }
   
   return fetch(fullUrl, {

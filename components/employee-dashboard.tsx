@@ -22,8 +22,45 @@ export default function EmployeeDashboard({ store, staffId, onNavigate }: Employ
   const pendingLeaves = myLeaves.filter((l: any) => l.status === 'pending').length
   const approvedLeaves = myLeaves.filter((l: any) => l.status === 'approved').length
 
+  // Show error state if data failed to load
+  if (store.error && !store.loading) {
+    return (
+      <div className="p-8 space-y-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">Failed to Load Data</h2>
+          <p className="text-red-700 mb-4">{store.error}</p>
+          <Button onClick={() => store.refresh?.()} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state
+  if (store.loading && !store.initialized) {
+    return (
+      <div className="p-8 space-y-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (!staff) {
-    return <div className="p-8">Staff member not found</div>
+    return (
+      <div className="p-8 space-y-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-yellow-800 mb-2">Staff Member Not Found</h2>
+          <p className="text-yellow-700 mb-4">Your profile information could not be loaded. Please try refreshing.</p>
+          <Button onClick={() => store.refresh?.()} variant="outline" className="border-yellow-300 text-yellow-700 hover:bg-yellow-100">
+            Refresh
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const handleQuickAction = (action: string) => {

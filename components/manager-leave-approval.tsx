@@ -41,21 +41,33 @@ export default function ManagerLeaveApproval() {
   const fetchLeaves = async () => {
     try {
       setLoading(true)
-      const { apiRequest } = await import('@/lib/api-config')
+      const { apiRequest, API_BASE_URL } = await import('@/lib/api-config')
+      
+      // Log API URL for debugging
+      console.log('[ManagerLeaveApproval] Fetching leaves. API Base URL:', API_BASE_URL || 'relative');
+      
       const response = await apiRequest('/api/leaves', {
         credentials: 'include',
       })
-      if (!response.ok) throw new Error('Failed to fetch leaves')
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('[ManagerLeaveApproval] API error:', response.status, errorText);
+        throw new Error(`Failed to fetch leaves: ${response.status} ${errorText}`)
+      }
       
       const data = await response.json()
+      console.log('[ManagerLeaveApproval] Loaded', data.length, 'leave requests');
+      
       // Filter to show only team members' leaves
       // In production, filter by manager's department/team
       setLeaves(data)
     } catch (error) {
-      console.error('Error fetching leaves:', error)
+      console.error('[ManagerLeaveApproval] Error fetching leaves:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load leave requests';
       toast({
         title: 'Error',
-        description: 'Failed to load leave requests',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {
