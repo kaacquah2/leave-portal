@@ -20,9 +20,28 @@ export default function Page() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
+        // Check if we're in Electron and have API URL configured
+        const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__);
+        const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '';
+        
+        // If in Electron without API URL, show error
+        if (isElectron && !apiBaseUrl && window.location.protocol === 'file:') {
+          console.error('[App] Electron app detected but no API URL configured');
+          setStage('landing'); // Show landing page which will show login form
+          return;
+        }
+        
+        const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/auth/me` : '/api/auth/me';
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
+        const response = await fetch(apiUrl, {
           credentials: 'include',
+          signal: controller.signal,
         })
+        
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const user = await response.json()
@@ -51,8 +70,13 @@ export default function Page() {
           // No auth found, show landing page
           setStage('landing')
         }
-      } catch (error) {
+      } catch (error: any) {
         // Error fetching user, show landing page
+        console.error('[App] Auth check failed:', error);
+        // If it's a network error in Electron, we might want to show a different message
+        if (error.name === 'AbortError') {
+          console.error('[App] Request timeout - API server may not be reachable');
+        }
         setStage('landing')
       }
     }

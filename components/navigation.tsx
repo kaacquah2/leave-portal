@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, Users, Calendar, BarChart3, LogOut, FileText, CalendarDays, FileCheck, CalendarCheck, Menu } from 'lucide-react'
+import { LayoutDashboard, Users, Calendar, BarChart3, LogOut, FileText, CalendarDays, FileCheck, CalendarCheck, Menu, UserCheck, CalendarClock, UserCog } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
@@ -33,11 +33,14 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['hr', 'manager'] },
     { id: 'staff', label: userRole === 'hr' ? 'Staff Management' : 'My Team', icon: Users, roles: ['hr', 'manager'] },
+    { id: 'manager-assignment', label: 'Manager Assignment', icon: UserCog, roles: ['hr'] },
     { id: 'leave', label: userRole === 'manager' ? 'Approve Leaves' : 'Leave Management', icon: Calendar, roles: ['hr', 'manager'] },
     { id: 'leave-calendar', label: 'Leave Calendar', icon: CalendarDays, roles: ['hr', 'manager'] },
+    { id: 'delegation', label: 'Delegation', icon: UserCheck, roles: ['hr', 'manager'] },
     { id: 'leave-policies', label: 'Leave Policies', icon: FileCheck, roles: ['hr'] },
     { id: 'holidays', label: 'Holidays', icon: CalendarCheck, roles: ['hr'] },
     { id: 'leave-templates', label: 'Leave Templates', icon: FileText, roles: ['hr'] },
+    { id: 'year-end', label: 'Year-End Processing', icon: CalendarClock, roles: ['hr'] },
     { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['hr', 'manager'] },
   ]
 

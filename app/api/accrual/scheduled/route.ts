@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { processLeaveAccrual, processLeaveExpiration } from '@/lib/leave-accrual'
 import { prisma } from '@/lib/prisma'
 
+
 /**
  * Scheduled accrual endpoint - can be called by cron jobs
  * Should be protected by API key or similar in production

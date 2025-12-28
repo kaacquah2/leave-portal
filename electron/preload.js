@@ -41,6 +41,7 @@ if (apiUrl) {
   console.log('[Preload] Electron API URL configured:', apiUrl);
 } else {
   console.log('[Preload] Electron API URL not set - using relative URLs (localhost or same origin)');
+}
 
 // Log that preload script has loaded
 console.log('Electron preload script loaded');

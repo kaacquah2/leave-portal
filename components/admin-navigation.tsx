@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Shield, KeyRound, Menu } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Shield, KeyRound, Menu, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
@@ -21,6 +21,7 @@ export default function AdminNavigation({ activeTab, setActiveTab, onLogout }: A
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'password-resets', label: 'Password Resets', icon: KeyRound },
     { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
+    { id: '2fa', label: '2FA Setup', icon: Lock },
     { id: 'settings', label: 'System Settings', icon: Settings },
   ]
 

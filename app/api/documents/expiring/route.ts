@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendEmail } from '@/lib/email'
 
+
 // GET documents expiring soon
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {

@@ -1,28 +1,37 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, DollarSign, Award, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Calendar, Clock, FileText, Plus } from 'lucide-react'
+import LeaveForm from '@/components/leave-form'
 
 interface EmployeeDashboardProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
   staffId: string
+  onNavigate?: (tab: string) => void
 }
 
-export default function EmployeeDashboard({ store, staffId }: EmployeeDashboardProps) {
+export default function EmployeeDashboard({ store, staffId, onNavigate }: EmployeeDashboardProps) {
+  const [showLeaveForm, setShowLeaveForm] = useState(false)
   const staff = store.staff.find((s: any) => s.staffId === staffId)
   const balance = store.balances.find((b: any) => b.staffId === staffId)
   const myLeaves = store.leaves.filter((l: any) => l.staffId === staffId)
   const pendingLeaves = myLeaves.filter((l: any) => l.status === 'pending').length
-  const recentPayslip = store.payslips.filter((p: any) => p.staffId === staffId).sort((a: any, b: any) => 
-    new Date(b.month).getTime() - new Date(a.month).getTime()
-  )[0]
-  const recentReview = store.performanceReviews.filter((r: any) => r.staffId === staffId).sort((a: any, b: any) => 
-    new Date(b.reviewDate).getTime() - new Date(a.reviewDate).getTime()
-  )[0]
+  const approvedLeaves = myLeaves.filter((l: any) => l.status === 'approved').length
 
   if (!staff) {
     return <div className="p-8">Staff member not found</div>
+  }
+
+  const handleQuickAction = (action: string) => {
+    if (action === 'apply-leave') {
+      setShowLeaveForm(true)
+    } else if (onNavigate) {
+      onNavigate(action)
+    }
   }
 
   return (
@@ -32,12 +41,13 @@ export default function EmployeeDashboard({ store, staffId }: EmployeeDashboardP
         <p className="text-muted-foreground mt-1">Your personal dashboard</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Government HR: Simplified dashboard - core metrics only */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-2 border-blue-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              Annual Leave
+              Annual Leave Balance
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -62,40 +72,45 @@ export default function EmployeeDashboard({ store, staffId }: EmployeeDashboardP
         <Card className="border-2 border-blue-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              Last Payslip
+              <FileText className="w-4 h-4" />
+              Approved Leaves
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {recentPayslip ? (
-              <>
-                <p className="text-2xl font-bold text-green-600">KES {recentPayslip.netSalary.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-1">{recentPayslip.month}</p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">No payslips available</p>
-            )}
+            <p className="text-3xl font-bold text-green-600">{approvedLeaves}</p>
+            <p className="text-xs text-muted-foreground mt-1">This year</p>
           </CardContent>
         </Card>
+      </div>
 
-        <Card className="border-2 border-blue-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Award className="w-4 h-4" />
-              Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentReview ? (
-              <>
-                <p className="text-2xl font-bold text-purple-600">{recentReview.rating}/5</p>
-                <p className="text-xs text-muted-foreground mt-1">{recentReview.reviewPeriod}</p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">No reviews yet</p>
-            )}
-          </CardContent>
-        </Card>
+      {/* Quick Actions */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Button
+            onClick={() => handleQuickAction('apply-leave')}
+            className="h-auto p-6 flex flex-col items-center gap-3 bg-primary hover:bg-primary/90 text-white"
+          >
+            <Plus className="w-8 h-8" />
+            <span className="text-base font-semibold text-center">Apply for Leave</span>
+          </Button>
+          <Button
+            onClick={() => handleQuickAction('leave-history')}
+            variant="outline"
+            className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-primary hover:text-primary-foreground transition-colors"
+          >
+            <FileText className="w-8 h-8" />
+            <span className="text-base font-semibold text-center">View Leave History</span>
+          </Button>
+          <Button
+            onClick={() => handleQuickAction('leave-balances')}
+            variant="outline"
+            className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-primary hover:text-primary-foreground transition-colors"
+          >
+            <Calendar className="w-8 h-8" />
+            <span className="text-base font-semibold text-center">View Leave Balances</span>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -169,6 +184,16 @@ export default function EmployeeDashboard({ store, staffId }: EmployeeDashboardP
           </CardContent>
         </Card>
       </div>
+
+      {/* Leave Form Dialog */}
+      <Dialog open={showLeaveForm} onOpenChange={setShowLeaveForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Apply for Leave</DialogTitle>
+          </DialogHeader>
+          <LeaveForm store={store} onClose={() => setShowLeaveForm(false)} staffId={staffId} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

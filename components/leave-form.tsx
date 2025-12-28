@@ -5,6 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { X, Upload, File, AlertCircle, CheckCircle } from 'lucide-react'
+import { useToast } from '@/components/ui/use-toast'
 import type { useDataStore } from '@/lib/data-store'
 
 interface LeaveFormProps {
@@ -62,6 +67,96 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
   }
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [attachments, setAttachments] = useState<Array<{ file: File; type: string; description: string }>>([])
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [currentBalance, setCurrentBalance] = useState<number | null>(null)
+  const [holidaysInRange, setHolidaysInRange] = useState<number>(0)
+  const [calculatedDays, setCalculatedDays] = useState(1)
+  const { toast } = useToast()
+  
+  // Fetch leave balance when staff or leave type changes
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (formData.staffId && formData.leaveType && formData.leaveType !== 'Unpaid') {
+        try {
+          const balance = store.balances.find(b => b.staffId === formData.staffId)
+          if (balance) {
+            const balanceField = formData.leaveType.toLowerCase() as keyof typeof balance
+            setCurrentBalance((balance[balanceField] as number) || 0)
+          } else {
+            setCurrentBalance(0)
+          }
+        } catch (error) {
+          console.error('Error fetching balance:', error)
+          setCurrentBalance(null)
+        }
+      } else {
+        setCurrentBalance(null)
+      }
+    }
+    
+    fetchBalance()
+  }, [formData.staffId, formData.leaveType, store.balances])
+  
+  // Calculate days with holiday exclusion when dates change
+  useEffect(() => {
+    const calculateDaysWithHolidays = async () => {
+      if (formData.startDate && formData.endDate) {
+        try {
+          const response = await fetch(
+            `/api/leaves/calculate-days?startDate=${formData.startDate}&endDate=${formData.endDate}`,
+            { credentials: 'include' }
+          )
+          if (response.ok) {
+            const data = await response.json()
+            setCalculatedDays(data.workingDays)
+            setHolidaysInRange(data.holidays)
+            setFormData(prev => ({ ...prev, days: data.workingDays }))
+          } else {
+            // Fallback to simple calculation
+            const days = calculateDays(formData.startDate, formData.endDate)
+            setCalculatedDays(days)
+            setHolidaysInRange(0)
+            setFormData(prev => ({ ...prev, days }))
+          }
+        } catch (error) {
+          // Fallback to simple calculation
+          const days = calculateDays(formData.startDate, formData.endDate)
+          setCalculatedDays(days)
+          setHolidaysInRange(0)
+          setFormData(prev => ({ ...prev, days }))
+        }
+      }
+    }
+    
+    calculateDaysWithHolidays()
+  }, [formData.startDate, formData.endDate])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: 'Error',
+          description: 'File size must be less than 10MB',
+          variant: 'destructive',
+        })
+        return
+      }
+      setAttachments([...attachments, { file, type: 'other', description: '' }])
+    }
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments(attachments.filter((_, i) => i !== index))
+  }
+
+  const updateAttachment = (index: number, field: 'type' | 'description', value: string) => {
+    const updated = [...attachments]
+    updated[index] = { ...updated[index], [field]: value }
+    setAttachments(updated)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,7 +178,8 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
           }))
         : undefined
       
-      await store.addLeaveRequest({
+      // Create leave request first
+      const leaveRequest = await store.addLeaveRequest({
         staffId: formData.staffId,
         staffName: `${staff.firstName} ${staff.lastName}`,
         leaveType: formData.leaveType,
@@ -94,11 +190,38 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
         templateId: formData.templateId,
         approvalLevels,
       })
+
+      // Upload attachments if any
+      if (attachments.length > 0 && leaveRequest?.id) {
+        for (const attachment of attachments) {
+          try {
+            const formData = new FormData()
+            formData.append('file', attachment.file)
+            formData.append('name', attachment.file.name)
+            formData.append('attachmentType', attachment.type)
+            formData.append('description', attachment.description)
+
+            const response = await fetch(`/api/leaves/${leaveRequest.id}/attachments`, {
+              method: 'POST',
+              credentials: 'include',
+              body: formData,
+            })
+
+            if (!response.ok) {
+              console.error('Failed to upload attachment:', attachment.file.name)
+            }
+          } catch (error) {
+            console.error('Error uploading attachment:', error)
+          }
+        }
+      }
+
       onClose()
       // Show success message
-      if (typeof window !== 'undefined') {
-        alert('Leave request submitted successfully! Check the "Leave History" tab to view your request.')
-      }
+      toast({
+        title: 'Success',
+        description: 'Leave request submitted successfully! Check the "Leave History" tab to view your request.',
+      })
     } catch (error: any) {
       console.error('Error submitting leave request:', error)
       const errorMessage = error?.message || 'Failed to submit leave request'
@@ -229,22 +352,152 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
           <Input
             id="days"
             type="number"
-            value={days}
-            onChange={(e) => setFormData({...formData, days: parseInt(e.target.value)})}
-            disabled
+            value={calculatedDays}
+            onChange={(e) => {
+              const newDays = parseInt(e.target.value) || 1
+              setCalculatedDays(newDays)
+              setFormData({...formData, days: newDays})
+            }}
+            min={1}
           />
+          {holidaysInRange > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {holidaysInRange} holiday(s) excluded from calculation
+            </p>
+          )}
         </div>
+        {formData.leaveType !== 'Unpaid' && currentBalance !== null && (
+          <div className="col-span-2">
+            <Alert className={calculatedDays > currentBalance ? 'border-red-500' : 'border-green-500'}>
+              <div className="flex items-center gap-2">
+                {calculatedDays > currentBalance ? (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                )}
+                <AlertDescription>
+                  <strong>Available Balance:</strong> {currentBalance} days | 
+                  <strong> Requested:</strong> {calculatedDays} days
+                  {calculatedDays > currentBalance && (
+                    <span className="text-red-600 font-semibold ml-2">
+                      (Insufficient balance - {calculatedDays - currentBalance} days short)
+                    </span>
+                  )}
+                </AlertDescription>
+              </div>
+            </Alert>
+          </div>
+        )}
         <div className="col-span-2">
           <Label htmlFor="reason">Reason</Label>
-          <Input
+          <Textarea
             id="reason"
             value={formData.reason}
             onChange={(e) => setFormData({...formData, reason: e.target.value})}
             placeholder="Please provide reason for leave"
             required
+            rows={3}
           />
         </div>
       </div>
+
+      {/* Government HR: Attachments Section */}
+      <div className="space-y-4 border-t pt-4">
+        <div>
+          <Label>Attachments (Optional)</Label>
+          <p className="text-sm text-muted-foreground mb-2">
+            Upload supporting documents: Medical reports, Training letters, Official memos
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              type="file"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={handleFileChange}
+              className="cursor-pointer"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png'
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0]
+                  if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                      toast({
+                        title: 'Error',
+                        description: 'File size must be less than 10MB',
+                        variant: 'destructive',
+                      })
+                      return
+                    }
+                    setAttachments([...attachments, { file, type: 'other', description: '' }])
+                  }
+                }
+                input.click()
+              }}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Add File
+            </Button>
+          </div>
+        </div>
+
+        {/* Attachment List */}
+        {attachments.length > 0 && (
+          <div className="space-y-2">
+            {attachments.map((attachment, index) => (
+              <div key={index} className="flex items-start gap-2 p-3 border rounded-lg">
+                <File className="w-5 h-5 text-muted-foreground mt-1" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{attachment.file.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeAttachment(index)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Type</Label>
+                      <Select
+                        value={attachment.type}
+                        onValueChange={(value) => updateAttachment(index, 'type', value)}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="medical">Medical Report</SelectItem>
+                          <SelectItem value="training">Training Letter</SelectItem>
+                          <SelectItem value="memo">Official Memo</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Description (Optional)</Label>
+                      <Input
+                        value={attachment.description}
+                        onChange={(e) => updateAttachment(index, 'description', e.target.value)}
+                        placeholder="Brief description"
+                        className="h-8"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendPushNotification } from '@/lib/send-push-notification'
 
+
 // POST delegate approval
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { prisma } from '@/lib/prisma'
 
+
 // GET accrual history
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {

@@ -4,6 +4,7 @@ import { sendPushNotification } from '@/lib/send-push-notification'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendEmail, generateLeaveRequestApprovedEmail, generateLeaveRequestRejectedEmail } from '@/lib/email'
 import { calculateApprovalStatus, areParallelApprovalsComplete, getNextApprovers } from '@/lib/approval-workflow'
+import { validateLeaveBalance, deductLeaveBalance, restoreLeaveBalance } from '@/lib/leave-balance-utils'
 
 // GET single leave request
 export async function GET(
@@ -95,6 +96,29 @@ export async function PATCH(
           }, { status: 403 })
         }
       }
+      
+      // CRITICAL FIX: Validate leave balance before approval
+      if (body.status === 'approved' && leave.status !== 'approved') {
+        const balanceValidation = await validateLeaveBalance(
+          leave.staffId,
+          leave.leaveType,
+          leave.days
+        )
+        
+        if (!balanceValidation.valid) {
+          return NextResponse.json({
+            error: balanceValidation.error || 'Insufficient leave balance',
+            errorCode: 'INSUFFICIENT_BALANCE',
+            currentBalance: balanceValidation.currentBalance,
+            requestedDays: leave.days,
+            troubleshooting: [
+              'The staff member does not have sufficient leave balance',
+              `Available: ${balanceValidation.currentBalance} days, Requested: ${leave.days} days`,
+              'Contact HR if this leave should be approved despite insufficient balance',
+            ],
+          }, { status: 400 })
+        }
+      }
     }
 
     // Handle approval levels with enhanced workflow support
@@ -158,6 +182,78 @@ export async function PATCH(
           }),
         },
       })
+    }
+
+    // CRITICAL FIX: Deduct balance when approved, restore when rejected/cancelled
+    const previousStatus = leave.status
+    const isNewlyApproved = status === 'approved' && previousStatus !== 'approved'
+    const isNewlyRejected = status === 'rejected' && previousStatus !== 'rejected'
+    const isNewlyCancelled = status === 'cancelled' && previousStatus === 'approved'
+    
+    // Deduct balance when newly approved
+    if (isNewlyApproved) {
+      const deductionResult = await deductLeaveBalance(
+        leave.staffId,
+        leave.leaveType,
+        leave.days
+      )
+      
+      if (!deductionResult.success) {
+        return NextResponse.json({
+          error: deductionResult.error || 'Failed to deduct leave balance',
+          errorCode: 'BALANCE_DEDUCTION_FAILED',
+          troubleshooting: [
+            'The leave balance could not be deducted',
+            'This may indicate a system error',
+            'Contact IT support immediately',
+          ],
+        }, { status: 500 })
+      }
+      
+      // Log balance deduction
+      await prisma.auditLog.create({
+        data: {
+          action: 'LEAVE_BALANCE_DEDUCTED',
+          user: user.email || 'system',
+          staffId: leave.staffId,
+          details: JSON.stringify({
+            leaveRequestId: id,
+            leaveType: leave.leaveType,
+            daysDeducted: leave.days,
+            newBalance: deductionResult.newBalance,
+          }),
+        },
+      })
+    }
+    
+    // Restore balance if previously approved leave is now rejected or cancelled
+    if ((isNewlyRejected || isNewlyCancelled) && previousStatus === 'approved') {
+      const restorationResult = await restoreLeaveBalance(
+        leave.staffId,
+        leave.leaveType,
+        leave.days
+      )
+      
+      if (!restorationResult.success) {
+        console.error('Failed to restore leave balance:', restorationResult.error)
+        // Don't fail the request, but log the error
+      } else {
+        // Log balance restoration
+        await prisma.auditLog.create({
+          data: {
+            action: 'LEAVE_BALANCE_RESTORED',
+            user: user.email || 'system',
+            staffId: leave.staffId,
+            details: JSON.stringify({
+              leaveRequestId: id,
+              leaveType: leave.leaveType,
+              daysRestored: leave.days,
+              newBalance: restorationResult.newBalance,
+              reason: isNewlyRejected ? 'rejected' : 'cancelled',
+            }),
+          },
+        })
+      }
     }
 
     const updated = await prisma.leaveRequest.update({

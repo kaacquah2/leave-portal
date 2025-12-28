@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
+import { restoreLeaveBalance } from '@/lib/leave-balance-utils'
 
 export async function POST(
   request: NextRequest,
@@ -43,6 +44,37 @@ export async function POST(
         { error: 'Cannot cancel a rejected leave request' },
         { status: 400 }
       )
+    }
+    
+    // CRITICAL FIX: Restore balance if leave was previously approved
+    const wasApproved = leave.status === 'approved'
+    if (wasApproved) {
+      const restorationResult = await restoreLeaveBalance(
+        leave.staffId,
+        leave.leaveType,
+        leave.days
+      )
+      
+      if (!restorationResult.success) {
+        console.error('Failed to restore leave balance on cancellation:', restorationResult.error)
+        // Continue with cancellation but log error
+      } else {
+        // Log balance restoration
+        await prisma.auditLog.create({
+          data: {
+            action: 'LEAVE_BALANCE_RESTORED',
+            user: user.email || 'system',
+            staffId: leave.staffId,
+            details: JSON.stringify({
+              leaveRequestId: id,
+              leaveType: leave.leaveType,
+              daysRestored: leave.days,
+              newBalance: restorationResult.newBalance,
+              reason: 'cancelled',
+            }),
+          },
+        })
+      }
     }
 
     const updated = await prisma.leaveRequest.update({

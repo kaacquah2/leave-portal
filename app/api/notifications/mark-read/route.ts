@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
 
+
 // POST mark all notifications as read
 export async function POST(request: NextRequest) {
   try {

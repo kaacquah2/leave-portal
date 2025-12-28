@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
 
+
 interface PushSubscriptionData {
   endpoint: string
   keys: {

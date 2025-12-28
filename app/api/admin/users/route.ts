@@ -4,6 +4,7 @@ import { hashPassword } from '@/lib/auth'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendEmail, generateNewUserCredentialsEmail } from '@/lib/email'
 
+
 // GET all users
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {

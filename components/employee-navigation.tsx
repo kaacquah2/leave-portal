@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, Calendar, FileText, DollarSign, User, Award, LogOut, Bell, HelpCircle, Phone, Building2, FileCheck, GraduationCap, Shield, Menu } from 'lucide-react'
+import { LayoutDashboard, Calendar, FileText, User, LogOut, Bell, Menu, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
@@ -16,22 +16,15 @@ export default function EmployeeNavigation({ activeTab, setActiveTab, onLogout }
   const isMobile = useIsMobile()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // Government HR: Simplified employee navigation - core features only
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'apply-leave', label: 'Apply for Leave', icon: Plus },
     { id: 'leave-balances', label: 'Leave Balances', icon: Calendar },
     { id: 'leave-history', label: 'Leave History', icon: Calendar },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'payslips', label: 'Payslips', icon: DollarSign },
-    { id: 'personal-info', label: 'Personal Info', icon: User },
+    { id: 'profile', label: 'View Profile', icon: User },
     { id: 'documents', label: 'My Documents', icon: FileText },
-    { id: 'emergency-contacts', label: 'Emergency Contacts', icon: Phone },
-    { id: 'bank-account', label: 'Bank Account', icon: Building2 },
-    { id: 'tax-info', label: 'Tax Information', icon: FileCheck },
-    { id: 'benefits', label: 'Benefits', icon: Shield },
-    { id: 'certifications', label: 'Certifications', icon: Award },
-    { id: 'training', label: 'Training Records', icon: GraduationCap },
-    { id: 'performance', label: 'Performance', icon: Award },
-    { id: 'help', label: 'Help & Support', icon: HelpCircle },
   ]
 
   const handleTabChange = (tab: string) => {

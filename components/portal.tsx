@@ -17,6 +17,9 @@ import LeavePolicyManagement from '@/components/leave-policy-management'
 import HolidayCalendar from '@/components/holiday-calendar'
 import LeaveCalendarView from '@/components/leave-calendar-view'
 import LeaveTemplates from '@/components/leave-templates'
+import DelegationManagement from '@/components/delegation-management'
+import YearEndProcessing from '@/components/year-end-processing'
+import ManagerAssignment from '@/components/manager-assignment'
 
 import AdminPortal from '@/components/admin-portal'
 
@@ -94,6 +97,8 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
           return <ManagerTeamView managerStaffId={staffId} />
         }
         return <StaffManagement store={store} userRole={userRole} />
+      case 'manager-assignment':
+        return <ManagerAssignment store={store} />
       case 'leave':
         if (userRole === 'manager') {
           return <ManagerLeaveApproval />
@@ -101,12 +106,16 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
         return <LeaveManagement store={store} userRole={userRole} />
       case 'leave-calendar':
         return <LeaveCalendarView store={store} userRole={userRole} />
+      case 'delegation':
+        return <DelegationManagement />
       case 'leave-policies':
         return <LeavePolicyManagement store={store} />
       case 'holidays':
         return <HolidayCalendar store={store} />
       case 'leave-templates':
         return <LeaveTemplates store={store} />
+      case 'year-end':
+        return <YearEndProcessing />
       case 'reports':
         return <Reports store={store} userRole={userRole} />
       default:

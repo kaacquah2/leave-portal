@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
+
 /**
  * External Payroll System Integration
  * This endpoint allows integration with external payroll systems via API

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTokenFromRequest, getUserFromToken, type AuthUser } from './auth'
+import { isSessionExpired, updateSessionActivity, isAccountLocked } from './security'
+import { prisma } from './prisma'
 
 export interface AuthContext {
   user: AuthUser
@@ -53,6 +55,35 @@ export function withAuth<T = any>(
         { error: 'Invalid or expired token' },
         { status: 401 }
       )
+    }
+
+    // Check if account is locked
+    const locked = await isAccountLocked(user.id)
+    if (locked) {
+      return NextResponse.json(
+        { error: 'Account is locked due to too many failed login attempts. Please try again later.' },
+        { status: 403 }
+      )
+    }
+
+    // Check session timeout
+    const session = await prisma.session.findFirst({
+      where: { token, userId: user.id },
+    })
+
+    if (session) {
+      const expired = await isSessionExpired(session.id)
+      if (expired) {
+        // Delete expired session
+        await prisma.session.delete({ where: { id: session.id } })
+        return NextResponse.json(
+          { error: 'Session expired. Please login again.' },
+          { status: 401 }
+        )
+      }
+
+      // Update last activity
+      await updateSessionActivity(session.id)
     }
 
     // Check role-based access

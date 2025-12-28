@@ -19,6 +19,15 @@ model User {
   active        Boolean  @default(true)
   emailVerified Boolean  @default(false)
   lastLogin     DateTime?
+  // Security enhancements
+  passwordChangedAt DateTime? // Track password change date
+  passwordExpiresAt DateTime? // Password expiration date
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret String?  // TOTP secret
+  twoFactorBackupCodes String[] // Backup codes
+  sessionTimeout Int @default(1800) // Session timeout in seconds (default 30 minutes)
+  failedLoginAttempts Int @default(0)
+  lockedUntil DateTime? // Account lock until this date
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -38,9 +47,13 @@ model Session {
   expiresAt DateTime
   ip        String?
   userAgent String?
+  lastActivity DateTime @default(now()) // Track last activity for timeout
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, expiresAt])
+  @@index([lastActivity])
 }
 
 model StaffMember {
@@ -54,17 +67,25 @@ model StaffMember {
   position         String
   grade            String
   level            String
+  // Government HR metadata
+  rank             String?  // Staff rank (e.g., "Senior Officer", "Principal Officer")
+  step             String?  // Step within grade
+  directorate      String?  // Directorate name
+  unit             String?  // Unit within directorate
   photoUrl         String?
   active           Boolean  @default(true)
   employmentStatus String   @default("active") // 'active' | 'terminated' | 'resigned' | 'retired' | 'suspended'
   terminationDate DateTime?
   terminationReason String?
   joinDate         DateTime
+  managerId        String?  // Staff ID of the manager (for team assignment)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   // Relations
   user              User?
+  manager           StaffMember? @relation("TeamMembers", fields: [managerId], references: [staffId])
+  teamMembers       StaffMember[] @relation("TeamMembers")
   leaveRequests     LeaveRequest[]
   leaveBalance      LeaveBalance?
   payslips          Payslip[]
@@ -77,6 +98,9 @@ model StaffMember {
   trainings         TrainingAttendance[]
   onboardingChecklist OnboardingChecklist?
   offboardingChecklist OffboardingChecklist?
+  changeRequests    ProfileChangeRequest[]
+  delegations       ApprovalDelegation[] @relation("Delegator") // As delegator
+  delegatedTo       ApprovalDelegation[] @relation("Delegatee") // As delegatee
 }
 
 model LeaveRequest {
@@ -93,6 +117,8 @@ model LeaveRequest {
   approvalDate  DateTime?
   templateId    String?
   approvalLevels Json?   // Array of LeaveApprovalLevel
+  // Government HR: Attachments support
+  attachments   LeaveAttachment[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -664,4 +690,69 @@ model PushSubscription {
 
   @@index([userId])
   @@index([endpoint])
+}
+
+// Government HR: Profile Change Requests
+model ProfileChangeRequest {
+  id            String   @id @default(cuid())
+  staffId       String
+  section       String   // 'personal' | 'bank' | 'tax' | 'certifications' | 'training'
+  requestedChanges String // Description of requested changes
+  currentData   Json?    // Current data snapshot
+  status        String   @default("pending") // 'pending' | 'approved' | 'rejected' | 'completed'
+  reviewedBy    String?  // HR user who reviewed
+  reviewedAt    DateTime?
+  rejectionReason String?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId, status])
+  @@index([status, createdAt])
+}
+
+// Government HR: Leave Attachments
+model LeaveAttachment {
+  id            String   @id @default(cuid())
+  leaveRequestId String
+  name          String
+  fileUrl       String
+  fileSize      Int
+  mimeType      String
+  attachmentType String   // 'medical' | 'training' | 'memo' | 'other'
+  uploadedBy    String
+  uploadedAt    DateTime @default(now())
+  description   String?
+
+  // Relations
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+
+  @@index([leaveRequestId])
+}
+
+// Government HR: Approval Delegation
+model ApprovalDelegation {
+  id            String   @id @default(cuid())
+  delegatorId   String   // Staff ID of person delegating
+  delegateeId   String   // Staff ID of person receiving delegation
+  startDate     DateTime
+  endDate       DateTime
+  leaveTypes    String[] // Leave types this delegation applies to (empty = all)
+  status        String   @default("active") // 'active' | 'expired' | 'revoked'
+  revokedAt     DateTime?
+  revokedBy     String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  delegator StaffMember @relation("Delegator", fields: [delegatorId], references: [staffId], onDelete: Cascade)
+  delegatee StaffMember @relation("Delegatee", fields: [delegateeId], references: [staffId], onDelete: Cascade)
+
+  @@index([delegatorId, status, endDate])
+  @@index([delegateeId, status, endDate])
+  @@index([startDate, endDate])
 }

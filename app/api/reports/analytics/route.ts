@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
+
 // GET analytics data
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {

@@ -13,12 +13,17 @@ export interface StaffMember {
   position: string
   grade: string
   level: string
+  rank?: string | null
+  step?: string | null
+  directorate?: string | null
+  unit?: string | null
   photoUrl?: string
   active: boolean
   employmentStatus?: string
   terminationDate?: string
   terminationReason?: string
   joinDate: string
+  managerId?: string | null
   createdAt: string
 }
 

@@ -7,10 +7,10 @@ let mainWindow;
 function createWindow() {
   // Create the browser window
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
+    width: 1400,
+    height: 900,
+    minWidth: 1000,
+    minHeight: 700,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -21,7 +21,7 @@ function createWindow() {
     icon: (() => {
       // Try different icon formats based on platform
       const iconPath = process.platform === 'win32' 
-        ? path.join(__dirname, '../public/icon.ico')
+        ? path.join(__dirname, '../public/mofa.ico')
         : process.platform === 'darwin'
         ? path.join(__dirname, '../public/icon.icns')
         : path.join(__dirname, '../public/icon.png');
@@ -30,6 +30,16 @@ function createWindow() {
       const fs = require('fs');
       if (fs.existsSync(iconPath)) {
         return iconPath;
+      }
+      // Try icon.ico as fallback
+      const iconIcoPath = path.join(__dirname, '../public/icon.ico');
+      if (fs.existsSync(iconIcoPath)) {
+        return iconIcoPath;
+      }
+      // Try icon-256x256.png (created by our script)
+      const icon256Path = path.join(__dirname, '../public/icon-256x256.png');
+      if (fs.existsSync(icon256Path)) {
+        return icon256Path;
       }
       // Try generic png
       const pngPath = path.join(__dirname, '../public/icon.png');
@@ -47,6 +57,8 @@ function createWindow() {
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     show: false, // Don't show until ready
     backgroundColor: '#ffffff',
+    autoHideMenuBar: false, // Show menu bar on Windows
+    frame: true, // Show window frame
   });
 
   // Show window when ready to prevent visual flash
@@ -60,9 +72,49 @@ function createWindow() {
   });
 
   // Load the app
-  const startUrl = isDev
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../out/index.html')}`;
+  // Check if we have a remote API URL (Vercel deployment)
+  const remoteApiUrl = process.env.ELECTRON_API_URL || process.env.NEXT_PUBLIC_API_URL;
+  
+  let startUrl;
+  if (isDev) {
+    // Development: always use localhost
+    startUrl = 'http://localhost:3000';
+  } else if (remoteApiUrl) {
+    // Production with remote API: load from Vercel/hosted URL
+    // Remove trailing slash and ensure proper format
+    startUrl = remoteApiUrl.replace(/\/$/, '');
+    console.log('[Electron] Loading from remote URL:', startUrl);
+  } else {
+    // Production without remote API: load from local files (standalone build)
+    // Use app.getAppPath() for packaged apps, __dirname for development
+    const appPath = app.isPackaged 
+      ? path.join(process.resourcesPath, 'app.asar', 'out')
+      : path.join(__dirname, '../out');
+    
+    startUrl = `file://${path.join(appPath, 'index.html')}`;
+    console.log('[Electron] Loading from local files:', startUrl);
+    console.log('[Electron] App path:', appPath);
+    console.log('[Electron] WARNING: No remote API URL set. API calls will fail.');
+    console.log('[Electron] Set ELECTRON_API_URL environment variable to point to your API server.');
+  }
+  
+  // Add error handling
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('[Electron] Failed to load:', validatedURL, errorCode, errorDescription);
+    mainWindow.webContents.executeJavaScript(`
+      document.body.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif;">
+        <h1 style="color: #dc2626;">Failed to Load Application</h1>
+        <p style="color: #666; margin: 20px 0;">Error: ${errorDescription}</p>
+        <p style="color: #666;">URL: ${validatedURL}</p>
+        <p style="color: #666; margin-top: 20px;">Please check the console for more details.</p>
+      </div>';
+    `);
+  });
+  
+  // Log console messages from renderer
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Renderer ${level}]:`, message);
+  });
   
   mainWindow.loadURL(startUrl);
 
@@ -79,11 +131,28 @@ function createWindow() {
 
   // Prevent navigation to external URLs
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
-    const parsedUrl = new URL(navigationUrl);
-    
-    if (parsedUrl.origin !== startUrl && !isDev) {
+    try {
+      const parsedUrl = new URL(navigationUrl);
+      const currentOrigin = startUrl.startsWith('file://') 
+        ? 'file://' 
+        : new URL(startUrl).origin;
+      
+      // Allow navigation within the same origin (for SPA routing)
+      // Allow localhost in dev mode
+      // For file:// protocol, allow all file:// URLs
+      if (startUrl.startsWith('file://')) {
+        // Allow all file:// navigation for SPA routing
+        if (!navigationUrl.startsWith('file://')) {
+          event.preventDefault();
+          shell.openExternal(navigationUrl);
+        }
+      } else if (parsedUrl.origin !== currentOrigin && !isDev) {
+        event.preventDefault();
+        shell.openExternal(navigationUrl);
+      }
+    } catch (e) {
+      // Invalid URL, prevent navigation
       event.preventDefault();
-      shell.openExternal(navigationUrl);
     }
   });
 

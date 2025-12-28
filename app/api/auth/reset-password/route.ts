@@ -4,6 +4,7 @@ import { hashPassword, createPasswordResetToken, verifyPasswordResetToken, markP
 import { sendEmail, generatePasswordResetEmail, generatePasswordResetSuccessEmail } from '@/lib/email'
 import { getDatabaseErrorMessage } from '@/lib/db-utils'
 
+
 // POST request password reset (creates a request that needs admin approval)
 export async function POST(request: NextRequest) {
   try {

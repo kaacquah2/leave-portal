@@ -11,6 +11,7 @@ import AdminUserManagement from '@/components/admin-user-management'
 import AdminPasswordResetRequests from '@/components/admin-password-reset-requests'
 import AdminAuditLogs from '@/components/admin-audit-logs'
 import AdminSystemSettings from '@/components/admin-system-settings'
+import TwoFactorSetup from '@/components/two-factor-setup'
 
 interface AdminPortalProps {
   onLogout: () => void
@@ -54,6 +55,8 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
         return <AdminPasswordResetRequests />
       case 'audit-logs':
         return <AdminAuditLogs />
+      case '2fa':
+        return <TwoFactorSetup />
       case 'settings':
         return <AdminSystemSettings />
       default:

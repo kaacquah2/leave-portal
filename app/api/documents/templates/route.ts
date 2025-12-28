@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
+
 // GET all document templates
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {

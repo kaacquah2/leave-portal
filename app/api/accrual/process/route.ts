@@ -3,6 +3,7 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { processLeaveAccrual, processLeaveExpiration } from '@/lib/leave-accrual'
 import { prisma } from '@/lib/prisma'
 
+
 // POST trigger manual accrual processing
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {

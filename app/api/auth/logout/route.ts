@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getTokenFromRequest, deleteSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+
 export async function POST(request: NextRequest) {
   try {
     const token = getTokenFromRequest(request)

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendSystemAnnouncement } from '@/lib/email'
 
+
 // POST send system announcement
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {

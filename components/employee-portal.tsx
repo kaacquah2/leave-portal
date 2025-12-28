@@ -9,18 +9,11 @@ import EmployeeNavigation from '@/components/employee-navigation'
 import EmployeeDashboard from '@/components/employee-dashboard'
 import EmployeeLeaveBalances from '@/components/employee-leave-balances'
 import EmployeeLeaveHistory from '@/components/employee-leave-history'
-import EmployeePayslips from '@/components/employee-payslips'
-import EmployeePersonalInfo from '@/components/employee-personal-info'
-import EmployeePerformanceReviews from '@/components/employee-performance-reviews'
 import NotificationCenter from '@/components/notification-center'
-import HelpSupport from '@/components/help-support'
 import EmployeeDocuments from '@/components/employee-documents'
-import EmployeeEmergencyContacts from '@/components/employee-emergency-contacts'
-import EmployeeBankAccount from '@/components/employee-bank-account'
-import EmployeeTaxInfo from '@/components/employee-tax-info'
-import EmployeeBenefits from '@/components/employee-benefits'
-import EmployeeCertifications from '@/components/employee-certifications'
-import EmployeeTrainingRecords from '@/components/employee-training-records'
+import LeaveForm from '@/components/leave-form'
+import EmployeeProfileView from '@/components/employee-profile-view'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface EmployeePortalProps {
   staffId: string
@@ -89,37 +82,40 @@ export default function EmployeePortal({ staffId, onLogout }: EmployeePortalProp
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <EmployeeDashboard store={store} staffId={staffId} />
+        return <EmployeeDashboard store={store} staffId={staffId} onNavigate={handleTabChange} />
+      case 'apply-leave':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold">Apply for Leave</h1>
+              <p className="text-muted-foreground mt-1">Submit a new leave request</p>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Leave Application Form</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LeaveForm 
+                  store={store} 
+                  onClose={() => handleTabChange('dashboard')} 
+                  staffId={staffId} 
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )
       case 'leave-balances':
         return <EmployeeLeaveBalances store={store} staffId={staffId} />
       case 'leave-history':
         return <EmployeeLeaveHistory store={store} staffId={staffId} />
-      case 'payslips':
-        return <EmployeePayslips store={store} staffId={staffId} />
-      case 'personal-info':
-        return <EmployeePersonalInfo store={store} staffId={staffId} />
-      case 'documents':
-        return <EmployeeDocuments />
-      case 'emergency-contacts':
-        return <EmployeeEmergencyContacts />
-      case 'bank-account':
-        return <EmployeeBankAccount />
-      case 'tax-info':
-        return <EmployeeTaxInfo />
-      case 'benefits':
-        return <EmployeeBenefits />
-      case 'certifications':
-        return <EmployeeCertifications />
-      case 'training':
-        return <EmployeeTrainingRecords />
-      case 'performance':
-        return <EmployeePerformanceReviews store={store} staffId={staffId} />
       case 'notifications':
         return <NotificationCenter />
-      case 'help':
-        return <HelpSupport />
+      case 'profile':
+        return <EmployeeProfileView store={store} staffId={staffId} />
+      case 'documents':
+        return <EmployeeDocuments />
       default:
-        return <EmployeeDashboard store={store} staffId={staffId} />
+        return <EmployeeDashboard store={store} staffId={staffId} onNavigate={handleTabChange} />
     }
   }
 

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserFromToken } from '@/lib/auth'
 
+
 // Server-Sent Events endpoint for real-time updates
 export async function GET(request: NextRequest) {
   // Get token from cookies (EventSource sends cookies automatically for same-origin requests)

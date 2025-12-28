@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
+
 // POST bulk operations on documents
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {

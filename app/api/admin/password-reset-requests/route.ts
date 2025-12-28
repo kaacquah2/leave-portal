@@ -4,6 +4,7 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { createPasswordResetToken } from '@/lib/auth'
 import { sendEmail, generatePasswordResetEmail, generateNewUserCredentialsEmail } from '@/lib/email'
 
+
 // GET all password reset requests
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {

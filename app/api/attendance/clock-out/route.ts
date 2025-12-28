@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
+
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
     if (!user.staffId) {
