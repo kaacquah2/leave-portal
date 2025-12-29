@@ -42,8 +42,24 @@ export function withAuth<T = any>(
     // Check authentication
     const token = getTokenFromRequest(request)
     if (!token) {
+      // Log for debugging (only in development or when explicitly enabled)
+      if (process.env.NODE_ENV === 'development' || process.env.DEBUG_AUTH === 'true') {
+        const hasAuthHeader = request.headers.get('authorization')
+        const hasCookies = request.headers.get('cookie')
+        const cookieCount = request.cookies ? request.cookies.getAll().length : 0
+        const cookieNames = request.cookies ? request.cookies.getAll().map(c => c.name) : []
+        console.log('[Auth Debug] No token found:', {
+          hasAuthHeader: !!hasAuthHeader,
+          hasCookies: !!hasCookies,
+          cookieCount,
+          cookieNames,
+          url: request.url,
+          path: request.nextUrl.pathname,
+        })
+        console.log('[Auth Debug] To enable detailed logging, set DEBUG_AUTH=true in Vercel environment variables')
+      }
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - No authentication token found. Please log in first.' },
         { status: 401 }
       )
     }
@@ -51,8 +67,18 @@ export function withAuth<T = any>(
     // Verify token
     const user = await getUserFromToken(token)
     if (!user) {
+      // Log for debugging
+      if (process.env.NODE_ENV === 'development' || process.env.DEBUG_AUTH === 'true') {
+        console.log('[Auth Debug] Token verification failed:', {
+          tokenLength: token.length,
+          tokenPrefix: token.substring(0, 20) + '...',
+          url: request.url,
+          path: request.nextUrl.pathname,
+        })
+        console.log('[Auth Debug] Possible causes: token expired, session expired, or invalid token')
+      }
       return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: 'Invalid or expired token. Please log in again.' },
         { status: 401 }
       )
     }

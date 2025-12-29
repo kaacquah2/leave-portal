@@ -62,6 +62,28 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
 
       // Token is stored in httpOnly cookie automatically
       // No need to store in localStorage
+      
+      // Verify authentication was successful by checking cookie
+      // Note: httpOnly cookies can't be read by JS, but we can verify
+      // by making a test request to /api/auth/me
+      if (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG_AUTH === 'true') {
+        try {
+          const { apiRequest } = await import('@/lib/api-config')
+          const verifyResponse = await apiRequest('/api/auth/me', { method: 'GET' })
+          if (verifyResponse.ok) {
+            const verifyUser = await verifyResponse.json()
+            console.log('[Login] Authentication verified - cookie set successfully:', {
+              userId: verifyUser.id,
+              email: verifyUser.email,
+              role: verifyUser.role,
+            })
+          } else {
+            console.warn('[Login] Warning: Login succeeded but cookie verification failed')
+          }
+        } catch (verifyError) {
+          console.warn('[Login] Could not verify cookie after login:', verifyError)
+        }
+      }
 
       // Redirect to appropriate portal based on role
       const role = data.user.role as 'hr' | 'manager' | 'employee' | 'admin'

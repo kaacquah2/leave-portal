@@ -33,7 +33,15 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true })
-    response.cookies.delete('token')
+    // Delete cookie with same settings as when it was set
+    // This ensures it's properly cleared
+    response.cookies.set('token', '', {
+      httpOnly: true,
+      secure: process.env.VERCEL === '1' || process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0, // Expire immediately
+      path: '/',
+    })
     return response
   } catch (error) {
     console.error('Logout error:', error)

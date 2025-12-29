@@ -15,6 +15,31 @@ export default function Page() {
   const [stage, setStage] = useState<'landing' | 'login' | 'portal' | 'checking'>('checking')
   const [userRole, setUserRole] = useState<'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'>('hr')
   const [staffId, setStaffId] = useState<string | undefined>(undefined)
+  const [mounted, setMounted] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('Initializing application...')
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>('')
+
+  // Set mounted state and update loading message after mount to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+    
+    // Update loading message based on environment (only after mount)
+    const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
+    const apiUrl = typeof window !== 'undefined' ? ((window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '') : '';
+    const isRemote = typeof window !== 'undefined' && (window.location.protocol === 'https:' || (apiUrl && apiUrl.startsWith('http')));
+    
+    if (isRemote) {
+      setLoadingMessage('Connecting to server...')
+    } else if (isElectron) {
+      setLoadingMessage('Initializing application...')
+    } else {
+      setLoadingMessage('Initializing application...')
+    }
+    
+    if (apiUrl) {
+      setApiBaseUrl(apiUrl)
+    }
+  }, [])
 
   // Check if user is already logged in on page load/reload
   useEffect(() => {
@@ -103,7 +128,14 @@ export default function Page() {
           setStage('portal')
         } else {
           // No auth found, show landing page
-          console.log('[App] No authentication found, showing landing page');
+          if (response.status === 401) {
+            console.log('[App] User not authenticated (401) - showing landing page');
+            if (process.env.NODE_ENV === 'development' || (window as any).__DEBUG_AUTH__) {
+              console.log('[App] Debug: To enable detailed auth logging, set DEBUG_AUTH=true in Vercel environment variables');
+            }
+          } else {
+            console.warn('[App] Authentication check failed with status:', response.status);
+          }
           setStage('landing')
         }
       } catch (error: any) {
@@ -197,22 +229,18 @@ export default function Page() {
 
   // Show loading while checking authentication
   if (stage === 'checking') {
-    const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
-    const apiBaseUrl = typeof window !== 'undefined' ? ((window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '') : '';
-    const isRemote = typeof window !== 'undefined' && (window.location.protocol === 'https:' || (apiBaseUrl && apiBaseUrl.startsWith('http')));
+    // Only show environment-specific content after mount to prevent hydration mismatch
+    const isElectron = mounted && typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
+    const showApiUrl = mounted && isElectron && apiBaseUrl;
     
     return (
       <div className="min-h-screen bg-background flex items-center justify-center flex-col">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
         <div className="text-muted-foreground text-lg">Loading HR Leave Portal...</div>
         <div className="text-sm text-muted-foreground mt-2">
-          {isRemote 
-            ? 'Connecting to server...' 
-            : isElectron
-            ? 'Initializing application...'
-            : 'Initializing application...'}
+          {loadingMessage}
         </div>
-        {isElectron && apiBaseUrl && (
+        {showApiUrl && (
           <div className="text-xs text-muted-foreground mt-1 opacity-70">
             API: {apiBaseUrl}
           </div>

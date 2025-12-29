@@ -5,7 +5,6 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
-
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
       include: {

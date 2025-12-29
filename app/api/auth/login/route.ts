@@ -169,12 +169,21 @@ export async function POST(request: NextRequest) {
     // Set cookie
     // Vercel sets VERCEL=1, and always uses HTTPS, so secure should be true
     const isProduction = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
+    
+    // Cookie settings for Vercel deployment
+    // - secure: true on Vercel (HTTPS only)
+    // - sameSite: 'lax' for same-site requests (works for same-origin)
+    // - httpOnly: true for security (prevents XSS)
+    // - No domain set (defaults to current domain, works for vercel.app)
+    // - path: '/' (available for all paths)
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
+      // Explicitly don't set domain - let it default to current domain
+      // This ensures it works on vercel.app subdomains
     })
 
     return response
