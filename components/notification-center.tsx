@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Bell, CheckCircle, XCircle, Calendar, FileText, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { toast } from '@/hooks/use-toast'
+import { useToast } from '@/components/ui/use-toast'
 
 interface Notification {
   id: string
@@ -18,6 +18,7 @@ interface Notification {
 }
 
 export default function NotificationCenter() {
+  const { toast } = useToast()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 

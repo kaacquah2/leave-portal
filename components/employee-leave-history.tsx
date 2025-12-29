@@ -90,7 +90,16 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
                         <Badge variant="outline">{leave.leaveType}</Badge>
                         <div className="flex items-center gap-1">
                           {getStatusIcon(leave.status)}
-                          <span className="text-sm font-medium capitalize">{leave.status}</span>
+                          <Badge 
+                            variant={
+                              leave.status === 'approved' ? 'default' :
+                              leave.status === 'rejected' ? 'destructive' : 
+                              'secondary'
+                            }
+                            className="capitalize"
+                          >
+                            {leave.status}
+                          </Badge>
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">{leave.reason}</p>
@@ -102,14 +111,76 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
                         {leave.approvalDate && <p><strong>Date:</strong> {new Date(leave.approvalDate).toLocaleDateString()}</p>}
                       </div>
                       {leave.approvalLevels && leave.approvalLevels.length > 0 && (
-                        <div className="mt-2 pt-2 border-t">
-                          <p className="text-xs font-semibold mb-1">Approval Status:</p>
-                          {leave.approvalLevels.map((level: any, idx: number) => (
-                            <div key={idx} className="text-xs text-muted-foreground">
-                              Level {level.level} ({level.approverRole}): {level.status}
-                              {level.approverName && ` by ${level.approverName}`}
-                            </div>
-                          ))}
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-xs font-semibold mb-2 text-foreground">Approval Workflow:</p>
+                          <div className="space-y-2">
+                            {leave.approvalLevels.map((level: any, idx: number) => {
+                              // Determine if this is the current pending level
+                              const previousLevels = leave.approvalLevels.filter((l: any) => l.level < level.level)
+                              const previousApproved = previousLevels.every((l: any) => l.status === 'approved')
+                              const isCurrentPending = level.status === 'pending' && (idx === 0 || previousApproved)
+                              
+                              return (
+                                <div 
+                                  key={idx} 
+                                  className={`flex items-center gap-2 p-2 rounded text-xs ${
+                                    isCurrentPending 
+                                      ? 'bg-amber-50 border border-amber-200' 
+                                      : level.status === 'approved'
+                                      ? 'bg-green-50 border border-green-200'
+                                      : level.status === 'rejected'
+                                      ? 'bg-red-50 border border-red-200'
+                                      : 'bg-gray-50 border border-gray-200'
+                                  }`}
+                                >
+                                  <div className="flex-shrink-0">
+                                    {level.status === 'approved' ? (
+                                      <CheckCircle className="w-4 h-4 text-green-600" />
+                                    ) : level.status === 'rejected' ? (
+                                      <XCircle className="w-4 h-4 text-red-600" />
+                                    ) : (
+                                      <Clock className="w-4 h-4 text-amber-600" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">
+                                        Level {level.level} - {level.approverRole === 'manager' ? 'Manager' : level.approverRole === 'hr' ? 'HR Officer' : level.approverRole}
+                                      </span>
+                                      <Badge 
+                                        variant={
+                                          level.status === 'approved' ? 'default' :
+                                          level.status === 'rejected' ? 'destructive' : 
+                                          'secondary'
+                                        }
+                                        className={`text-xs ${
+                                          isCurrentPending ? 'bg-amber-600 text-white' : ''
+                                        }`}
+                                      >
+                                        {level.status === 'pending' && isCurrentPending ? 'Awaiting' : level.status}
+                                      </Badge>
+                                    </div>
+                                    {level.approverName && level.status !== 'pending' && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Approved by {level.approverName}
+                                        {level.approvalDate && ` on ${new Date(level.approvalDate).toLocaleDateString()}`}
+                                      </p>
+                                    )}
+                                    {isCurrentPending && (
+                                      <p className="text-xs text-amber-700 mt-1 font-medium">
+                                        ⏳ Waiting for {level.approverRole === 'manager' ? 'Manager' : 'HR Officer'} approval
+                                      </p>
+                                    )}
+                                    {level.comments && (
+                                      <p className="text-xs text-muted-foreground mt-1 italic">
+                                        "{level.comments}"
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>

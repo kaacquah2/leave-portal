@@ -57,17 +57,24 @@ export default function Page() {
         const controller = new AbortController();
         // Increase timeout for remote connections (10 seconds)
         const timeout = isElectron && window.location.protocol === 'https:' ? 10000 : 5000;
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        const timeoutId = setTimeout(() => {
+          // Abort the request if it takes too long
+          controller.abort();
+        }, timeout);
         
-        const response = await fetch(apiUrl, {
-          credentials: 'include',
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        
-        clearTimeout(timeoutId);
+        let response: Response;
+        try {
+          response = await fetch(apiUrl, {
+            credentials: 'include',
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+        } finally {
+          // Always clear timeout to prevent memory leaks
+          clearTimeout(timeoutId);
+        }
 
         if (response.ok) {
           const user = await response.json()
@@ -101,25 +108,32 @@ export default function Page() {
         }
       } catch (error: any) {
         // Error fetching user, show landing page
-        console.error('[App] Auth check failed:', error);
-        
-        // Handle different error types
-        if (error.name === 'AbortError') {
-          console.error('[App] Request timeout - API server may not be reachable');
+        // Handle AbortError silently (it's expected when timeout occurs)
+        if (error.name === 'AbortError' || error.message === 'Request timeout - API server may not be reachable') {
           // If we're loading from a remote URL and it times out, the page might still be loading
           // Don't immediately show landing page, wait a bit more for remote connections
           const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
           const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '';
           
           if ((apiBaseUrl || window.location.protocol === 'https:') && isElectron) {
-            console.log('[App] Remote connection detected, waiting a bit longer...');
+            console.log('[App] Remote connection timeout, waiting a bit longer...');
             // Wait a bit longer for the page to fully load
             setTimeout(() => {
               setStage('landing');
             }, 3000);
             return;
           }
-        } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+          
+          // For non-remote connections, just show landing page
+          console.log('[App] Auth check timeout - showing landing page');
+          setStage('landing');
+          return;
+        }
+        
+        // Log other errors
+        console.error('[App] Auth check failed:', error);
+        
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
           console.error('[App] Network error - check internet connection');
         }
         

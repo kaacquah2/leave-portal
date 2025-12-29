@@ -3,15 +3,17 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import EmployeePortal from '@/components/employee-portal'
-import { getCurrentUser, logout } from '@/lib/auth-client'
+import { getCurrentUser, logout, type AuthUser } from '@/lib/auth-client'
+import { type UserRole } from '@/lib/permissions'
 
-function EmployeePortalWrapper({ staffId, onLogout }: { staffId: string, onLogout: () => void }) {
-  return <EmployeePortal staffId={staffId} onLogout={onLogout} />
+function EmployeePortalWrapper({ staffId, userRole, onLogout }: { staffId: string, userRole: UserRole, onLogout: () => void }) {
+  return <EmployeePortal staffId={staffId} userRole={userRole} onLogout={onLogout} />
 }
 
 export default function EmployeePage() {
   const router = useRouter()
   const [staffId, setStaffId] = useState<string | undefined>(undefined)
+  const [userRole, setUserRole] = useState<UserRole | undefined>(undefined)
 
   useEffect(() => {
     // Check authentication via API
@@ -25,6 +27,7 @@ export default function EmployeePage() {
       
       if (user.staffId) {
         setStaffId(user.staffId)
+        setUserRole(user.role as UserRole)
       } else {
         router.push('/')
       }
@@ -37,13 +40,13 @@ export default function EmployeePage() {
     await logout()
   }
 
-  if (!staffId) {
+  if (!staffId || !userRole) {
     return <div className="p-8">Loading...</div>
   }
 
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <EmployeePortalWrapper staffId={staffId} onLogout={handleLogout} />
+      <EmployeePortalWrapper staffId={staffId} userRole={userRole} onLogout={handleLogout} />
     </Suspense>
   )
 }

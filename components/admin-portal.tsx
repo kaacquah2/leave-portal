@@ -21,7 +21,7 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('dashboard')
-  const store = useDataStore({ enablePolling: true, pollingInterval: 60000 })
+  const store = useDataStore({ enablePolling: true, pollingInterval: 60000, userRole: 'admin' })
   const { connected } = useRealtime(true)
 
   // Sync activeTab state with URL on mount and when URL changes

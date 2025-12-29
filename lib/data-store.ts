@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { applySelectiveUpdate, updateItemInArray, addItemToArray, removeItemFromArray } from './update-diff'
 import { apiRequest, API_BASE_URL } from './api-config'
+import { offlineService } from './offline-service'
 
 export interface StaffMember {
   id: string
@@ -171,7 +172,11 @@ function transformDates(data: any): any {
   return data
 }
 
-export function useDataStore(options?: { enablePolling?: boolean; pollingInterval?: number }) {
+export function useDataStore(options?: { 
+  enablePolling?: boolean
+  pollingInterval?: number
+  userRole?: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
+}) {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [leaves, setLeaves] = useState<LeaveRequest[]>([])
   const [balances, setBalances] = useState<LeaveBalance[]>([])
@@ -188,6 +193,10 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
   // Polling configuration
   const enablePolling = options?.enablePolling ?? true
   const pollingInterval = options?.pollingInterval ?? 60000 // Default: 60 seconds
+  const userRole = options?.userRole
+
+  // Check if user has permission to view audit logs
+  const canViewAuditLogs = userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'admin'
 
   // Fetch all data from API
   const fetchAll = useCallback(async () => {
@@ -201,7 +210,8 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
         console.log('[DataStore] Fetching data from API. Base URL:', apiBaseUrl);
       }
       
-      const [staffRes, leavesRes, balancesRes, payslipsRes, reviewsRes, policiesRes, holidaysRes, templatesRes, auditRes] = await Promise.all([
+      // Build request array conditionally based on user permissions
+      const requests: Promise<any>[] = [
         apiRequest('/api/staff').catch((err) => {
           console.error('[DataStore] Error fetching staff:', err);
           return { ok: false, error: err } as any;
@@ -214,12 +224,41 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
           console.error('[DataStore] Error fetching balances:', err);
           return { ok: false, error: err } as any;
         }),
-        apiRequest('/api/payslips').catch((err) => {
-          console.error('[DataStore] Error fetching payslips:', err);
+        // Optional endpoints - handle 404s and 403s silently (endpoints may not exist or user may not have permission)
+        apiRequest('/api/payslips').then(res => {
+          // Silently handle 404s (endpoint doesn't exist) and 403s (permission denied) for optional endpoints
+          if (res.status === 404 || res.status === 403) {
+            return { ok: false, status: res.status } as any;
+          }
+          // Only log other errors (not 404/403)
+          if (!res.ok) {
+            console.warn('[DataStore] Error fetching payslips:', res.status, res.statusText);
+          }
+          return res;
+        }).catch((err) => {
+          // Only log non-expected errors
+          if (err instanceof Response && (err.status === 404 || err.status === 403)) {
+            return { ok: false, status: err.status } as any;
+          }
+          console.warn('[DataStore] Error fetching payslips:', err);
           return { ok: false, error: err } as any;
         }),
-        apiRequest('/api/performance-reviews').catch((err) => {
-          console.error('[DataStore] Error fetching reviews:', err);
+        apiRequest('/api/performance-reviews').then(res => {
+          // Silently handle 404s (endpoint doesn't exist) and 403s (permission denied) for optional endpoints
+          if (res.status === 404 || res.status === 403) {
+            return { ok: false, status: res.status } as any;
+          }
+          // Only log other errors (not 404/403)
+          if (!res.ok) {
+            console.warn('[DataStore] Error fetching reviews:', res.status, res.statusText);
+          }
+          return res;
+        }).catch((err) => {
+          // Only log non-expected errors
+          if (err instanceof Response && (err.status === 404 || err.status === 403)) {
+            return { ok: false, status: err.status } as any;
+          }
+          console.warn('[DataStore] Error fetching reviews:', err);
           return { ok: false, error: err } as any;
         }),
         apiRequest('/api/leave-policies').catch((err) => {
@@ -234,11 +273,27 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
           console.error('[DataStore] Error fetching templates:', err);
           return { ok: false, error: err } as any;
         }),
-        apiRequest('/api/audit-logs?limit=100').catch((err) => {
-          console.error('[DataStore] Error fetching audit logs:', err);
-          return { ok: false, error: err } as any;
-        }),
-      ])
+      ]
+
+      // Only fetch audit logs if user has permission
+      if (canViewAuditLogs) {
+        requests.push(
+          apiRequest('/api/audit-logs?limit=100').then(res => {
+            if (!res.ok) {
+              console.warn('[DataStore] Error fetching audit logs:', res.status, res.statusText);
+            }
+            return res;
+          }).catch((err) => {
+            console.warn('[DataStore] Error fetching audit logs:', err);
+            return { ok: false, error: err } as any;
+          })
+        )
+      } else {
+        // For users without permission, add a resolved promise that returns a failed response
+        requests.push(Promise.resolve({ ok: false, status: 403 } as any))
+      }
+
+      const [staffRes, leavesRes, balancesRes, payslipsRes, reviewsRes, policiesRes, holidaysRes, templatesRes, auditRes] = await Promise.all(requests)
       
       // Check for critical errors
       const criticalErrors: string[] = [];
@@ -344,7 +399,7 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
       setLoading(false)
       setInitialized(true)
     }
-  }, [])
+  }, [canViewAuditLogs])
 
   // Fetch critical data only (for polling)
   const fetchCritical = useCallback(async () => {
@@ -385,14 +440,46 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const addStaff = async (member: Omit<StaffMember, 'id' | 'createdAt'>) => {
     try {
-      const res = await apiRequest('/api/staff', {
-        method: 'POST',
-        body: JSON.stringify(member),
-      })
-      if (!res.ok) throw new Error('Failed to create staff')
+      // Generate temporary ID for offline mode
+      const tempId = `temp-staff-${Date.now()}`
+      const tempMember: StaffMember = {
+        id: tempId,
+        ...member,
+        createdAt: new Date().toISOString(),
+      }
+
+      // Update UI immediately (optimistic update)
+      setStaff((prev) => addItemToArray(prev, tempMember))
+
+      // Try API call first
+      let res: Response
+      try {
+        res = await apiRequest('/api/staff', {
+          method: 'POST',
+          body: JSON.stringify(member),
+        })
+      } catch (apiError) {
+        // If offline or API fails, queue for sync
+        if (offlineService.isOfflineModeAvailable()) {
+          await offlineService.addToSyncQueue('StaffMember', 'INSERT', tempId, member)
+          // Return temp member - will be replaced on sync
+          return tempMember
+        }
+        throw apiError
+      }
+
+      if (!res.ok) {
+        // Revert optimistic update
+        setStaff((prev) => prev.filter((s) => s.id !== tempId))
+        throw new Error('Failed to create staff')
+      }
+
       const newMember = transformDates(await res.json())
-      // Use selective add to preserve other items' references
-      setStaff((prev) => addItemToArray(prev, newMember))
+      // Replace temp with real data
+      setStaff((prev) => {
+        const withoutTemp = prev.filter((s) => s.id !== tempId)
+        return addItemToArray(withoutTemp, newMember)
+      })
       await logAudit('CREATE_STAFF', 'HR Officer', member.staffId, `Created staff member ${member.firstName} ${member.lastName}`)
       return newMember
     } catch (error) {
@@ -403,13 +490,42 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
 
   const updateStaff = async (id: string, updates: Partial<StaffMember>) => {
     try {
-      const res = await apiRequest(`/api/staff/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(updates),
-      })
-      if (!res.ok) throw new Error('Failed to update staff')
+      // Optimistic update
+      const previous = staff.find((s) => s.id === id)
+      if (previous) {
+        const optimistic = { ...previous, ...updates, updatedAt: new Date().toISOString() }
+        setStaff((prev) => updateItemInArray(prev, optimistic))
+      }
+
+      // Try API call first
+      let res: Response
+      try {
+        res = await apiRequest(`/api/staff/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(updates),
+        })
+      } catch (apiError) {
+        // If offline or API fails, queue for sync
+        if (offlineService.isOfflineModeAvailable()) {
+          await offlineService.addToSyncQueue('StaffMember', 'UPDATE', id, updates)
+          return // Keep optimistic update
+        }
+        // Revert on error
+        if (previous) {
+          setStaff((prev) => updateItemInArray(prev, previous))
+        }
+        throw apiError
+      }
+
+      if (!res.ok) {
+        // Revert optimistic update
+        if (previous) {
+          setStaff((prev) => updateItemInArray(prev, previous))
+        }
+        throw new Error('Failed to update staff')
+      }
+
       const updated = transformDates(await res.json())
-      // Use selective update to preserve other items' references
       setStaff((prev) => updateItemInArray(prev, updated))
       await logAudit('UPDATE_STAFF', 'HR Officer', id, `Updated staff member details`)
     } catch (error) {
@@ -469,10 +585,25 @@ export function useDataStore(options?: { enablePolling?: boolean; pollingInterva
     setLeaves((prev) => [...prev, optimisticRequest])
     
     try {
-      const res = await apiRequest('/api/leaves', {
-        method: 'POST',
-        body: JSON.stringify(request),
-      })
+      // Try API call first
+      let res: Response
+      try {
+        res = await apiRequest('/api/leaves', {
+          method: 'POST',
+          body: JSON.stringify(request),
+        })
+      } catch (apiError) {
+        // If offline or API fails, queue for sync
+        if (offlineService.isOfflineModeAvailable()) {
+          await offlineService.addToSyncQueue('LeaveRequest', 'INSERT', tempId, request)
+          // Return temp request - will be replaced on sync
+          return optimisticRequest
+        }
+        // Revert optimistic update
+        setLeaves((prev) => prev.filter((l) => l.id !== tempId))
+        throw apiError
+      }
+
       if (!res.ok) {
         // Revert optimistic update on error
         setLeaves((prev) => prev.filter((l) => l.id !== tempId))

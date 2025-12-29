@@ -1,31 +1,47 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, Calendar, FileText, User, LogOut, Bell, Menu, Plus } from 'lucide-react'
+import { LayoutDashboard, Calendar, FileText, User, LogOut, Bell, Menu, Plus, DollarSign, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
+import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
 
 interface EmployeeNavigationProps {
   activeTab: string
   setActiveTab: (tab: string) => void
+  userRole: UserRole
   onLogout?: () => void
 }
 
-export default function EmployeeNavigation({ activeTab, setActiveTab, onLogout }: EmployeeNavigationProps) {
+interface NavItem {
+  id: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  permission?: Permission
+}
+
+export default function EmployeeNavigation({ activeTab, setActiveTab, userRole, onLogout }: EmployeeNavigationProps) {
   const isMobile = useIsMobile()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Government HR: Simplified employee navigation - core features only
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'apply-leave', label: 'Apply for Leave', icon: Plus },
-    { id: 'leave-balances', label: 'Leave Balances', icon: Calendar },
-    { id: 'leave-history', label: 'Leave History', icon: Calendar },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'profile', label: 'View Profile', icon: User },
-    { id: 'documents', label: 'My Documents', icon: FileText },
+  // All available navigation items with their required permissions
+  const allNavItems: NavItem[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'employee:self:view' },
+    { id: 'apply-leave', label: 'Apply for Leave', icon: Plus, permission: 'employee:leave:create:own' },
+    { id: 'leave-balances', label: 'Leave Balances', icon: Calendar, permission: 'employee:leave:view:own' },
+    { id: 'leave-history', label: 'Leave History', icon: Calendar, permission: 'employee:leave:view:own' },
+    { id: 'payslips', label: 'Payslips', icon: DollarSign, permission: 'employee:payslip:view:own' },
+    { id: 'performance', label: 'Performance', icon: TrendingUp, permission: 'employee:performance:view:own' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, permission: 'employee:self:view' },
+    { id: 'profile', label: 'View Profile', icon: User, permission: 'employee:self:view' },
+    { id: 'documents', label: 'My Documents', icon: FileText, permission: 'employee:self:view' },
   ]
+
+  // Filter navigation items based on user permissions
+  const navItems = allNavItems.filter(item => 
+    !item.permission || hasPermission(userRole, item.permission)
+  )
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)

@@ -5,10 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Calendar, Clock, FileText, Plus, DollarSign, TrendingUp } from 'lucide-react'
+import { Calendar, Clock, FileText, Plus, DollarSign, TrendingUp, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
 import LeaveForm from '@/components/leave-form'
 import { hasPermission, type UserRole } from '@/lib/permissions'
-import { PermissionGate } from '@/components/permission-gate'
 
 interface EmployeeDashboardProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -297,6 +296,123 @@ export default function EmployeeDashboard({ store, staffId, userRole, onNavigate
           </Card>
         )}
       </div>
+
+      {/* Recent Leave Requests */}
+      {canViewLeave && myLeaves.length > 0 && (
+        <Card className="border-2 border-blue-200">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Recent Leave Requests</CardTitle>
+                <CardDescription>Track the status of your leave applications</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onNavigate?.('leave-history')}
+                className="gap-2"
+              >
+                View All
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {myLeaves
+                .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .slice(0, 5)
+                .map((leave: any) => {
+                  // Find current pending approval level
+                  const currentPendingLevel = leave.approvalLevels?.find((level: any, idx: number) => {
+                    if (level.status !== 'pending') return false
+                    const previousLevels = leave.approvalLevels.filter((l: any) => l.level < level.level)
+                    return previousLevels.length === 0 || previousLevels.every((l: any) => l.status === 'approved')
+                  })
+
+                  return (
+                    <div
+                      key={leave.id}
+                      className="border border-border rounded-lg p-4 hover:bg-secondary/5 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline">{leave.leaveType}</Badge>
+                            <div className="flex items-center gap-1">
+                              {leave.status === 'approved' ? (
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                              ) : leave.status === 'rejected' ? (
+                                <XCircle className="w-4 h-4 text-red-600" />
+                              ) : (
+                                <Clock className="w-4 h-4 text-amber-600" />
+                              )}
+                              <Badge
+                                variant={
+                                  leave.status === 'approved' ? 'default' :
+                                  leave.status === 'rejected' ? 'destructive' :
+                                  'secondary'
+                                }
+                                className="capitalize"
+                              >
+                                {leave.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                            <p className="text-muted-foreground">
+                              <strong>From:</strong> {new Date(leave.startDate).toLocaleDateString()}
+                            </p>
+                            <p className="text-muted-foreground">
+                              <strong>To:</strong> {new Date(leave.endDate).toLocaleDateString()}
+                            </p>
+                            <p className="text-muted-foreground">
+                              <strong>Duration:</strong> {leave.days} day{leave.days !== 1 ? 's' : ''}
+                            </p>
+                            {leave.status === 'approved' && leave.approvedBy && (
+                              <p className="text-muted-foreground">
+                                <strong>Approved by:</strong> {leave.approvedBy}
+                              </p>
+                            )}
+                          </div>
+                          {leave.status === 'pending' && currentPendingLevel && (
+                            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+                              <p className="text-amber-800 font-medium">
+                                ⏳ Awaiting {currentPendingLevel.approverRole === 'manager' ? 'Manager' : 'HR Officer'} approval
+                              </p>
+                            </div>
+                          )}
+                          {leave.status === 'approved' && leave.approvalDate && (
+                            <p className="text-xs text-green-700 mt-2">
+                              ✓ Approved on {new Date(leave.approvalDate).toLocaleDateString()}
+                            </p>
+                          )}
+                          {leave.status === 'rejected' && leave.approvalDate && (
+                            <p className="text-xs text-red-700 mt-2">
+                              ✗ Rejected on {new Date(leave.approvalDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+            {myLeaves.length > 5 && (
+              <div className="mt-4 text-center">
+                <Button
+                  variant="outline"
+                  onClick={() => onNavigate?.('leave-history')}
+                  className="gap-2"
+                >
+                  View All {myLeaves.length} Requests
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Leave Form Dialog */}
       {canCreateLeave && (

@@ -1,6 +1,6 @@
 // Note: jsPDF should be imported dynamically in client components
 // This file contains utility functions for report generation
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 export interface ReportData {
   title: string
@@ -99,33 +99,59 @@ export async function generatePDFReport(reportData: ReportData): Promise<Blob> {
 /**
  * Generate Excel report
  */
-export function generateExcelReport(reportData: ReportData): Blob {
-  const workbook = XLSX.utils.book_new()
+export async function generateExcelReport(reportData: ReportData): Promise<Blob> {
+  const workbook = new ExcelJS.Workbook()
 
   // Create summary sheet if available
   if (reportData.summary) {
-    const summaryData = Object.entries(reportData.summary).map(([key, value]) => ({
-      Metric: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
-      Value: value,
-    }))
-    const summarySheet = XLSX.utils.json_to_sheet(summaryData)
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
+    const summarySheet = workbook.addWorksheet('Summary')
+    summarySheet.columns = [
+      { header: 'Metric', key: 'metric', width: 30 },
+      { header: 'Value', key: 'value', width: 20 },
+    ]
+    
+    Object.entries(reportData.summary).forEach(([key, value]) => {
+      summarySheet.addRow({
+        metric: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
+        value: value,
+      })
+    })
+    
+    // Style header row
+    summarySheet.getRow(1).font = { bold: true }
+    summarySheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' },
+    }
   }
 
   // Create main data sheet
-  const worksheetData = reportData.data.map((row) => {
-    const obj: Record<string, any> = {}
-    reportData.columns.forEach((col) => {
-      obj[col.label] = row[col.key]
-    })
-    return obj
+  const dataSheet = workbook.addWorksheet('Data')
+  
+  // Set column headers
+  dataSheet.columns = reportData.columns.map((col) => ({
+    header: col.label,
+    key: col.key,
+    width: 20,
+  }))
+  
+  // Add data rows
+  reportData.data.forEach((row) => {
+    dataSheet.addRow(row)
   })
-  const worksheet = XLSX.utils.json_to_sheet(worksheetData)
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Data')
+  
+  // Style header row
+  dataSheet.getRow(1).font = { bold: true }
+  dataSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' },
+  }
 
-  // Generate blob
-  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-  return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  // Generate buffer and return as blob
+  const buffer = await workbook.xlsx.writeBuffer()
+  return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 }
 
 /**

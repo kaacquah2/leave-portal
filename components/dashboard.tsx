@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Search, Users, FileText, BarChart3, UserCheck, Shield } from 'lucide-react'
+import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
+import { PermissionGate } from '@/components/permission-gate'
 
 interface DashboardProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -110,26 +112,31 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
 
   const quickActions = {
     hr: [
-      { label: 'Add Staff', icon: Users, action: 'staff' },
-      { label: 'Process Leaves', icon: FileText, action: 'leave' },
-      { label: 'View Reports', icon: BarChart3, action: 'reports' },
+      { label: 'Add Staff', icon: Users, action: 'staff', permission: 'employee:create' as Permission },
+      { label: 'Process Leaves', icon: FileText, action: 'leave', permission: 'leave:view:all' as Permission },
+      { label: 'View Reports', icon: BarChart3, action: 'reports', permission: 'reports:hr:view' as Permission },
     ],
     hr_assistant: [
-      { label: 'View Staff', icon: Users, action: 'staff' },
-      { label: 'View Leaves', icon: FileText, action: 'leave' },
-      { label: 'View Reports', icon: BarChart3, action: 'reports' },
+      { label: 'View Staff', icon: Users, action: 'staff', permission: 'employee:view:all' as Permission },
+      { label: 'View Leaves', icon: FileText, action: 'leave', permission: 'leave:view:all' as Permission },
+      { label: 'View Reports', icon: BarChart3, action: 'reports', permission: 'reports:hr:view' as Permission },
     ],
     manager: [
-      { label: 'View Team', icon: Users, action: 'staff' },
-      { label: 'Approve Leaves', icon: FileText, action: 'leave' },
+      { label: 'View Team', icon: Users, action: 'staff', permission: 'employee:view:team' as Permission },
+      { label: 'Approve Leaves', icon: FileText, action: 'leave', permission: 'leave:view:team' as Permission },
     ],
     deputy_director: [
-      { label: 'View Directorate', icon: Users, action: 'staff' },
-      { label: 'Approve Leaves', icon: FileText, action: 'leave' },
+      { label: 'View Directorate', icon: Users, action: 'staff', permission: 'employee:view:team' as Permission },
+      { label: 'Approve Leaves', icon: FileText, action: 'leave', permission: 'leave:view:team' as Permission },
     ],
   }
 
-  const currentActions = quickActions[userRole as 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'] || []
+  // Filter actions based on permissions
+  const roleActions = quickActions[userRole as 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'] || []
+  const currentActions = roleActions.filter(action => {
+    if (!action.permission) return true
+    return hasPermission(userRole as UserRole, action.permission)
+  })
 
   // Role-specific metrics
   const getMetrics = () => {
@@ -195,8 +202,20 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
     }
   }
 
+  // Show loading state - check if still loading or not initialized yet
+  if (store.loading || !store.initialized) {
+    return (
+      <div className="p-8 space-y-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
   // Show error state if data failed to load
-  if (store.error && !store.loading) {
+  if (store.error) {
     return (
       <div className="p-8 space-y-4">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
@@ -205,18 +224,6 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
           <Button onClick={() => store.refresh?.()} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
             Retry
           </Button>
-        </div>
-      </div>
-    )
-  }
-
-  // Show loading state
-  if (store.loading && !store.initialized) {
-    return (
-      <div className="p-8 space-y-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
     )

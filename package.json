@@ -82,6 +82,7 @@
     "@vercel/analytics": "^1.4.1",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
     "bufferutil": "^4.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -112,12 +113,13 @@
     "vaul": "^1.1.2",
     "web-push": "^3.6.7",
     "ws": "^8.18.3",
-    "xlsx": "^0.18.5",
+    "exceljs": "^4.4.0",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",

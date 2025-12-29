@@ -1,8 +1,22 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
 const path = require('path');
 const isDev = require('electron-is-dev');
 
 let mainWindow;
+let localDatabase = null;
+
+// Initialize local database (only in Electron)
+function initializeLocalDatabase() {
+  try {
+    const { getLocalDatabase } = require('./database.js');
+    localDatabase = getLocalDatabase();
+    localDatabase.initialize();
+    console.log('[Electron] Local SQLite database initialized');
+  } catch (error) {
+    console.error('[Electron] Failed to initialize local database:', error);
+    // Continue without offline mode if database fails
+  }
+}
 
 function createWindow() {
   // Create the browser window
@@ -347,8 +361,80 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// Setup IPC handlers for local database operations
+function setupIpcHandlers() {
+  if (!localDatabase) return;
+
+  // Get sync queue
+  ipcMain.handle('db:get-sync-queue', async (event, limit = 50) => {
+    try {
+      return localDatabase.getSyncQueue(limit);
+    } catch (error) {
+      console.error('[IPC] Error getting sync queue:', error);
+      return [];
+    }
+  });
+
+  // Add to sync queue
+  ipcMain.handle('db:add-to-sync-queue', async (event, tableName, operation, recordId, payload) => {
+    try {
+      return localDatabase.addToSyncQueue(tableName, operation, recordId, payload);
+    } catch (error) {
+      console.error('[IPC] Error adding to sync queue:', error);
+      throw error;
+    }
+  });
+
+  // Remove from sync queue
+  ipcMain.handle('db:remove-from-sync-queue', async (event, id) => {
+    try {
+      localDatabase.removeFromSyncQueue(id);
+    } catch (error) {
+      console.error('[IPC] Error removing from sync queue:', error);
+      throw error;
+    }
+  });
+
+  // Get last sync time
+  ipcMain.handle('db:get-last-sync-time', async () => {
+    try {
+      return localDatabase.getLastSyncTime();
+    } catch (error) {
+      console.error('[IPC] Error getting last sync time:', error);
+      return null;
+    }
+  });
+
+  // Set last sync time
+  ipcMain.handle('db:set-last-sync-time', async (event, timestamp) => {
+    try {
+      localDatabase.setLastSyncTime(timestamp);
+    } catch (error) {
+      console.error('[IPC] Error setting last sync time:', error);
+      throw error;
+    }
+  });
+
+  // Mark record as synced
+  ipcMain.handle('db:mark-synced', async (event, tableName, recordId) => {
+    try {
+      localDatabase.markSynced(tableName, recordId);
+    } catch (error) {
+      console.error('[IPC] Error marking as synced:', error);
+      throw error;
+    }
+  });
+}
+
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
+  // Initialize local database first
+  initializeLocalDatabase();
+  
+  // Setup IPC handlers
+  setupIpcHandlers();
+  
+  // Create window
   createWindow();
 
   app.on('activate', () => {
@@ -363,6 +449,18 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+// Cleanup database on app quit
+app.on('before-quit', () => {
+  if (localDatabase) {
+    try {
+      localDatabase.close();
+      console.log('[Electron] Local database closed');
+    } catch (error) {
+      console.error('[Electron] Error closing database:', error);
+    }
   }
 });
 
