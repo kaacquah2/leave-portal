@@ -154,7 +154,9 @@
     ],
     "fileAssociations": [],
     "asar": true,
-    "asarUnpack": [],
+    "asarUnpack": [
+      "out/**/*"
+    ],
     "npmRebuild": false,
     "nodeGypRebuild": false,
     "forceCodeSigning": false,

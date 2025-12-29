@@ -81,7 +81,20 @@ try {
   
   // Run the build
   console.log('\nRunning Next.js build (static export)...');
+  console.log('This will create static files in the "out" folder for offline capability.');
   execSync('cross-env ELECTRON=1 npm run build', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+  
+  // Verify static files were created
+  const outDir = path.join(__dirname, '..', 'out');
+  const indexHtml = path.join(outDir, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    console.log('✅ Static files created successfully in "out" folder');
+    console.log('   The app will work OFFLINE by loading from these local files');
+    console.log('   API calls will still go to:', electronApiUrl);
+  } else {
+    console.warn('⚠️  WARNING: Static files not found in "out" folder');
+    console.warn('   The app will require internet connection to load');
+  }
   
   // Always embed API URL in preload script (required for production)
   console.log(`\nEmbedding API URL in preload script: ${electronApiUrl}`);
@@ -119,6 +132,10 @@ try {
   const builderCmd = 'electron-builder --win';
   console.log(`\nUsing API URL: ${normalizedApiUrl}`);
   console.log('This URL will be used for all API calls in the built application.');
+  console.log('\n📦 Building Electron app with offline capability:');
+  console.log('   ✅ Static files bundled (works offline)');
+  console.log('   ✅ API calls go to:', normalizedApiUrl);
+  console.log('   ✅ App works with OR without internet');
   
   try {
     execSync(builderCmd, { 

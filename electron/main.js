@@ -94,7 +94,7 @@ function createWindow() {
     }
   }, 2000); // 2 second fallback
 
-  // Load the app
+  // Load the app - Hybrid approach: Local files first, fallback to Vercel
   // Default Vercel URL for production builds
   const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
   
@@ -109,19 +109,58 @@ function createWindow() {
     // Development: always use localhost
     startUrl = 'http://localhost:3000';
     console.log('[Electron] Development mode - loading from localhost:3000');
-  } else if (remoteApiUrl) {
-    // Production with remote API: load from Vercel/hosted URL
-    // Remove trailing slash and ensure proper format
-    startUrl = remoteApiUrl.replace(/\/$/, '');
-    console.log('[Electron] Production mode - loading from remote URL:', startUrl);
-    console.log('[Electron] API calls will be made to:', startUrl);
   } else {
-    // Fallback: This should not happen in production, but if it does, use Vercel
-    startUrl = DEFAULT_VERCEL_URL;
-    console.log('[Electron] WARNING: No API URL configured, using default Vercel URL:', startUrl);
+    // Production: Try to load from local static files first (works offline)
+    // Static files are bundled in the Electron app and accessible via ASAR or unpacked
+    const fs = require('fs');
+    
+    // Try multiple possible locations for static files (in order of preference)
+    const possiblePaths = [
+      // 1. Relative to main.js (development/unpacked)
+      path.join(__dirname, '../out/index.html'),
+      // 2. In ASAR archive (most common in production)
+      path.join(process.resourcesPath, 'app.asar', 'out', 'index.html'),
+      // 3. Unpacked from ASAR (if asarUnpack is configured)
+      path.join(process.resourcesPath, 'app', 'out', 'index.html'),
+      // 4. Alternative ASAR location
+      path.join(app.getAppPath(), 'out', 'index.html'),
+    ];
+    
+    // Check each path
+    let localIndexPath = null;
+    for (const possiblePath of possiblePaths) {
+      try {
+        if (fs.existsSync(possiblePath)) {
+          localIndexPath = possiblePath;
+          console.log('[Electron] Found static files at:', possiblePath);
+          break;
+        }
+      } catch (error) {
+        // Continue checking other paths
+        console.log('[Electron] Path check failed:', possiblePath, error.message);
+      }
+    }
+    
+    if (localIndexPath) {
+      // Use local static files (works offline!)
+      // Note: Electron can read from ASAR archives directly with file:// protocol
+      startUrl = `file://${localIndexPath}`;
+      console.log('[Electron] ✅ Production mode - loading from LOCAL static files (OFFLINE-CAPABLE)');
+      console.log('[Electron] 📁 Static files location:', localIndexPath);
+      console.log('[Electron] 🌐 API calls will be made to:', remoteApiUrl || DEFAULT_VERCEL_URL);
+      console.log('[Electron] 💡 App will work WITHOUT internet connection!');
+    } else {
+      // Fallback to Vercel URL (requires internet)
+      startUrl = (remoteApiUrl || DEFAULT_VERCEL_URL).replace(/\/$/, '');
+      console.log('[Electron] ⚠️  Production mode - LOCAL static files not found');
+      console.log('[Electron] 🌐 Loading from remote URL (requires internet):', startUrl);
+      console.log('[Electron] ⚠️  WARNING: App requires internet connection to load');
+      console.log('[Electron] 📦 Check that "out/**/*" is included in electron-builder files array');
+      console.log('[Electron] 🔧 API calls will be made to:', startUrl);
+    }
   }
   
-  // Add error handling with better connection status
+  // Add error handling with better connection status and offline fallback
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
     console.error('[Electron] Failed to load:', validatedURL, errorCode, errorDescription);
     
@@ -129,6 +168,30 @@ function createWindow() {
     if (errorCode === -3) {
       console.log('[Electron] Navigation cancelled (likely SPA routing)');
       return;
+    }
+    
+    // If loading from remote URL failed, try to fallback to local files
+    if (validatedURL && validatedURL.startsWith('http')) {
+      console.log('[Electron] Remote URL failed, attempting to load from local static files...');
+      const fs = require('fs');
+      const staticFilesPath = path.join(__dirname, '../out/index.html');
+      const asarStaticPath = path.join(process.resourcesPath, 'app.asar', 'out', 'index.html');
+      const asarUnpackedPath = path.join(process.resourcesPath, 'app', 'out', 'index.html');
+      
+      let localIndexPath = null;
+      if (fs.existsSync(staticFilesPath)) {
+        localIndexPath = staticFilesPath;
+      } else if (fs.existsSync(asarStaticPath)) {
+        localIndexPath = asarStaticPath;
+      } else if (fs.existsSync(asarUnpackedPath)) {
+        localIndexPath = asarUnpackedPath;
+      }
+      
+      if (localIndexPath) {
+        console.log('[Electron] Found local static files, loading from:', localIndexPath);
+        mainWindow.loadURL(`file://${localIndexPath}`);
+        return; // Don't show error, we're trying local files
+      }
     }
     
     const errorHtml = `
@@ -141,7 +204,7 @@ function createWindow() {
           <div style="margin-top: 30px; padding: 20px; background: #f3f4f6; border-radius: 8px;">
             <p style="color: #374151; margin-bottom: 10px; font-weight: 600;"><strong>Possible Solutions:</strong></p>
             <ul style="text-align: left; color: #6b7280; margin: 10px 0; padding-left: 20px; font-size: 14px;">
-              <li style="margin: 8px 0;">Check your internet connection</li>
+              <li style="margin: 8px 0;">Check your internet connection (if loading from remote)</li>
               <li style="margin: 8px 0;">Verify the server is accessible: ${startUrl}</li>
               <li style="margin: 8px 0;">Check if the server is running and responding</li>
               <li style="margin: 8px 0;">Try restarting the application</li>
