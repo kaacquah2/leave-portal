@@ -149,6 +149,7 @@
       "electron/**/*",
       "package.json",
       "out/**/*",
+      "node_modules/electron-is-dev/**/*",
       "!.next/**/*",
       "!.electron-builderignore"
     ],

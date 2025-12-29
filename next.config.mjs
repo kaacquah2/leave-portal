@@ -6,6 +6,8 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 /** @type {import('next').NextConfig} */
+const isElectron = process.env.ELECTRON || process.env.ELECTRON_BUILD;
+
 const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
@@ -18,8 +20,13 @@ const nextConfig = {
   // Note: API routes cannot be statically exported, so Electron app should point to remote API
   // We'll handle API routes by excluding them from the static build
   // The warning about static export disabling API routes is EXPECTED and INTENTIONAL for Electron builds
-  output: process.env.ELECTRON || process.env.ELECTRON_BUILD ? 'export' : undefined,
+  output: isElectron ? 'export' : undefined,
   outputFileTracingRoot: resolve(__dirname),
+  // For Electron builds, ensure trailing slash is handled correctly
+  // Static export should generate relative paths by default
+  ...(isElectron ? {
+    trailingSlash: false,
+  } : {}),
   // Suppress middleware deprecation warning (middleware.ts is still the correct approach in Next.js 16)
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,

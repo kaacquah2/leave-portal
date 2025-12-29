@@ -91,6 +91,15 @@ try {
     console.log('✅ Static files created successfully in "out" folder');
     console.log('   The app will work OFFLINE by loading from these local files');
     console.log('   API calls will still go to:', electronApiUrl);
+    
+    // Fix HTML paths for Electron file:// protocol
+    console.log('\nFixing HTML paths for Electron file:// protocol...');
+    try {
+      const { fixElectronPaths } = require('./fix-electron-paths.js');
+      fixElectronPaths(outDir);
+    } catch (error) {
+      console.warn('⚠️  Could not fix HTML paths (non-critical):', error.message);
+    }
   } else {
     console.warn('⚠️  WARNING: Static files not found in "out" folder');
     console.warn('   The app will require internet connection to load');
@@ -106,8 +115,9 @@ try {
   const normalizedApiUrl = electronApiUrl.replace(/\/$/, ''); // Remove trailing slash
   
   // Replace the line that gets API URL from environment
+  // Handle both the old format and the new try-catch format
   preloadContent = preloadContent.replace(
-    /const apiUrl = process\.env\.ELECTRON_API_URL \|\|[\s\S]*?process\.env\.NEXT_PUBLIC_API_URL \|\|[\s\S]*?isDev \? '' : DEFAULT_VERCEL_URL\);/,
+    /const apiUrl = process\.env\.ELECTRON_API_URL \|\|[\s\S]*?process\.env\.NEXT_PUBLIC_API_URL \|\|[\s\S]*?isDev \? '' : DEFAULT_VERCEL_URL\);?/,
     `const apiUrl = '${normalizedApiUrl}'; // Embedded at build time`
   );
   
@@ -154,7 +164,16 @@ const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
 // Get API URL from environment variable (set at build time or runtime)
 // Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL (production only)
 // This allows the Electron app to point to a remote API server
-const isDev = process.env.NODE_ENV === 'development' || require('electron-is-dev');
+// Detect dev mode without requiring electron-is-dev (which may not be available in production)
+let isDev = false;
+try {
+  // Try to require electron-is-dev (works in development)
+  isDev = require('electron-is-dev');
+} catch (e) {
+  // In production, electron-is-dev may not be available
+  // Fall back to NODE_ENV check
+  isDev = process.env.NODE_ENV === 'development';
+}
 const apiUrl = process.env.ELECTRON_API_URL || 
                process.env.NEXT_PUBLIC_API_URL || 
                (isDev ? '' : DEFAULT_VERCEL_URL);

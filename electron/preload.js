@@ -6,7 +6,16 @@ const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
 // Get API URL from environment variable (set at build time or runtime)
 // Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL (production only)
 // This allows the Electron app to point to a remote API server
-const isDev = process.env.NODE_ENV === 'development' || require('electron-is-dev');
+// Detect dev mode without requiring electron-is-dev (which may not be available in production)
+let isDev = false;
+try {
+  // Try to require electron-is-dev (works in development)
+  isDev = require('electron-is-dev');
+} catch (e) {
+  // In production, electron-is-dev may not be available
+  // Fall back to NODE_ENV check
+  isDev = process.env.NODE_ENV === 'development';
+}
 const apiUrl = process.env.ELECTRON_API_URL || 
                process.env.NEXT_PUBLIC_API_URL || 
                (isDev ? '' : DEFAULT_VERCEL_URL);
@@ -42,17 +51,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Check if running in Electron
   isElectron: true,
-  
-  // Local database operations (offline mode)
-  db: {
-    getSyncQueue: (limit) => ipcRenderer.invoke('db:get-sync-queue', limit),
-    addToSyncQueue: (tableName, operation, recordId, payload) => 
-      ipcRenderer.invoke('db:add-to-sync-queue', tableName, operation, recordId, payload),
-    removeFromSyncQueue: (id) => ipcRenderer.invoke('db:remove-from-sync-queue', id),
-    getLastSyncTime: () => ipcRenderer.invoke('db:get-last-sync-time'),
-    setLastSyncTime: (timestamp) => ipcRenderer.invoke('db:set-last-sync-time', timestamp),
-    markSynced: (tableName, recordId) => ipcRenderer.invoke('db:mark-synced', tableName, recordId),
-  },
 });
 
 // Always expose API URL directly on window for easier access

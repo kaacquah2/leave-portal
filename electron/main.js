@@ -1,6 +1,13 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
+// Detect dev mode - try electron-is-dev, fallback to NODE_ENV
+let isDev = false;
+try {
+  isDev = require('electron-is-dev');
+} catch (e) {
+  // In production, electron-is-dev may not be available
+  isDev = process.env.NODE_ENV === 'development';
+}
 
 let mainWindow;
 let localDatabase = null;
