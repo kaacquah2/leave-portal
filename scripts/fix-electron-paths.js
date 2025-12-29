@@ -35,12 +35,22 @@ function fixPathsInContent(content, filePath) {
     return match;
   });
   
-  // Fix image paths in public folder (e.g., /mofa-logo.png)
-  // Fix in HTML attributes (href/src)
+  // Fix image paths in public folder (e.g., /mofa-logo.png, /icon-192x192.png, /manifest.json)
+  // Fix in HTML attributes (href/src) and in JSON/JavaScript strings
   content = content.replace(/(href|src)=["'](\/(?:mofa-logo|icon|manifest|sw|workbox)[^"']*)["']/g, (match, attr, path) => {
     if (!path.startsWith('./') && !path.startsWith('../') && !path.startsWith('http')) {
       modified = true;
       return `${attr}="./${path.substring(1)}"`;
+    }
+    return match;
+  });
+  
+  // Fix absolute paths in JSON/JavaScript strings: "/manifest.json" -> "./manifest.json"
+  // This handles paths in inline script data
+  content = content.replace(/(["'])\/(manifest\.json|icon[^"']*|mofa-logo[^"']*)(["'])/g, (match, quote1, file, quote2) => {
+    if (!file.startsWith('./') && !file.startsWith('../') && !file.startsWith('http')) {
+      modified = true;
+      return `${quote1}./${file}${quote2}`;
     }
     return match;
   });
@@ -60,6 +70,56 @@ function fixPathsInContent(content, filePath) {
   content = content.replace(/__webpack_require__\.p\s*=\s*["']\/(_next\/static\/[^"']+)["']/g, (match, path) => {
     modified = true;
     return `__webpack_require__.p = "./${path}"`;
+  });
+  
+  // Fix Next.js 16 inline script data: "433","static/chunks/..." -> "433","./static/chunks/..."
+  // This handles the self.__next_f.push data that references chunks
+  // Pattern: "number","static/chunks/..." or "number","static/chunks/app/..."
+  content = content.replace(/(["'])(\d+)(["'],\s*["'])(static\/[^"']+)(["'])/g, (match, quote1, num, quote2, chunkPath, quote3) => {
+    if (!chunkPath.startsWith('./') && !chunkPath.startsWith('../') && !chunkPath.startsWith('http')) {
+      modified = true;
+      return `${quote1}${num}${quote2}./${chunkPath}${quote3}`;
+    }
+    return match;
+  });
+  
+  // Fix paths in JSON-like structures within strings: "static/chunks/..." -> "./static/chunks/..."
+  // This catches any remaining "static/..." patterns that aren't already relative
+  content = content.replace(/(["'])(static\/[^"']+)(["'])/g, (match, quote1, path, quote2) => {
+    // Only fix if it's not already relative and not part of a URL
+    if (!path.startsWith('./') && !path.startsWith('../') && !path.startsWith('http') && !path.includes('://')) {
+      modified = true;
+      return `${quote1}./${path}${quote2}`;
+    }
+    return match;
+  });
+  
+  // Fix service worker precache paths: {url:"/_next/static/..." -> {url:"./_next/static/..."
+  content = content.replace(/(\{url:\s*["'])\/(_next\/static\/[^"']+)(["'])/g, (match, prefix, path, suffix) => {
+    if (!path.startsWith('./') && !path.startsWith('../') && !path.startsWith('http')) {
+      modified = true;
+      return `${prefix}./${path}${suffix}`;
+    }
+    return match;
+  });
+  
+  // Fix absolute paths in template literals or other contexts: `/_next/static/...` -> `./_next/static/...`
+  content = content.replace(/`\/(_next\/static\/[^`]+)`/g, (match, path) => {
+    if (!path.startsWith('./') && !path.startsWith('../') && !path.startsWith('http')) {
+      modified = true;
+      return `\`./${path}\``;
+    }
+    return match;
+  });
+  
+  // Fix paths in JSON-like structures (e.g., in service workers or manifests)
+  // Pattern: "url":"/_next/static/..." -> "url":"./_next/static/..."
+  content = content.replace(/(["']url["']\s*:\s*["'])\/(_next\/static\/[^"']+)(["'])/g, (match, prefix, path, suffix) => {
+    if (!path.startsWith('./') && !path.startsWith('../') && !path.startsWith('http')) {
+      modified = true;
+      return `${prefix}./${path}${suffix}`;
+    }
+    return match;
   });
   
   // Fix base tag - ensure it's relative
@@ -178,6 +238,45 @@ function fixElectronPaths(outDir) {
     } else {
       console.log('ℹ️  No JavaScript files needed path fixes');
     }
+  }
+  
+  // Fix service worker file (sw.js) if it exists
+  const swPath = path.join(outDir, 'sw.js');
+  if (fs.existsSync(swPath)) {
+    console.log('Fixing paths in service worker...');
+    try {
+      let swContent = fs.readFileSync(swPath, 'utf-8');
+      const { content: fixedSwContent, modified: swModified } = fixPathsInContent(swContent, swPath);
+      if (swModified) {
+        fs.writeFileSync(swPath, fixedSwContent, 'utf-8');
+        console.log('✅ Fixed paths in sw.js');
+      }
+    } catch (error) {
+      console.warn(`⚠️  Could not process sw.js: ${error.message}`);
+    }
+  }
+  
+  // Fix workbox file if it exists (search for workbox-*.js files)
+  try {
+    const files = fs.readdirSync(outDir);
+    const workboxFiles = files.filter(file => file.startsWith('workbox-') && file.endsWith('.js'));
+    for (const workboxFile of workboxFiles) {
+      const workboxPath = path.join(outDir, workboxFile);
+      console.log(`Fixing paths in ${workboxFile}...`);
+      try {
+        let workboxContent = fs.readFileSync(workboxPath, 'utf-8');
+        const { content: fixedWorkboxContent, modified: workboxModified } = fixPathsInContent(workboxContent, workboxPath);
+        if (workboxModified) {
+          fs.writeFileSync(workboxPath, fixedWorkboxContent, 'utf-8');
+          console.log(`✅ Fixed paths in ${workboxFile}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️  Could not process ${workboxFile}: ${error.message}`);
+      }
+    }
+  } catch (error) {
+    // Directory might not exist or be readable
+    console.log('ℹ️  Skipping workbox file fixes');
   }
   
   console.log('✅ Path fixing complete');

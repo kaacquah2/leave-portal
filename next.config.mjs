@@ -62,6 +62,17 @@ const nextConfig = {
         )
       }
     }
+    
+    // For Electron builds, ensure webpack generates relative paths
+    if (isElectron && !isServer) {
+      // Set output.publicPath to relative path for Electron file:// protocol
+      if (config.output) {
+        config.output.publicPath = './'
+      } else {
+        config.output = { publicPath: './' }
+      }
+    }
+    
     return config
   },
 }
