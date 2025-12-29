@@ -92,6 +92,15 @@ try {
     console.log('   The app will work OFFLINE by loading from these local files');
     console.log('   API calls will still go to:', electronApiUrl);
     
+    // Verify logo file is present
+    const logoPath = path.join(outDir, 'mofa-logo.png');
+    if (fs.existsSync(logoPath)) {
+      console.log('✅ Logo file (mofa-logo.png) found in build output');
+    } else {
+      console.warn('⚠️  WARNING: Logo file (mofa-logo.png) not found in build output');
+      console.warn('   Make sure mofa-logo.png exists in the public/ folder');
+    }
+    
     // Fix HTML paths for Electron file:// protocol
     console.log('\nFixing HTML paths for Electron file:// protocol...');
     try {

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
-import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/toaster'
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
+import { ConditionalAnalytics } from '@/components/conditional-analytics'
 import { APP_CONFIG } from '@/lib/app-config'
 import './globals.css'
 
@@ -58,7 +58,7 @@ export default function RootLayout({
         {children}
         <PWAInstallPrompt />
         <Toaster />
-        <Analytics />
+        <ConditionalAnalytics />
       </body>
     </html>
   )
