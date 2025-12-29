@@ -35,6 +35,16 @@ function fixPathsInContent(content, filePath) {
     return match;
   });
   
+  // Fix paths missing _next directory: "./static/chunks/..." -> "./_next/static/chunks/..."
+  // This fixes script tags that reference chunks without _next (Next.js 16 issue)
+  content = content.replace(/(src|href)=["']\.\/(static\/[^"']+)["']/g, (match, attr, path) => {
+    if (!path.startsWith('_next/') && !path.startsWith('../') && !path.startsWith('http')) {
+      modified = true;
+      return `${attr}="./_next/${path}"`;
+    }
+    return match;
+  });
+  
   // Fix image paths in public folder (e.g., /mofa-logo.png, /icon-192x192.png, /manifest.json)
   // Fix in HTML attributes (href/src) and in JSON/JavaScript strings
   content = content.replace(/(href|src)=["'](\/(?:mofa-logo|icon|manifest|sw|workbox)[^"']*)["']/g, (match, attr, path) => {
@@ -72,24 +82,46 @@ function fixPathsInContent(content, filePath) {
     return `__webpack_require__.p = "./${path}"`;
   });
   
-  // Fix Next.js 16 inline script data: "433","static/chunks/..." -> "433","./static/chunks/..."
-  // This handles the self.__next_f.push data that references chunks
-  // Pattern: "number","static/chunks/..." or "number","static/chunks/app/..."
-  content = content.replace(/(["'])(\d+)(["'],\s*["'])(static\/[^"']+)(["'])/g, (match, quote1, num, quote2, chunkPath, quote3) => {
-    if (!chunkPath.startsWith('./') && !chunkPath.startsWith('../') && !chunkPath.startsWith('http')) {
+  // Fix Next.js 16 inline script data: "433","./static/chunks/..." -> "433","./_next/static/chunks/..."
+  // This handles the self.__next_f.push data that references chunks (missing _next)
+  // Pattern: "number","./static/chunks/..." or "number","./static/chunks/app/..."
+  content = content.replace(/(["'])(\d+)(["'],\s*["'])\.\/(static\/[^"']+)(["'])/g, (match, quote1, num, quote2, chunkPath, quote3) => {
+    if (!chunkPath.startsWith('_next/') && !chunkPath.startsWith('../') && !chunkPath.startsWith('http')) {
       modified = true;
-      return `${quote1}${num}${quote2}./${chunkPath}${quote3}`;
+      return `${quote1}${num}${quote2}./_next/${chunkPath}${quote3}`;
     }
     return match;
   });
   
-  // Fix paths in JSON-like structures within strings: "static/chunks/..." -> "./static/chunks/..."
+  // Fix Next.js 16 inline script data: "433","static/chunks/..." -> "433","./_next/static/chunks/..."
+  // This handles the self.__next_f.push data that references chunks (absolute paths)
+  // Pattern: "number","static/chunks/..." or "number","static/chunks/app/..."
+  content = content.replace(/(["'])(\d+)(["'],\s*["'])(static\/[^"']+)(["'])/g, (match, quote1, num, quote2, chunkPath, quote3) => {
+    if (!chunkPath.startsWith('./') && !chunkPath.startsWith('../') && !chunkPath.startsWith('http') && !chunkPath.startsWith('_next/')) {
+      modified = true;
+      return `${quote1}${num}${quote2}./_next/${chunkPath}${quote3}`;
+    }
+    return match;
+  });
+  
+  // Fix paths in JSON-like structures within strings: "./static/chunks/..." -> "./_next/static/chunks/..."
+  // This catches any remaining "./static/..." patterns that are missing _next
+  content = content.replace(/(["'])\.\/(static\/[^"']+)(["'])/g, (match, quote1, path, quote2) => {
+    // Only fix if it's missing _next and not part of a URL
+    if (!path.startsWith('_next/') && !path.startsWith('../') && !path.startsWith('http') && !path.includes('://')) {
+      modified = true;
+      return `${quote1}./_next/${path}${quote2}`;
+    }
+    return match;
+  });
+  
+  // Fix paths in JSON-like structures within strings: "static/chunks/..." -> "./_next/static/chunks/..."
   // This catches any remaining "static/..." patterns that aren't already relative
   content = content.replace(/(["'])(static\/[^"']+)(["'])/g, (match, quote1, path, quote2) => {
     // Only fix if it's not already relative and not part of a URL
-    if (!path.startsWith('./') && !path.startsWith('../') && !path.startsWith('http') && !path.includes('://')) {
+    if (!path.startsWith('./') && !path.startsWith('../') && !path.startsWith('http') && !path.includes('://') && !path.startsWith('_next/')) {
       modified = true;
-      return `${quote1}./${path}${quote2}`;
+      return `${quote1}./_next/${path}${quote2}`;
     }
     return match;
   });

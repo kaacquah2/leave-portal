@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 
 
-// GET all leave policies
+// GET all leave policies - All authenticated users can view policies
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const policies = await prisma.leavePolicy.findMany({
@@ -14,7 +14,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error fetching leave policies:', error)
     return NextResponse.json({ error: 'Failed to fetch leave policies' }, { status: 500 })
   }
-})
+}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })
 
 // POST create leave policy
 export const POST = withAuth(async ({ user, request }: AuthContext) => {

@@ -14,6 +14,7 @@ import EmployeeDocuments from '@/components/employee-documents'
 import LeaveForm from '@/components/leave-form'
 import EmployeeProfileView from '@/components/employee-profile-view'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import UnauthorizedMessage from '@/components/unauthorized-message'
 import { type UserRole } from '@/lib/permissions'
 import { hasPermission } from '@/lib/permissions'
 
@@ -106,15 +107,10 @@ export default function EmployeePortal({ staffId, userRole, onLogout }: Employee
       case 'apply-leave':
         // Check permission before showing leave form
         if (!hasPermission(userRole, 'employee:leave:create:own')) {
-          return (
-            <div className="p-8">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">You don't have permission to apply for leave.</p>
-                </CardContent>
-              </Card>
-            </div>
-          )
+          return <UnauthorizedMessage 
+            message="You don't have permission to apply for leave."
+            requiredPermission="employee:leave:create:own"
+          />
         }
         return (
           <div className="space-y-6">
@@ -138,80 +134,50 @@ export default function EmployeePortal({ staffId, userRole, onLogout }: Employee
         )
       case 'leave-balances':
         if (!hasPermission(userRole, 'employee:leave:view:own')) {
-          return (
-            <div className="p-8">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">You don't have permission to view leave balances.</p>
-                </CardContent>
-              </Card>
-            </div>
-          )
+          return <UnauthorizedMessage 
+            message="You don't have permission to view leave balances."
+            requiredPermission="employee:leave:view:own"
+          />
         }
         return <EmployeeLeaveBalances store={store} staffId={staffId} />
       case 'leave-history':
         if (!hasPermission(userRole, 'employee:leave:view:own')) {
-          return (
-            <div className="p-8">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">You don't have permission to view leave history.</p>
-                </CardContent>
-              </Card>
-            </div>
-          )
+          return <UnauthorizedMessage 
+            message="You don't have permission to view leave history."
+            requiredPermission="employee:leave:view:own"
+          />
         }
         return <EmployeeLeaveHistory store={store} staffId={staffId} />
       case 'notifications':
         if (!hasPermission(userRole, 'employee:self:view')) {
-          return (
-            <div className="p-8">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">You don't have permission to view notifications.</p>
-                </CardContent>
-              </Card>
-            </div>
-          )
+          return <UnauthorizedMessage 
+            message="You don't have permission to view notifications."
+            requiredPermission="employee:self:view"
+          />
         }
         return <NotificationCenter />
       case 'profile':
         if (!hasPermission(userRole, 'employee:self:view')) {
-          return (
-            <div className="p-8">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">You don't have permission to view your profile.</p>
-                </CardContent>
-              </Card>
-            </div>
-          )
+          return <UnauthorizedMessage 
+            message="You don't have permission to view your profile."
+            requiredPermission="employee:self:view"
+          />
         }
         return <EmployeeProfileView store={store} staffId={staffId} />
       case 'documents':
         if (!hasPermission(userRole, 'employee:self:view')) {
-          return (
-            <div className="p-8">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">You don't have permission to view documents.</p>
-                </CardContent>
-              </Card>
-            </div>
-          )
+          return <UnauthorizedMessage 
+            message="You don't have permission to view documents."
+            requiredPermission="employee:self:view"
+          />
         }
         return <EmployeeDocuments />
       case 'payslips':
         if (!hasPermission(userRole, 'employee:payslip:view:own')) {
-          return (
-            <div className="p-8">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">You don't have permission to view payslips.</p>
-                </CardContent>
-              </Card>
-            </div>
-          )
+          return <UnauthorizedMessage 
+            message="You don't have permission to view payslips."
+            requiredPermission="employee:payslip:view:own"
+          />
         }
         // Payslips component would go here when implemented
         return (
@@ -225,15 +191,10 @@ export default function EmployeePortal({ staffId, userRole, onLogout }: Employee
         )
       case 'performance':
         if (!hasPermission(userRole, 'employee:performance:view:own')) {
-          return (
-            <div className="p-8">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">You don't have permission to view performance reviews.</p>
-                </CardContent>
-              </Card>
-            </div>
-          )
+          return <UnauthorizedMessage 
+            message="You don't have permission to view performance reviews."
+            requiredPermission="employee:performance:view:own"
+          />
         }
         // Performance component would go here when implemented
         return (

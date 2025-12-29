@@ -26,22 +26,33 @@ export default function EmployeeNavigation({ activeTab, setActiveTab, userRole, 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // All available navigation items with their required permissions
+  // Grouped logically: Core, Leave Management, Personal
   const allNavItems: NavItem[] = [
+    // Core
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'employee:self:view' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, permission: 'employee:self:view' },
+    
+    // Leave Management
     { id: 'apply-leave', label: 'Apply for Leave', icon: Plus, permission: 'employee:leave:create:own' },
     { id: 'leave-balances', label: 'Leave Balances', icon: Calendar, permission: 'employee:leave:view:own' },
     { id: 'leave-history', label: 'Leave History', icon: Calendar, permission: 'employee:leave:view:own' },
-    { id: 'payslips', label: 'Payslips', icon: DollarSign, permission: 'employee:payslip:view:own' },
-    { id: 'performance', label: 'Performance', icon: TrendingUp, permission: 'employee:performance:view:own' },
-    { id: 'notifications', label: 'Notifications', icon: Bell, permission: 'employee:self:view' },
+    
+    // Personal
     { id: 'profile', label: 'View Profile', icon: User, permission: 'employee:self:view' },
     { id: 'documents', label: 'My Documents', icon: FileText, permission: 'employee:self:view' },
+    { id: 'payslips', label: 'Payslips', icon: DollarSign, permission: 'employee:payslip:view:own' },
+    { id: 'performance', label: 'Performance', icon: TrendingUp, permission: 'employee:performance:view:own' },
   ]
 
-  // Filter navigation items based on user permissions
-  const navItems = allNavItems.filter(item => 
-    !item.permission || hasPermission(userRole, item.permission)
-  )
+  // Filter navigation items based on user permissions with debug logging
+  const navItems = allNavItems.filter(item => {
+    if (!item.permission) return true
+    const hasAccess = hasPermission(userRole, item.permission)
+    if (process.env.NODE_ENV === 'development' && !hasAccess) {
+      console.debug(`[EmployeeNavigation] User ${userRole} lacks permission ${item.permission} for ${item.id}`)
+    }
+    return hasAccess
+  })
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)

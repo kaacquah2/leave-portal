@@ -9,13 +9,11 @@ import Navigation from '@/components/navigation'
 import Dashboard from '@/components/dashboard'
 import StaffManagement from '@/components/staff-management'
 import ManagerTeamView from '@/components/manager-team-view'
-import LeaveManagement from '@/components/leave-management'
 import ManagerLeaveApproval from '@/components/manager-leave-approval'
 import Reports from '@/components/reports'
 import EmployeePortal from '@/components/employee-portal'
-import LeavePolicyManagement from '@/components/leave-policy-management'
+import UnifiedLeaveManagement from '@/components/unified-leave-management'
 import HolidayCalendar from '@/components/holiday-calendar'
-import LeaveCalendarView from '@/components/leave-calendar-view'
 import LeaveTemplates from '@/components/leave-templates'
 import DelegationManagement from '@/components/delegation-management'
 import YearEndProcessing from '@/components/year-end-processing'
@@ -24,6 +22,7 @@ import ManagerAssignment from '@/components/manager-assignment'
 import AdminPortal from '@/components/admin-portal'
 import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
 import { Card, CardContent } from '@/components/ui/card'
+import UnauthorizedMessage from '@/components/unauthorized-message'
 
 interface PortalProps {
   userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
@@ -91,14 +90,8 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
   }
 
   const renderContent = () => {
-    const renderUnauthorized = (message: string) => (
-      <div className="p-8">
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">{message}</p>
-          </CardContent>
-        </Card>
-      </div>
+    const renderUnauthorized = (message: string, permission?: string, role?: string) => (
+      <UnauthorizedMessage message={message} requiredPermission={permission} requiredRole={role} />
     )
 
     switch (activeTab) {
@@ -109,7 +102,10 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
       case 'staff':
         if (!hasPermission(userRole as UserRole, 'employee:view:all') && 
             !hasPermission(userRole as UserRole, 'employee:view:team')) {
-          return renderUnauthorized("You don't have permission to view staff.")
+          return renderUnauthorized(
+            "You don't have permission to view staff.", 
+            'employee:view:all or employee:view:team'
+          )
         }
         if (userRole === 'manager' || userRole === 'deputy_director') {
           return <ManagerTeamView managerStaffId={staffId} />
@@ -118,62 +114,72 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
       
       case 'manager-assignment':
         if (!hasPermission(userRole as UserRole, 'employee:update')) {
-          return renderUnauthorized("You don't have permission to assign managers.")
+          return renderUnauthorized(
+            "You don't have permission to assign managers.", 
+            'employee:update',
+            'hr'
+          )
         }
         return <ManagerAssignment store={store} />
       
       case 'leave':
         if (!hasPermission(userRole as UserRole, 'leave:view:all') && 
             !hasPermission(userRole as UserRole, 'leave:view:team')) {
-          return renderUnauthorized("You don't have permission to view leave requests.")
+          return renderUnauthorized(
+            "You don't have permission to view leave requests.",
+            'leave:view:all or leave:view:team'
+          )
         }
-        if (userRole === 'manager' || userRole === 'deputy_director') {
-          return <ManagerLeaveApproval />
-        }
-        return <LeaveManagement store={store} userRole={userRole} />
-      
-      case 'leave-calendar':
-        if (!hasPermission(userRole as UserRole, 'leave:view:all') && 
-            !hasPermission(userRole as UserRole, 'leave:view:team')) {
-          return renderUnauthorized("You don't have permission to view the leave calendar.")
-        }
-        return <LeaveCalendarView store={store} userRole={userRole} />
+        // Unified component handles all roles appropriately
+        return <UnifiedLeaveManagement store={store} userRole={userRole} staffId={staffId} />
       
       case 'delegation':
         if (!hasPermission(userRole as UserRole, 'leave:approve:team') && 
             !hasPermission(userRole as UserRole, 'leave:approve:all')) {
-          return renderUnauthorized("You don't have permission to manage delegation.")
+          return renderUnauthorized(
+            "You don't have permission to manage delegation.",
+            'leave:approve:team or leave:approve:all'
+          )
         }
         return <DelegationManagement />
       
-      case 'leave-policies':
-        if (!hasPermission(userRole as UserRole, 'leave:policy:manage')) {
-          return renderUnauthorized("You don't have permission to manage leave policies.")
-        }
-        return <LeavePolicyManagement store={store} />
-      
       case 'holidays':
         if (!hasPermission(userRole as UserRole, 'leave:policy:manage')) {
-          return renderUnauthorized("You don't have permission to manage holidays.")
+          return renderUnauthorized(
+            "You don't have permission to manage holidays.",
+            'leave:policy:manage',
+            'hr'
+          )
         }
         return <HolidayCalendar store={store} />
       
       case 'leave-templates':
         if (!hasPermission(userRole as UserRole, 'leave:policy:manage')) {
-          return renderUnauthorized("You don't have permission to manage leave templates.")
+          return renderUnauthorized(
+            "You don't have permission to manage leave templates.",
+            'leave:policy:manage',
+            'hr'
+          )
         }
         return <LeaveTemplates store={store} />
       
       case 'year-end':
         if (!hasPermission(userRole as UserRole, 'leave:policy:manage')) {
-          return renderUnauthorized("You don't have permission to perform year-end processing.")
+          return renderUnauthorized(
+            "You don't have permission to perform year-end processing.",
+            'leave:policy:manage',
+            'hr'
+          )
         }
         return <YearEndProcessing />
       
       case 'reports':
         if (!hasPermission(userRole as UserRole, 'reports:hr:view') && 
             !hasPermission(userRole as UserRole, 'reports:team:view')) {
-          return renderUnauthorized("You don't have permission to view reports.")
+          return renderUnauthorized(
+            "You don't have permission to view reports.",
+            'reports:hr:view or reports:team:view'
+          )
         }
         return <Reports store={store} userRole={userRole} />
       

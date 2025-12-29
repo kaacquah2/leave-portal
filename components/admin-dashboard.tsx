@@ -43,8 +43,19 @@ export default function AdminDashboard() {
             activeUsers: users.filter((u: any) => u.active).length || 0
           }))
         } else {
-          const errorMsg = (usersRes as any).error?.message || 'Failed to fetch users';
-          setError(errorMsg);
+          let errorMsg = 'Failed to fetch users'
+          try {
+            if (usersRes instanceof Response) {
+              const errorData = await usersRes.json().catch(() => ({}))
+              errorMsg = errorData.error || errorMsg
+            } else if ((usersRes as any).error) {
+              errorMsg = (usersRes as any).error?.message || String((usersRes as any).error)
+            }
+          } catch (e) {
+            // Ignore parsing errors
+          }
+          console.error('[AdminDashboard] Failed to fetch users:', errorMsg)
+          setError(errorMsg)
         }
 
         if (auditRes.ok) {
@@ -53,6 +64,9 @@ export default function AdminDashboard() {
             ...prev,
             auditLogs: auditData.total || 0
           }))
+        } else {
+          // Don't set error for audit logs failure, just log it
+          console.warn('[AdminDashboard] Failed to fetch audit logs count')
         }
       } catch (error) {
         console.error('[AdminDashboard] Error fetching admin stats:', error)

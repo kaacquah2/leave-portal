@@ -68,7 +68,7 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
     <div className="min-h-screen bg-gradient-to-br from-purple-50/50 via-background to-purple-50/30">
       <Header onLogout={onLogout} userRole="admin" />
       <div className="flex">
-        <AdminNavigation activeTab={activeTab} setActiveTab={handleTabChange} onLogout={onLogout} />
+        <AdminNavigation activeTab={activeTab} setActiveTab={handleTabChange} onLogout={onLogout} userRole="admin" />
         <main className="flex-1 overflow-auto min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-96px)]">
           <div className="p-4 sm:p-6 md:p-8">
             {renderContent()}

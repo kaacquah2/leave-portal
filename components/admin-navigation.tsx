@@ -5,25 +5,39 @@ import { LayoutDashboard, Users, FileText, Settings, LogOut, Shield, KeyRound, M
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
+import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
 
 interface AdminNavigationProps {
   activeTab: string
   setActiveTab: (tab: string) => void
   onLogout?: () => void
+  userRole?: UserRole // Optional for future permission checks
 }
 
-export default function AdminNavigation({ activeTab, setActiveTab, onLogout }: AdminNavigationProps) {
+interface NavItem {
+  id: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  permission?: Permission
+}
+
+export default function AdminNavigation({ activeTab, setActiveTab, onLogout, userRole = 'admin' }: AdminNavigationProps) {
   const isMobile = useIsMobile()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'users', label: 'User Management', icon: Users },
-    { id: 'password-resets', label: 'Password Resets', icon: KeyRound },
-    { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
-    { id: '2fa', label: '2FA Setup', icon: Lock },
-    { id: 'settings', label: 'System Settings', icon: Settings },
+  const navItems: NavItem[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'system:reports:view' },
+    { id: 'users', label: 'User Management', icon: Users, permission: 'system:users:manage' },
+    { id: 'password-resets', label: 'Password Resets', icon: KeyRound, permission: 'system:users:manage' },
+    { id: 'audit-logs', label: 'Audit Logs', icon: FileText, permission: 'system:audit:view' },
+    { id: '2fa', label: '2FA Setup', icon: Lock, permission: 'system:users:manage' },
+    { id: 'settings', label: 'System Settings', icon: Settings, permission: 'system:config:manage' },
   ]
+
+  // Filter by permission if specified (admin has all permissions, but this allows for future role restrictions)
+  const visibleItems = navItems.filter(item => 
+    !item.permission || hasPermission(userRole, item.permission)
+  )
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -50,7 +64,7 @@ export default function AdminNavigation({ activeTab, setActiveTab, onLogout }: A
         </div>
       </div>
       <nav className="p-4 md:p-6 space-y-2 flex-1">
-        {navItems.map(item => {
+        {visibleItems.map(item => {
           const Icon = item.icon
           const isActive = activeTab === item.id
           return (

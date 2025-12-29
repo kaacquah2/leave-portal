@@ -30,12 +30,36 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
     leavesByMonth[month].push(leave)
   })
 
-  // Get holidays for the year
+  // Get holidays for the year and deduplicate
   const currentYear = new Date().getFullYear()
-  const holidays = store.holidays.filter((h: any) => {
-    if (h.recurring) return true
-    return h.year === currentYear
+  const holidayMap = new Map<string, any>()
+  
+  // Process holidays and deduplicate by date
+  store.holidays.forEach((h: any) => {
+    const holidayDate = new Date(h.date)
+    if (h.recurring) {
+      // For recurring holidays, set to current year
+      holidayDate.setFullYear(currentYear)
+    } else if (h.year === currentYear) {
+      // Only include year-specific holidays for current year
+      // Keep the date as is
+    } else {
+      // Skip holidays not for current year
+      return
+    }
+    
+    // Create a key based on month and day (ignoring year)
+    const monthDay = `${holidayDate.getMonth()}-${holidayDate.getDate()}`
+    
+    // If we already have a holiday for this date, prefer year-specific over recurring
+    const existing = holidayMap.get(monthDay)
+    if (!existing || (existing.recurring && !h.recurring)) {
+      holidayMap.set(monthDay, { ...h, normalizedDate: holidayDate })
+    }
   })
+  
+  // Convert map to array
+  const holidays = Array.from(holidayMap.values())
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -69,16 +93,12 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {holidays
               .sort((a: any, b: any) => {
-                const dateA = new Date(a.date)
-                const dateB = new Date(b.date)
-                // For recurring holidays, use current year
-                if (a.recurring) dateA.setFullYear(currentYear)
-                if (b.recurring) dateB.setFullYear(currentYear)
+                const dateA = a.normalizedDate || new Date(a.date)
+                const dateB = b.normalizedDate || new Date(b.date)
                 return dateA.getTime() - dateB.getTime()
               })
               .map((holiday: any) => {
-                const holidayDate = new Date(holiday.date)
-                if (holiday.recurring) holidayDate.setFullYear(currentYear)
+                const holidayDate = holiday.normalizedDate || new Date(holiday.date)
                 return (
                   <div key={holiday.id} className="border rounded-lg p-3">
                     <div className="flex items-center justify-between mb-1">

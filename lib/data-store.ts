@@ -295,18 +295,51 @@ export function useDataStore(options?: {
 
       const [staffRes, leavesRes, balancesRes, payslipsRes, reviewsRes, policiesRes, holidaysRes, templatesRes, auditRes] = await Promise.all(requests)
       
-      // Check for critical errors
+      // Check for critical errors with improved error message extraction
       const criticalErrors: string[] = [];
+      
       if (!staffRes.ok) {
-        const errorMsg = (staffRes as any).error?.message || 'Failed to fetch staff';
+        let errorMsg = 'Failed to fetch staff';
+        try {
+          if (staffRes instanceof Response) {
+            const errorData = await staffRes.json().catch(() => ({}));
+            errorMsg = errorData.error || errorMsg;
+          } else if ((staffRes as any).error) {
+            errorMsg = (staffRes as any).error?.message || String((staffRes as any).error);
+          }
+        } catch (e) {
+          // Ignore parsing errors, use default message
+        }
         criticalErrors.push(`Staff: ${errorMsg}`);
       }
+      
       if (!leavesRes.ok) {
-        const errorMsg = (leavesRes as any).error?.message || 'Failed to fetch leave requests';
+        let errorMsg = 'Failed to fetch leave requests';
+        try {
+          if (leavesRes instanceof Response) {
+            const errorData = await leavesRes.json().catch(() => ({}));
+            errorMsg = errorData.error || errorMsg;
+          } else if ((leavesRes as any).error) {
+            errorMsg = (leavesRes as any).error?.message || String((leavesRes as any).error);
+          }
+        } catch (e) {
+          // Ignore parsing errors, use default message
+        }
         criticalErrors.push(`Leaves: ${errorMsg}`);
       }
+      
       if (!balancesRes.ok) {
-        const errorMsg = (balancesRes as any).error?.message || 'Failed to fetch balances';
+        let errorMsg = 'Failed to fetch balances';
+        try {
+          if (balancesRes instanceof Response) {
+            const errorData = await balancesRes.json().catch(() => ({}));
+            errorMsg = errorData.error || errorMsg;
+          } else if ((balancesRes as any).error) {
+            errorMsg = (balancesRes as any).error?.message || String((balancesRes as any).error);
+          }
+        } catch (e) {
+          // Ignore parsing errors, use default message
+        }
         criticalErrors.push(`Balances: ${errorMsg}`);
       }
       

@@ -69,25 +69,11 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
       permission: 'leave:view:all' // HR views all, managers view team
     },
     { 
-      id: 'leave-calendar', 
-      label: 'Leave Calendar', 
-      icon: CalendarDays, 
-      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
-      permission: 'leave:view:all' // View calendar
-    },
-    { 
       id: 'delegation', 
       label: 'Delegation', 
-      icon: UserCheck, 
+      icon: UserCheck,
       roles: ['hr', 'manager', 'deputy_director'],
       permission: 'leave:approve:team' // Can delegate approvals
-    },
-    { 
-      id: 'leave-policies', 
-      label: 'Leave Policies', 
-      icon: FileCheck, 
-      roles: ['hr'],
-      permission: 'leave:policy:manage' // Only HR can manage policies
     },
     { 
       id: 'holidays', 
@@ -119,7 +105,7 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
     },
   ]
 
-  // Filter by both role and permission
+  // Filter by both role and permission with better error handling
   const visibleItems = navItems.filter(item => {
     // First check if role is allowed
     if (item.roles && !item.roles.includes(userRole)) {
@@ -127,7 +113,12 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
     }
     // Then check permission if specified
     if (item.permission) {
-      return hasPermission(userRole as UserRole, item.permission)
+      const hasAccess = hasPermission(userRole as UserRole, item.permission)
+      // Log in development if permission check fails
+      if (process.env.NODE_ENV === 'development' && !hasAccess) {
+        console.debug(`[Navigation] User ${userRole} lacks permission ${item.permission} for ${item.id}`)
+      }
+      return hasAccess
     }
     return true
   })
