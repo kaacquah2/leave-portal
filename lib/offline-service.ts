@@ -30,9 +30,10 @@ export class OfflineService {
 
   /**
    * Check if running in Electron (offline mode available)
+   * NOTE: Offline mode is disabled - app requires internet connection
    */
   isOfflineModeAvailable(): boolean {
-    return this.isElectron;
+    return false; // Offline mode disabled - app requires internet
   }
 
   /**

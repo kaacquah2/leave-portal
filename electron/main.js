@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
 // Detect dev mode - try electron-is-dev, fallback to NODE_ENV
 let isDev = false;
@@ -10,20 +10,6 @@ try {
 }
 
 let mainWindow;
-let localDatabase = null;
-
-// Initialize local database (only in Electron)
-function initializeLocalDatabase() {
-  try {
-    const { getLocalDatabase } = require('./database.js');
-    localDatabase = getLocalDatabase();
-    localDatabase.initialize();
-    console.log('[Electron] Local SQLite database initialized');
-  } catch (error) {
-    console.error('[Electron] Failed to initialize local database:', error);
-    // Continue without offline mode if database fails
-  }
-}
 
 function createWindow() {
   // Create the browser window
@@ -101,7 +87,7 @@ function createWindow() {
     }
   }, 2000); // 2 second fallback
 
-  // Load the app - Hybrid approach: Local files first, fallback to Vercel
+  // Load the app from remote URL (requires internet)
   // Default Vercel URL for production builds
   const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
   
@@ -117,54 +103,11 @@ function createWindow() {
     startUrl = 'http://localhost:3000';
     console.log('[Electron] Development mode - loading from localhost:3000');
   } else {
-    // Production: Try to load from local static files first (works offline)
-    // Static files are bundled in the Electron app and accessible via ASAR or unpacked
-    const fs = require('fs');
-    
-    // Try multiple possible locations for static files (in order of preference)
-    const possiblePaths = [
-      // 1. Relative to main.js (development/unpacked)
-      path.join(__dirname, '../out/index.html'),
-      // 2. In ASAR archive (most common in production)
-      path.join(process.resourcesPath, 'app.asar', 'out', 'index.html'),
-      // 3. Unpacked from ASAR (if asarUnpack is configured)
-      path.join(process.resourcesPath, 'app', 'out', 'index.html'),
-      // 4. Alternative ASAR location
-      path.join(app.getAppPath(), 'out', 'index.html'),
-    ];
-    
-    // Check each path
-    let localIndexPath = null;
-    for (const possiblePath of possiblePaths) {
-      try {
-        if (fs.existsSync(possiblePath)) {
-          localIndexPath = possiblePath;
-          console.log('[Electron] Found static files at:', possiblePath);
-          break;
-        }
-      } catch (error) {
-        // Continue checking other paths
-        console.log('[Electron] Path check failed:', possiblePath, error.message);
-      }
-    }
-    
-    if (localIndexPath) {
-      // Use local static files (works offline!)
-      // Note: Electron can read from ASAR archives directly with file:// protocol
-      startUrl = `file://${localIndexPath}`;
-      console.log('[Electron] ✅ Production mode - loading from LOCAL static files (OFFLINE-CAPABLE)');
-      console.log('[Electron] 📁 Static files location:', localIndexPath);
-      console.log('[Electron] 🌐 API calls will be made to:', remoteApiUrl || DEFAULT_VERCEL_URL);
-      console.log('[Electron] 💡 App will work WITHOUT internet connection!');
-    } else {
-      // Fallback to Vercel URL (requires internet)
-      startUrl = (remoteApiUrl || DEFAULT_VERCEL_URL).replace(/\/$/, '');
-      console.log('[Electron] ⚠️  Production mode - LOCAL static files not found');
-      console.log('[Electron] 🌐 Loading from remote URL (requires internet):', startUrl);
-      console.log('[Electron] ⚠️  WARNING: App requires internet connection to load');
-      console.log('[Electron] 📦 Check that "out/**/*" is included in electron-builder files array');
-      console.log('[Electron] 🔧 API calls will be made to:', startUrl);
-    }
+    // Production: Always load from remote URL (requires internet)
+    startUrl = (remoteApiUrl || DEFAULT_VERCEL_URL).replace(/\/$/, '');
+    console.log('[Electron] Production mode - loading from remote URL (requires internet):', startUrl);
+    console.log('[Electron] ⚠️  WARNING: App requires internet connection to load');
+    console.log('[Electron] 🔧 API calls will be made to:', startUrl);
   }
   
   // Add error handling with better connection status and offline fallback
@@ -177,29 +120,6 @@ function createWindow() {
       return;
     }
     
-    // If loading from remote URL failed, try to fallback to local files
-    if (validatedURL && validatedURL.startsWith('http')) {
-      console.log('[Electron] Remote URL failed, attempting to load from local static files...');
-      const fs = require('fs');
-      const staticFilesPath = path.join(__dirname, '../out/index.html');
-      const asarStaticPath = path.join(process.resourcesPath, 'app.asar', 'out', 'index.html');
-      const asarUnpackedPath = path.join(process.resourcesPath, 'app', 'out', 'index.html');
-      
-      let localIndexPath = null;
-      if (fs.existsSync(staticFilesPath)) {
-        localIndexPath = staticFilesPath;
-      } else if (fs.existsSync(asarStaticPath)) {
-        localIndexPath = asarStaticPath;
-      } else if (fs.existsSync(asarUnpackedPath)) {
-        localIndexPath = asarUnpackedPath;
-      }
-      
-      if (localIndexPath) {
-        console.log('[Electron] Found local static files, loading from:', localIndexPath);
-        mainWindow.loadURL(`file://${localIndexPath}`);
-        return; // Don't show error, we're trying local files
-      }
-    }
     
     const errorHtml = `
       <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif; padding: 20px; text-align: center; background: #f9fafb;">
@@ -319,14 +239,7 @@ function createWindow() {
       
       // Allow navigation within the same origin (for SPA routing)
       // Allow localhost in dev mode
-      // For file:// protocol, allow all file:// URLs
-      if (startUrl.startsWith('file://')) {
-        // Allow all file:// navigation for SPA routing
-        if (!navigationUrl.startsWith('file://')) {
-          event.preventDefault();
-          shell.openExternal(navigationUrl);
-        }
-      } else if (parsedUrl.origin !== currentOrigin && !isDev) {
+      if (parsedUrl.origin !== currentOrigin && !isDev) {
         event.preventDefault();
         shell.openExternal(navigationUrl);
       }
@@ -431,79 +344,9 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// Setup IPC handlers for local database operations
-function setupIpcHandlers() {
-  if (!localDatabase) return;
-
-  // Get sync queue
-  ipcMain.handle('db:get-sync-queue', async (event, limit = 50) => {
-    try {
-      return localDatabase.getSyncQueue(limit);
-    } catch (error) {
-      console.error('[IPC] Error getting sync queue:', error);
-      return [];
-    }
-  });
-
-  // Add to sync queue
-  ipcMain.handle('db:add-to-sync-queue', async (event, tableName, operation, recordId, payload) => {
-    try {
-      return localDatabase.addToSyncQueue(tableName, operation, recordId, payload);
-    } catch (error) {
-      console.error('[IPC] Error adding to sync queue:', error);
-      throw error;
-    }
-  });
-
-  // Remove from sync queue
-  ipcMain.handle('db:remove-from-sync-queue', async (event, id) => {
-    try {
-      localDatabase.removeFromSyncQueue(id);
-    } catch (error) {
-      console.error('[IPC] Error removing from sync queue:', error);
-      throw error;
-    }
-  });
-
-  // Get last sync time
-  ipcMain.handle('db:get-last-sync-time', async () => {
-    try {
-      return localDatabase.getLastSyncTime();
-    } catch (error) {
-      console.error('[IPC] Error getting last sync time:', error);
-      return null;
-    }
-  });
-
-  // Set last sync time
-  ipcMain.handle('db:set-last-sync-time', async (event, timestamp) => {
-    try {
-      localDatabase.setLastSyncTime(timestamp);
-    } catch (error) {
-      console.error('[IPC] Error setting last sync time:', error);
-      throw error;
-    }
-  });
-
-  // Mark record as synced
-  ipcMain.handle('db:mark-synced', async (event, tableName, recordId) => {
-    try {
-      localDatabase.markSynced(tableName, recordId);
-    } catch (error) {
-      console.error('[IPC] Error marking as synced:', error);
-      throw error;
-    }
-  });
-}
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
-  // Initialize local database first
-  initializeLocalDatabase();
-  
-  // Setup IPC handlers
-  setupIpcHandlers();
-  
   // Create window
   createWindow();
 
@@ -522,17 +365,6 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Cleanup database on app quit
-app.on('before-quit', () => {
-  if (localDatabase) {
-    try {
-      localDatabase.close();
-      console.log('[Electron] Local database closed');
-    } catch (error) {
-      console.error('[Electron] Error closing database:', error);
-    }
-  }
-});
 
 // Security: Prevent new window creation
 app.on('web-contents-created', (event, contents) => {

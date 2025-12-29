@@ -148,16 +148,12 @@
     "files": [
       "electron/**/*",
       "package.json",
-      "out/**/*",
       "node_modules/electron-is-dev/**/*",
       "!.next/**/*",
       "!.electron-builderignore"
     ],
     "fileAssociations": [],
     "asar": true,
-    "asarUnpack": [
-      "out/**/*"
-    ],
     "npmRebuild": false,
     "nodeGypRebuild": false,
     "forceCodeSigning": false,
