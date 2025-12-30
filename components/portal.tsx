@@ -118,7 +118,7 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
 
     switch (activeTab) {
       case 'dashboard':
-        // Route to role-specific dashboards for MoFAD roles
+        // Route to role-specific dashboards for MoFA roles
         if (normalizedRole === 'SUPERVISOR' || normalizedRole === 'supervisor') {
           return <SupervisorDashboard staffId={staffId} userRole={userRole} onNavigate={setActiveTab} />
         } else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {

@@ -122,7 +122,7 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4 sm:p-6">
-      {/* MoFAD Blue Header Bar */}
+      {/* MoFA Blue Header Bar */}
       <div className="absolute top-0 left-0 right-0 h-2 bg-primary"></div>
       
       <Card className="w-full max-w-md shadow-lg border border-border">
@@ -148,7 +148,7 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
               <label className="block text-sm font-medium mb-2">Email Address</label>
               <Input
                 type="email"
-                placeholder="your.email@mofa.go.ke"
+                placeholder="your.email@mofa.gov.gh"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
