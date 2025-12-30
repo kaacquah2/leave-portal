@@ -1520,7 +1520,15 @@ async function main() {
       })
 
       if (existingUser) {
-        console.log(`   ⚠️  User ${userData.email} already exists, skipping...`)
+        // Update existing seeded user to exempt from password expiration
+        await prisma.user.update({
+          where: { email: userData.email },
+          data: {
+            passwordExpiresAt: null, // Seeded users never expire
+            passwordChangedAt: existingUser.passwordChangedAt || null, // Preserve if already set
+          },
+        })
+        console.log(`   ✅ Updated existing seeded user: ${userData.email} (exempt from password expiration)`)
         continue
       }
 
@@ -1536,6 +1544,7 @@ async function main() {
       }
 
       // Create user
+      // Seeded users are exempt from password expiration for testing/demo purposes
       const user = await prisma.user.create({
         data: {
           email: userData.email,
@@ -1544,6 +1553,8 @@ async function main() {
           staffId: userData.staffId,
           active: true,
           emailVerified: false,
+          passwordExpiresAt: null, // Seeded users never expire
+          passwordChangedAt: null, // No forced password change on first login
         },
       })
 

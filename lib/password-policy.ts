@@ -52,15 +52,59 @@ export function validatePasswordComplexity(password: string): {
 }
 
 /**
+ * Check if user is a seeded/test user (exempt from password expiration)
+ * 
+ * Seeded users are test/demo accounts created by the seed script.
+ * They are exempt from password expiration and first-login password change requirements.
+ */
+export function isSeededUser(email: string): boolean {
+  // Seeded users have specific email patterns for testing/demo purposes
+  const seededEmailPatterns = [
+    /^employee@mofa\.gov\.gh$/i,
+    /^supervisor@mofa\.gov\.gh$/i,
+    /^unithead@mofa\.gov\.gh$/i,
+    /^divisionhead@mofa\.gov\.gh$/i,
+    /^director@mofa\.gov\.gh$/i,
+    /^regionalmanager@mofa\.gov\.gh$/i,
+    /^hrofficer@mofa\.gov\.gh$/i,
+    /^hrdirector@mofa\.gov\.gh$/i,
+    /^chiefdirector@mofa\.gov\.gh$/i,
+    /^auditor@mofa\.gov\.gh$/i,
+    /^sysadmin@mofa\.gov\.gh$/i,
+    // Legacy role patterns
+    /^employee\.legacy@mofad\.gov\.gh$/i,
+    /^supervisor\.legacy@mofad\.gov\.gh$/i,
+    /^manager\.legacy@mofad\.gov\.gh$/i,
+    /^hr\.legacy@mofad\.gov\.gh$/i,
+    /^admin\.legacy@mofad\.gov\.gh$/i,
+    /^hrassistant@mofad\.gov\.gh$/i,
+    /^deputydirector@mofad\.gov\.gh$/i,
+  ]
+  
+  return seededEmailPatterns.some(pattern => pattern.test(email))
+}
+
+/**
  * Check if password has expired
+ * 
+ * Note: Seeded users (test/demo accounts) are exempt from password expiration
  */
 export async function isPasswordExpired(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { passwordExpiresAt: true },
+    select: { passwordExpiresAt: true, email: true },
   })
 
-  if (!user || !user.passwordExpiresAt) {
+  if (!user) {
+    return false
+  }
+
+  // Seeded users are exempt from password expiration
+  if (isSeededUser(user.email)) {
+    return false
+  }
+
+  if (!user.passwordExpiresAt) {
     return false
   }
 

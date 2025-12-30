@@ -6,7 +6,8 @@ import {
   isAccountLocked, 
   handleFailedLoginAttempt, 
   resetFailedLoginAttempts,
-  requirePasswordChange 
+  requirePasswordChange,
+  isSeededUser
 } from '@/lib/password-policy'
 
 
@@ -178,7 +179,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Ghana Government Compliance: Force password change on first login
-    if (!user.passwordChangedAt) {
+    // Exception: Seeded users (test/demo accounts) are exempt from this requirement
+    if (!user.passwordChangedAt && !isSeededUser(user.email)) {
       await requirePasswordChange(user.id)
       return NextResponse.json(
         { 
