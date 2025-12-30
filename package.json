@@ -39,7 +39,9 @@
     "mobile:install": "cd mobile && npm install",
     "mobile:start": "cd mobile && npm start",
     "mobile:ios": "cd mobile && npm run ios",
-    "mobile:android": "cd mobile && npm run android"
+    "mobile:android": "cd mobile && npm run android",
+    "clean:cache": "tsx scripts/clear-cache.ts",
+    "clean:all": "tsx scripts/clear-cache.ts --all"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

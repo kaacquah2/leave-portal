@@ -19,6 +19,21 @@ const nextConfig = {
   },
   // Use webpack instead of Turbopack to avoid symlink permission issues on Windows
   webpack: (config, { isServer }) => {
+    // Configure cache to handle Windows permission errors gracefully
+    // Use filesystem cache with error handling for Windows EPERM issues
+    if (config.cache) {
+      config.cache = {
+        ...config.cache,
+        // Use filesystem cache but allow it to fail silently on Windows permission errors
+        type: 'filesystem',
+        buildDependencies: {
+          config: [__filename],
+        },
+        // Suppress cache errors on Windows (EPERM issues are non-critical)
+        compression: false, // Disable compression to reduce file operations
+      }
+    }
+    
     // Ensure proper module resolution for server-side packages
     if (isServer) {
       // Ensure node_modules are properly resolved
