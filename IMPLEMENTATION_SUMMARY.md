@@ -1,5 +1,5 @@
 # Implementation Summary
-## Ministry of Fisheries and Aquaculture Development - HR Portal
+## Ministry of Fisheries and Aquaculture - HR Portal
 
 **Date**: 2024  
 **Status**: Core Features Implemented

@@ -1,7 +1,7 @@
 # Workflow, Schema, and Database Analysis Report
 
 **Date**: 2024  
-**Project**: HR Staff Leave Portal - Ministry of Fisheries and Aquaculture Development
+**Project**: HR Staff Leave Portal - Ministry of Fisheries and Aquaculture
 
 ---
 

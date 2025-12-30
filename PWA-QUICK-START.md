@@ -119,7 +119,7 @@ Create `public/manifest.json`:
 {
   "name": "MoFA HR Leave Portal",
   "short_name": "HR Portal",
-  "description": "Ministry of Fisheries and Aquaculture Development - HR Staff Leave Management System",
+  "description": "Ministry of Fisheries and Aquaculture - HR Staff Leave Management System",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

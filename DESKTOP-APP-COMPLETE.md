@@ -126,7 +126,7 @@ Before building:
 - **Type**: NSIS (standard Windows installer)
 - **Shortcuts**: Desktop + Start Menu
 - **Installation**: User can choose location
-- **Publisher**: Ministry of Fisheries and Aquaculture Development
+- **Publisher**: Ministry of Fisheries and Aquaculture
 
 ### API Connection:
 - **Development**: Uses localhost:3000

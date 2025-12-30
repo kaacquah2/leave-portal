@@ -43,6 +43,7 @@ interface StaffMember {
   firstName: string
   lastName: string
   department: string
+  email?: string
 }
 
 export default function AdminUserManagement() {
@@ -50,7 +51,9 @@ export default function AdminUserManagement() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showCreateCredentialsDialog, setShowCreateCredentialsDialog] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isCreatingCredentials, setIsCreatingCredentials] = useState(false)
   const [formData, setFormData] = useState({
     // User account fields
     email: '',
@@ -68,7 +71,15 @@ export default function AdminUserManagement() {
     level: '',
     joinDate: '',
   })
+  const [credentialsFormData, setCredentialsFormData] = useState({
+    staffId: '',
+    email: '',
+    password: '',
+    role: 'employee',
+    active: true,
+  })
   const [showPassword, setShowPassword] = useState(false)
+  const [showCredentialsPassword, setShowCredentialsPassword] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
@@ -194,6 +205,76 @@ export default function AdminUserManagement() {
     }
   }
 
+  const handleCreateCredentials = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setIsCreatingCredentials(true)
+
+    try {
+      // Validate required fields
+      if (!credentialsFormData.staffId || !credentialsFormData.email || 
+          !credentialsFormData.password || !credentialsFormData.role) {
+        setError('Please fill in all required fields')
+        return
+      }
+
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/admin/users/create-credentials', {
+        method: 'POST',
+        body: JSON.stringify({
+          staffId: credentialsFormData.staffId,
+          email: credentialsFormData.email,
+          password: credentialsFormData.password,
+          role: credentialsFormData.role,
+          active: credentialsFormData.active,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to create login credentials')
+        return
+      }
+
+      // Show success message
+      if (data.emailSent) {
+        setSuccessMessage(`Login credentials created successfully! Credentials have been sent to ${data.user.email}`)
+      } else {
+        setSuccessMessage(`Login credentials created successfully! However, the email notification failed. Password: ${data.password || 'N/A'}`)
+      }
+
+      // Reset form and close dialog
+      setCredentialsFormData({
+        staffId: '',
+        email: '',
+        password: '',
+        role: 'employee',
+        active: true,
+      })
+      setShowCreateCredentialsDialog(false)
+      
+      // Refresh users list
+      fetchUsers()
+      fetchStaffMembers()
+
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 5000)
+    } catch (error) {
+      console.error('Error creating credentials:', error)
+      setError('An error occurred. Please try again.')
+    } finally {
+      setIsCreatingCredentials(false)
+    }
+  }
+
+  // Get staff members without user accounts
+  const staffWithoutUsers = staffMembers.filter((staff) => {
+    return !users.some((user) => user.staffId === staff.staffId)
+  })
+
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin':
@@ -220,10 +301,20 @@ export default function AdminUserManagement() {
           <h1 className="text-3xl font-bold">User Management</h1>
           <p className="text-muted-foreground mt-1">Manage user accounts and permissions</p>
         </div>
-        <Button className="gap-2" onClick={() => setShowAddDialog(true)}>
-          <Plus className="w-4 h-4" />
-          Add User
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={() => setShowCreateCredentialsDialog(true)}
+          >
+            <Shield className="w-4 h-4" />
+            Create Credentials for Existing Staff
+          </Button>
+          <Button className="gap-2" onClick={() => setShowAddDialog(true)}>
+            <Plus className="w-4 h-4" />
+            Add New Staff & User
+          </Button>
+        </div>
       </div>
 
       {successMessage && (
@@ -296,7 +387,7 @@ export default function AdminUserManagement() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="john.doe@mofad.gov.gh"
+                      placeholder="john.doe@mofa.gov.gh"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
                       required
@@ -476,6 +567,160 @@ export default function AdminUserManagement() {
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Creating...' : 'Create User'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Credentials Dialog for Existing Staff */}
+      <Dialog open={showCreateCredentialsDialog} onOpenChange={setShowCreateCredentialsDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create Login Credentials</DialogTitle>
+            <DialogDescription>
+              Create login credentials for an existing staff member who doesn't have a user account yet.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateCredentials}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="credentialsStaffId">Staff Member *</Label>
+                <Select
+                  value={credentialsFormData.staffId}
+                  onValueChange={(value) => {
+                    const selectedStaff = staffMembers.find(s => s.staffId === value)
+                    setCredentialsFormData({
+                      ...credentialsFormData,
+                      staffId: value,
+                      email: selectedStaff?.email || '',
+                    })
+                  }}
+                >
+                  <SelectTrigger id="credentialsStaffId">
+                    <SelectValue placeholder="Select staff member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staffWithoutUsers.length === 0 ? (
+                      <SelectItem value="" disabled>No staff members without accounts</SelectItem>
+                    ) : (
+                      staffWithoutUsers.map((staff) => (
+                        <SelectItem key={staff.staffId} value={staff.staffId}>
+                          {staff.staffId} - {staff.firstName} {staff.lastName} ({staff.department})
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {staffWithoutUsers.length} staff member(s) without user accounts
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="credentialsEmail">Email Address *</Label>
+                <Input
+                  id="credentialsEmail"
+                  type="email"
+                  placeholder="email@mofa.gov.gh"
+                  value={credentialsFormData.email}
+                  onChange={(e) => setCredentialsFormData({ ...credentialsFormData, email: e.target.value.toLowerCase() })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="credentialsPassword">Password *</Label>
+                <div className="relative">
+                  <Input
+                    id="credentialsPassword"
+                    type={showCredentialsPassword ? 'text' : 'password'}
+                    placeholder="Enter password (min 8 characters)"
+                    value={credentialsFormData.password}
+                    onChange={(e) => setCredentialsFormData({ ...credentialsFormData, password: e.target.value })}
+                    required
+                    minLength={8}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowCredentialsPassword(!showCredentialsPassword)}
+                  >
+                    {showCredentialsPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="credentialsRole">Role *</Label>
+                <Select
+                  value={credentialsFormData.role}
+                  onValueChange={(value) => setCredentialsFormData({ ...credentialsFormData, role: value })}
+                >
+                  <SelectTrigger id="credentialsRole">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                    <SelectItem value="unit_head">Unit Head</SelectItem>
+                    <SelectItem value="division_head">Division Head</SelectItem>
+                    <SelectItem value="directorate_head">Director</SelectItem>
+                    <SelectItem value="regional_manager">Regional Manager</SelectItem>
+                    <SelectItem value="hr_officer">HR Officer</SelectItem>
+                    <SelectItem value="hr_director">HR Director</SelectItem>
+                    <SelectItem value="chief_director">Chief Director</SelectItem>
+                    <SelectItem value="hr">HR (Legacy)</SelectItem>
+                    <SelectItem value="manager">Manager (Legacy)</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="credentialsActive"
+                  checked={credentialsFormData.active}
+                  onChange={(e) => setCredentialsFormData({ ...credentialsFormData, active: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="credentialsActive" className="mb-0">Account Active</Label>
+              </div>
+
+              {error && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowCreateCredentialsDialog(false)
+                  setError('')
+                  setCredentialsFormData({
+                    staffId: '',
+                    email: '',
+                    password: '',
+                    role: 'employee',
+                    active: true,
+                  })
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreatingCredentials || staffWithoutUsers.length === 0}>
+                {isCreatingCredentials ? 'Creating...' : 'Create Credentials'}
               </Button>
             </DialogFooter>
           </form>

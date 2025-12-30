@@ -1,5 +1,5 @@
 # Role-Based Assessment Summary
-## Ministry of Fisheries and Aquaculture Development, Ghana
+## Ministry of Fisheries and Aquaculture, Ghana
 
 **Quick Reference Guide**
 

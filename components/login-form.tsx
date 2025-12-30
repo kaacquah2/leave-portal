@@ -259,13 +259,13 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
                 }
                 try {
                   const { apiRequest } = await import('@/lib/api-config')
-                  const response = await apiRequest('/api/auth/reset-password', {
+                  const response = await apiRequest('/api/auth/forgot-password', {
                     method: 'POST',
                     body: JSON.stringify({ email }),
                   })
                   const data = await response.json()
                   if (response.ok) {
-                    alert(data.message || 'If an account with that email exists, your password reset request has been submitted and is pending admin approval. You will receive an email once it is approved.')
+                    alert(data.message || 'If an account with that email exists, a password reset link has been sent to your email.')
                   } else {
                     alert(data.error || 'Failed to process password reset request. Please contact HR for assistance.')
                   }
@@ -289,7 +289,7 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
 
           <div className="mt-4 text-center">
             <p className="text-sm text-muted-foreground">
-              Ministry of Fisheries and Aquaculture Development (MoFAD), Ghana
+              Ministry of Fisheries and Aquaculture (MoFA), Ghana
             </p>
           </div>
         </CardContent>

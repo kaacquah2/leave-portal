@@ -1,5 +1,5 @@
 # Employee User Manual
-## HR Leave Portal - Ministry of Fisheries and Aquaculture Development
+## HR Leave Portal - Ministry of Fisheries and Aquaculture
 
 **Version**: 1.0  
 **Last Updated**: December 2024
@@ -264,7 +264,7 @@ The dashboard provides an overview of your leave status:
 
 - **HR Department**: Contact HR for leave-related questions
 - **IT Support**: Contact IT for technical issues
-- **Email**: hr@mofad.gov.gh (example)
+- **Email**: hr@mofa.gov.gh (example)
 
 ---
 

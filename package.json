@@ -141,7 +141,7 @@
   "build": {
     "appId": "com.mofa.hr-leave-portal",
     "productName": "HR Leave Portal",
-    "copyright": "Copyright © 2024 Ministry of Fisheries and Aquaculture Development",
+    "copyright": "Copyright © 2024 Ministry of Fisheries and Aquaculture",
     "directories": {
       "output": "dist"
     },

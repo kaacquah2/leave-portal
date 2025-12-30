@@ -1,5 +1,5 @@
 # HR Staff Management & Leave Portal
-## Ministry of Fisheries and Aquaculture Development, Ghana
+## Ministry of Fisheries and Aquaculture, Ghana
 
 ---
 

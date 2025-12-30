@@ -2,7 +2,7 @@
 
 ## ✅ All Features Implemented for Desktop App
 
-All pages, routes, features, and quick action buttons from the web application have been successfully added to the desktop app for the Ministry of Fisheries and Aquaculture Development HR Department.
+All pages, routes, features, and quick action buttons from the web application have been successfully added to the desktop app for the Ministry of Fisheries and Aquaculture HR Department.
 
 ---
 

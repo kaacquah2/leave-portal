@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTokenFromRequest, getUserFromToken, type AuthUser } from './auth'
+
+// Re-export AuthUser for use in other modules
+export type { AuthUser }
 import { isSessionExpired, updateSessionActivity, isAccountLocked } from './security'
 import { prisma } from './prisma'
 

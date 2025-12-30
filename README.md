@@ -1,5 +1,5 @@
 # MoFA HR Staff Leave Portal
-## Ministry of Fisheries and Aquaculture Development
+## Ministry of Fisheries and Aquaculture
 
 A comprehensive HR management system for staff leave management, payroll, and performance reviews.
 
@@ -238,7 +238,7 @@ For issues or questions:
 
 ## 📄 License
 
-Private project for Ministry of Fisheries and Aquaculture Development
+Private project for Ministry of Fisheries and Aquaculture
 
 ---
 

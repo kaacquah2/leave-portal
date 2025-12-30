@@ -8,7 +8,7 @@
 
 ## 📋 Summary
 
-Two new roles have been added to better align with the Ministry of Fisheries and Aquaculture Development organizational structure:
+Two new roles have been added to better align with the Ministry of Fisheries and Aquaculture organizational structure:
 
 1. **Deputy Director** (`deputy_director`)
 2. **HR Assistant** (`hr_assistant`)
@@ -164,7 +164,7 @@ Admin (Full System Access)
 ```typescript
 // Via API or admin panel
 {
-  email: "deputy.director@mofad.gov.gh",
+  email: "deputy.director@mofa.gov.gh",
   role: "deputy_director",
   staffId: "MFA-DD-001"
 }
@@ -174,7 +174,7 @@ Admin (Full System Access)
 ```typescript
 // Via API or admin panel
 {
-  email: "hr.assistant@mofad.gov.gh",
+  email: "hr.assistant@mofa.gov.gh",
   role: "hr_assistant",
   staffId: "MFA-HRA-001"
 }

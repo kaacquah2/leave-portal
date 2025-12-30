@@ -14,7 +14,7 @@ model User {
   id            String   @id @default(cuid())
   email         String   @unique
   passwordHash  String
-  role          String   // 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
+  role          String   // Ghana Government roles: 'employee' | 'supervisor' | 'unit_head' | 'division_head' | 'directorate_head' | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor' | 'admin' | Legacy: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'
   staffId       String?  @unique
   active        Boolean  @default(true)
   emailVerified Boolean  @default(false)
@@ -70,8 +70,10 @@ model StaffMember {
   // Government HR metadata
   rank             String?  // Staff rank (e.g., "Senior Officer", "Principal Officer")
   step             String?  // Step within grade
-  directorate      String?  // Directorate name
-  unit             String?  // Unit within directorate
+  directorate      String?  // Directorate name (e.g., "Finance & Administration Directorate", "Policy, Planning, Monitoring & Evaluation (PPME) Directorate", null = reports to Chief Director)
+  division         String?  // Division within directorate (MoFA structure - not commonly used)
+  unit             String?  // Unit name (e.g., "Human Resource Management Unit (HRMU)", "Accounts Unit", "Protocol Unit", "Internal Audit Unit", etc.)
+  dutyStation      String?  // 'HQ' | 'Region' | 'District' | 'Agency' (e.g., Fisheries Commission)
   photoUrl         String?
   active           Boolean  @default(true)
   employmentStatus String   @default("active") // 'active' | 'terminated' | 'resigned' | 'retired' | 'suspended'
@@ -79,6 +81,7 @@ model StaffMember {
   terminationReason String?
   joinDate         DateTime
   managerId        String?  // Staff ID of the manager (for team assignment)
+  immediateSupervisorId String? // Staff ID of immediate supervisor/line manager
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -119,12 +122,21 @@ model LeaveRequest {
   approvalLevels Json?   // Array of LeaveApprovalLevel
   // Government HR: Attachments support
   attachments   LeaveAttachment[]
+  // MoFA Compliance: Handover and declaration fields
+  officerTakingOver String? // Name/Staff ID of officer taking over duties
+  handoverNotes     String? // Handover notes/instructions
+  declarationAccepted Boolean @default(false) // "I will not proceed on leave without approval"
+  // Payroll impact tracking
+  payrollImpactFlag Boolean @default(false) // Flag for unpaid leave or special payroll considerations
+  locked          Boolean @default(false) // Lock approved records from editing
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   // Relations
   staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
   template LeaveRequestTemplate? @relation(fields: [templateId], references: [id])
+  approvalHistory LeaveApprovalHistory[]
+  approvalSteps ApprovalStep[] @relation("ApprovalSteps")
 }
 
 model LeaveBalance {
@@ -195,12 +207,77 @@ model LeaveAccrualHistory {
 
 model AuditLog {
   id        String   @id @default(cuid())
-  action    String
-  user      String
-  staffId   String?
-  details   String
+  action    String   // Action type: 'leave_submitted' | 'leave_approved' | 'leave_rejected' | 'balance_deducted' | 'balance_restored' | 'user_login' | 'user_logout' | 'role_changed' | etc.
+  user      String   // User ID or email
+  userRole  String?  // Role of user performing action (for compliance)
+  staffId   String?  // Related staff ID (if applicable)
+  leaveRequestId String? // Related leave request ID (if applicable)
+  details   String   // Detailed description of action
+  metadata  Json?    // Additional structured data (approval level, comments, etc.)
   timestamp DateTime @default(now())
-  ip        String?
+  ip        String?  // IP address for security tracking
+  userAgent String?  // User agent for security tracking
+  
+  @@index([action, timestamp])
+  @@index([user, timestamp])
+  @@index([staffId, timestamp])
+  @@index([leaveRequestId, timestamp])
+  @@index([userRole, timestamp])
+}
+
+// MoFA Compliance: Leave Approval History (immutable audit trail)
+model LeaveApprovalHistory {
+  id            String   @id @default(cuid())
+  leaveRequestId String
+  level         Int      // Approval level number
+  action        String   // 'submitted' | 'approved' | 'rejected' | 'delegated' | 'recalled'
+  approverId    String   // User ID of approver
+  approverName  String   // Name of approver
+  approverRole  String   // Role of approver (MoFA role code)
+  approverStaffId String? // Staff ID of approver (if applicable)
+  comments      String?  // Approval/rejection comments
+  previousStatus String? // Previous status
+  newStatus     String?  // New status after this action
+  delegatedTo   String?  // If delegated, who it was delegated to
+  timestamp     DateTime @default(now())
+  ip            String?  // IP address
+  userAgent     String?  // User agent
+  
+  // Relations
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  
+  @@index([leaveRequestId, level])
+  @@index([approverId, timestamp])
+  @@index([timestamp])
+}
+
+// MoFA Compliance: Approval Steps (tracks current state of each approval level)
+model ApprovalStep {
+  id            String   @id @default(cuid())
+  leaveRequestId String
+  level         Int      // Sequential approval level (1, 2, 3, ...)
+  approverRole  String   // MoFA role code required for this step
+  approverStaffId String? // Specific staff ID assigned (if known)
+  approverUserId String?  // User ID of approver (when assigned)
+  status        String   @default("pending") // 'pending' | 'approved' | 'rejected' | 'delegated' | 'skipped'
+  approverName  String?  // Name of approver (when approved/rejected)
+  approvalDate  DateTime? // When approved/rejected
+  comments      String?  // Approval/rejection comments
+  delegatedTo   String?  // User ID if delegated
+  delegatedToName String? // Name of delegate
+  delegationDate DateTime? // When delegated
+  previousLevelCompleted Boolean @default(false) // Whether previous level is complete
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  leaveRequest LeaveRequest @relation("ApprovalSteps", fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  
+  @@unique([leaveRequestId, level])
+  @@index([leaveRequestId, status])
+  @@index([approverRole, status])
+  @@index([approverStaffId, status])
+  @@index([status, createdAt])
 }
 
 model Payslip {

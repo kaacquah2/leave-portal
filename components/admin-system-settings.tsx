@@ -41,7 +41,7 @@ export default function AdminSystemSettings() {
             <input
               type="text"
               className="w-full px-3 py-2 border rounded-lg"
-              defaultValue="Ministry of Fisheries and Aquaculture Development"
+              defaultValue="Ministry of Fisheries and Aquaculture"
             />
           </div>
           <Button className="gap-2">

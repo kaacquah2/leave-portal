@@ -43,6 +43,9 @@ export interface LeaveRequest {
   approvalDate?: string
   approvalLevels?: LeaveApprovalLevel[]
   templateId?: string
+  officerTakingOver?: string
+  handoverNotes?: string
+  declarationAccepted?: boolean
   createdAt: string
 }
 
@@ -172,10 +175,12 @@ function transformDates(data: any): any {
   return data
 }
 
+import type { UserRole } from './permissions'
+
 export function useDataStore(options?: { 
   enablePolling?: boolean
   pollingInterval?: number
-  userRole?: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
+  userRole?: UserRole
 }) {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [leaves, setLeaves] = useState<LeaveRequest[]>([])

@@ -32,6 +32,10 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
     days: number
     reason: string
     templateId?: string
+    // MoFA Compliance fields
+    officerTakingOver: string
+    handoverNotes: string
+    declarationAccepted: boolean
   }>({
     staffId: staffId || currentStaff?.staffId || '',
     staffName: currentStaff ? `${currentStaff.firstName} ${currentStaff.lastName}` : '',
@@ -41,6 +45,9 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
     days: template?.defaultDays || 1,
     reason: template?.defaultReason || '',
     templateId: templateId,
+    officerTakingOver: '',
+    handoverNotes: '',
+    declarationAccepted: false,
   })
   
   useEffect(() => {
@@ -158,8 +165,96 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
     setAttachments(updated)
   }
 
+  // Check required attachments based on leave type
+  const getRequiredAttachmentTypes = (leaveType: string): string[] => {
+    const requirements: Record<string, string[]> = {
+      'Sick': ['medical'],
+      'Maternity': ['medical'],
+      'Paternity': ['medical'],
+      'Compassionate': ['medical'],
+      'Study': ['memo'],
+      'Training': ['memo'],
+      'Unpaid': ['memo'],
+    }
+    return requirements[leaveType] || []
+  }
+
+  const validateRequiredAttachments = (): { valid: boolean; error?: string } => {
+    const requiredTypes = getRequiredAttachmentTypes(formData.leaveType)
+    if (requiredTypes.length === 0) return { valid: true }
+
+    const hasRequiredAttachment = requiredTypes.some(type =>
+      attachments.some(att => att.type === type)
+    )
+
+    if (!hasRequiredAttachment) {
+      const typeNames: Record<string, string> = {
+        medical: 'Medical Certificate',
+        memo: 'Official Memo/Approval',
+      }
+      const missingTypes = requiredTypes.map(t => typeNames[t] || t).join(' or ')
+      return {
+        valid: false,
+        error: `${formData.leaveType} leave requires ${missingTypes} to be uploaded.`,
+      }
+    }
+
+    return { valid: true }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate minimum reason length
+    if (formData.reason.trim().length < 20) {
+      toast({
+        title: 'Validation Error',
+        description: 'Reason for leave must be at least 20 characters long.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Validate required attachments
+    const attachmentValidation = validateRequiredAttachments()
+    if (!attachmentValidation.valid) {
+      toast({
+        title: 'Missing Required Documents',
+        description: attachmentValidation.error,
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Validate declaration
+    if (!formData.declarationAccepted) {
+      toast({
+        title: 'Declaration Required',
+        description: 'You must accept the declaration to proceed.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Validate handover fields
+    if (!formData.officerTakingOver.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Officer taking over duties is required.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!formData.handoverNotes.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Handover notes are required.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     const staff = store.staff.find(s => s.staffId === formData.staffId)
     if (!staff) {
       alert('Staff member not found')
@@ -189,6 +284,10 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
         reason: formData.reason,
         templateId: formData.templateId,
         approvalLevels,
+        // MoFA Compliance fields
+        officerTakingOver: formData.officerTakingOver || undefined,
+        handoverNotes: formData.handoverNotes,
+        declarationAccepted: formData.declarationAccepted,
       })
 
       // Upload attachments if any
@@ -395,24 +494,105 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
           </div>
         )}
         <div className="col-span-2">
-          <Label htmlFor="reason">Reason</Label>
+          <Label htmlFor="reason">Reason for Leave *</Label>
           <Textarea
             id="reason"
             value={formData.reason}
             onChange={(e) => setFormData({...formData, reason: e.target.value})}
-            placeholder="Please provide reason for leave"
+            placeholder="Please provide detailed reason for leave (minimum 20 characters)"
             required
             rows={3}
+            minLength={20}
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            {formData.reason.length}/20 characters minimum
+          </p>
+        </div>
+      </div>
+
+      {/* MoFA Compliance: Auto-Populated Staff Information (Read-Only) */}
+      {currentStaff && (
+        <div className="border-t pt-4 space-y-3">
+          <h3 className="font-semibold text-sm">Staff Information (Auto-Populated)</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <Label className="text-xs text-muted-foreground">Staff ID</Label>
+              <Input value={currentStaff.staffId} readOnly className="bg-muted" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Full Name</Label>
+              <Input value={`${currentStaff.firstName} ${currentStaff.lastName}`} readOnly className="bg-muted" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Grade / Rank</Label>
+              <Input value={currentStaff.grade || currentStaff.rank || 'N/A'} readOnly className="bg-muted" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Job Title</Label>
+              <Input value={currentStaff.position} readOnly className="bg-muted" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Directorate</Label>
+              <Input value={currentStaff.directorate || 'N/A'} readOnly className="bg-muted" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Division</Label>
+              <Input value={(currentStaff as any).division || 'N/A'} readOnly className="bg-muted" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Unit</Label>
+              <Input value={currentStaff.unit || 'N/A'} readOnly className="bg-muted" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Duty Station</Label>
+              <Input value={(currentStaff as any).dutyStation || 'HQ'} readOnly className="bg-muted" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MoFA Compliance: Handover Fields */}
+      <div className="border-t pt-4 space-y-4">
+        <h3 className="font-semibold text-sm">Handover Information *</h3>
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <Label htmlFor="officerTakingOver">Officer Taking Over Duties *</Label>
+            <Input
+              id="officerTakingOver"
+              value={formData.officerTakingOver}
+              onChange={(e) => setFormData({...formData, officerTakingOver: e.target.value})}
+              placeholder="Enter name or Staff ID of officer taking over"
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="handoverNotes">Handover Notes *</Label>
+            <Textarea
+              id="handoverNotes"
+              value={formData.handoverNotes}
+              onChange={(e) => setFormData({...formData, handoverNotes: e.target.value})}
+              placeholder="Provide detailed handover instructions and pending tasks"
+              required
+              rows={4}
+            />
+          </div>
         </div>
       </div>
 
       {/* Government HR: Attachments Section */}
       <div className="space-y-4 border-t pt-4">
         <div>
-          <Label>Attachments (Optional)</Label>
+          <Label>Attachments {getRequiredAttachmentTypes(formData.leaveType).length > 0 ? '*' : '(Optional)'}</Label>
           <p className="text-sm text-muted-foreground mb-2">
-            Upload supporting documents: Medical reports, Training letters, Official memos
+            {getRequiredAttachmentTypes(formData.leaveType).length > 0 ? (
+              <span className="text-red-600 font-semibold">
+                Required for {formData.leaveType} leave: {getRequiredAttachmentTypes(formData.leaveType).map(t => 
+                  t === 'medical' ? 'Medical Certificate' : 'Official Memo/Approval'
+                ).join(' or ')}
+              </span>
+            ) : (
+              'Upload supporting documents: Medical reports, Training letters, Official memos'
+            )}
           </p>
           <div className="flex items-center gap-2">
             <Input
@@ -502,6 +682,23 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
             ))}
           </div>
         )}
+      </div>
+
+      {/* MoFA Compliance: Declaration */}
+      <div className="border-t pt-4">
+        <div className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            id="declaration"
+            checked={formData.declarationAccepted}
+            onChange={(e) => setFormData({...formData, declarationAccepted: e.target.checked})}
+            required
+            className="mt-1"
+          />
+          <Label htmlFor="declaration" className="text-sm cursor-pointer">
+            I declare that I will not proceed on leave without proper approval from the authorized officers. *
+          </Label>
+        </div>
       </div>
 
       <div className="flex gap-2 justify-end">

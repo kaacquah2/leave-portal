@@ -1,5 +1,5 @@
 # HR Staff Leave Portal - System Usage Guide & Recommendations
-## Ministry of Fisheries and Aquaculture Development, Ghana
+## Ministry of Fisheries and Aquaculture, Ghana
 
 **Version**: 2.0  
 **Last Updated**: December 24, 2024  

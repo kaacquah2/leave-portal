@@ -1,9 +1,9 @@
 # Ghana Government Standards - Role-Based Assessment
-## Ministry of Fisheries and Aquaculture Development
+## Ministry of Fisheries and Aquaculture
 
 **Assessment Date:** December 2024  
 **Application:** HR Leave Portal Desktop Application (.exe)  
-**Organization:** Ministry of Fisheries and Aquaculture Development, Ghana
+**Organization:** Ministry of Fisheries and Aquaculture, Ghana
 
 ---
 
@@ -11,7 +11,7 @@
 
 This document assesses the role-based access control (RBAC) and functionality of the HR Leave Portal against:
 1. Ghana Government Public Service Standards
-2. Ministry of Fisheries and Aquaculture Development organizational structure
+2. Ministry of Fisheries and Aquaculture organizational structure
 3. Standard government HR practices in Ghana
 4. Leave management policies for Ghana Civil Service
 
@@ -483,7 +483,7 @@ The current implementation matches Ghana government standard practice.
 
 **Recommendation:** ✅ **APPROVE FOR PRODUCTION DEPLOYMENT**
 
-The application is fully compliant with Ghana government standards and ready for use by the Ministry of Fisheries and Aquaculture Development.
+The application is fully compliant with Ghana government standards and ready for use by the Ministry of Fisheries and Aquaculture.
 
 ---
 

@@ -1,6 +1,6 @@
 # HR Leave Portal - Mobile App
 
-React Native mobile application for the Ministry of Fisheries and Aquaculture Development HR Leave Portal.
+React Native mobile application for the Ministry of Fisheries and Aquaculture HR Leave Portal.
 
 ## 🚀 Quick Start
 

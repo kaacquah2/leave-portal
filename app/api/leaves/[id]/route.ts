@@ -4,7 +4,17 @@ import { sendPushNotification } from '@/lib/send-push-notification'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendEmail, generateLeaveRequestApprovedEmail, generateLeaveRequestRejectedEmail } from '@/lib/email'
 import { calculateApprovalStatus, areParallelApprovalsComplete, getNextApprovers } from '@/lib/approval-workflow'
-import { validateLeaveBalance, deductLeaveBalance, restoreLeaveBalance } from '@/lib/leave-balance-utils'
+import { validateLeaveBalance, deductLeaveBalance, restoreLeaveBalance, getBalanceFieldName } from '@/lib/leave-balance-utils'
+import { 
+  calculateMoFAApprovalStatus, 
+  validateApproverNotSelf, 
+  getNextMoFAApprovers,
+  updateApprovalStep,
+  getApprovalSteps 
+} from '@/lib/mofa-approval-workflow'
+import { logLeaveApproval, logLeaveRejection, logBalanceDeduction, logBalanceRestoration } from '@/lib/audit-logger'
+import { notifyLeaveDecision, notifyLeaveSubmission } from '@/lib/notification-service'
+import { getUserRBACContext, canApproveLeaveRequest, canViewLeaveRequest } from '@/lib/mofa-rbac-middleware'
 
 // GET single leave request
 export async function GET(
@@ -14,20 +24,40 @@ export async function GET(
   const { id } = await params
   return withAuth(async ({ user }: AuthContext) => {
     try {
+      // RBAC: Check if user can view this leave request
+      const rbacContext = await getUserRBACContext(user)
+      if (!rbacContext) {
+        return NextResponse.json(
+          { error: 'Unable to verify user permissions' },
+          { status: 500 }
+        )
+      }
+
+      const viewPermission = await canViewLeaveRequest(rbacContext, id)
+      if (!viewPermission.allowed) {
+        return NextResponse.json(
+          { 
+            error: viewPermission.reason || 'Access denied',
+            errorCode: viewPermission.errorCode 
+          },
+          { status: 403 }
+        )
+      }
+
       const leave = await prisma.leaveRequest.findUnique({
         where: { id },
         include: {
           staff: true,
           template: true,
+          approvalSteps: {
+            orderBy: { level: 'asc' },
+          },
+          attachments: true,
         },
       })
+      
       if (!leave) {
         return NextResponse.json({ error: 'Leave request not found' }, { status: 404 })
-      }
-      
-      // Employees can only view their own leaves
-      if (user.role === 'employee' && leave.staffId !== user.staffId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
       
       return NextResponse.json(leave)
@@ -35,7 +65,7 @@ export async function GET(
       console.error('Error fetching leave:', error)
       return NextResponse.json({ error: 'Failed to fetch leave' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })(request)
+  }, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'EMPLOYEE', 'AUDITOR', 'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager', 'auditor', 'internal_auditor'] })(request)
 }
 
 // PATCH update leave request (for approval/rejection)
@@ -64,44 +94,28 @@ export async function PATCH(
       }, { status: 404 })
     }
     
-    // Check if user has permission to approve this leave
+    // RBAC: Check if user can approve this leave request
     if (body.status && ['approved', 'rejected'].includes(body.status)) {
-      // Verify user role for approval
-      if (user.role !== 'hr' && user.role !== 'hr_assistant' && user.role !== 'admin' && 
-          user.role !== 'manager' && user.role !== 'deputy_director') {
-        return NextResponse.json({
-          error: 'You do not have permission to approve leave requests',
-          errorCode: 'PERMISSION_DENIED',
-          troubleshooting: [
-            'Only managers, deputy directors, HR, and admins can approve leave requests',
-            'Verify you have the correct role assigned',
-            'Contact IT support if you believe this is an error',
-          ],
-        }, { status: 403 })
-      }
-      
-      // For managers and deputy directors, verify they're the assigned approver (if applicable)
-      if ((user.role === 'manager' || user.role === 'deputy_director') && leave.approvalLevels) {
-        const approvalLevels = leave.approvalLevels as any[]
-        const approverRole = user.role === 'deputy_director' ? 'deputy_director' : 'manager'
-        const pendingLevel = approvalLevels.find((al: any) => 
-          al.status === 'pending' && 
-          (al.approverRole === 'manager' || al.approverRole === 'deputy_director')
+      const rbacContext = await getUserRBACContext(user)
+      if (!rbacContext) {
+        return NextResponse.json(
+          { error: 'Unable to verify user permissions' },
+          { status: 500 }
         )
-        if (pendingLevel && body.level !== pendingLevel.level) {
-          return NextResponse.json({
-            error: 'You are not the assigned approver for this level',
-            errorCode: 'NOT_ASSIGNED_APPROVER',
-            troubleshooting: [
-              'Check if you are the assigned approver for this leave request',
-              'Verify the approval level you are trying to approve',
-              'Refresh the page to see current approval status',
-              'Contact HR if you believe you should be able to approve this',
-            ],
-          }, { status: 403 })
-        }
       }
-      
+
+      const approvalPermission = await canApproveLeaveRequest(rbacContext, id, body.level)
+      if (!approvalPermission.allowed) {
+        return NextResponse.json(
+          {
+            error: approvalPermission.reason || 'Permission denied',
+            errorCode: approvalPermission.errorCode,
+            troubleshooting: getTroubleshootingTips(approvalPermission.errorCode),
+          },
+          { status: 403 }
+        )
+      }
+    
       // CRITICAL FIX: Validate leave balance before approval
       if (body.status === 'approved' && leave.status !== 'approved') {
         const balanceValidation = await validateLeaveBalance(
@@ -126,36 +140,62 @@ export async function PATCH(
       }
     }
 
-    // Handle approval levels with enhanced workflow support
+    // Handle approval - use ApprovalSteps if available, fallback to JSON approvalLevels
     let approvalLevels = (leave.approvalLevels as any) || []
     let status = body.status || leave.status
 
-    if (body.level !== undefined && approvalLevels && approvalLevels.length > 0) {
-      // Get current approver info
-      const approverStaff = await prisma.staffMember.findUnique({
-        where: { staffId: user.staffId || '' },
-        select: { firstName: true, lastName: true },
-      })
-      const approverName = approverStaff
-        ? `${approverStaff.firstName} ${approverStaff.lastName}`
-        : body.approvedBy || user.email || 'Unknown'
+    // Get current approver info
+    const approverStaff = await prisma.staffMember.findUnique({
+      where: { staffId: user.staffId || '' },
+      select: { firstName: true, lastName: true },
+    })
+    const approverName = approverStaff
+      ? `${approverStaff.firstName} ${approverStaff.lastName}`
+      : body.approvedBy || user.email || 'Unknown'
 
-      // Update the specific level
+    // Try to use ApprovalSteps first (preferred)
+    const approvalSteps = await getApprovalSteps(id)
+    if (approvalSteps.length > 0 && body.level !== undefined) {
+      // Update ApprovalStep in database
+      const stepStatus: 'approved' | 'rejected' | 'delegated' | 'skipped' = 
+        body.status === 'approved' ? 'approved' : 
+        body.status === 'rejected' ? 'rejected' : 
+        'approved' // Default to approved if status is pending
+      await updateApprovalStep(
+        id,
+        body.level,
+        stepStatus,
+        user.id,
+        approverName,
+        body.comments
+      )
+
+      // Recalculate status from ApprovalSteps
+      const updatedSteps = await getApprovalSteps(id)
+      const stepStatuses = updatedSteps.map((s) => s.status)
+      if (stepStatuses.some((s) => s === 'rejected')) {
+        status = 'rejected'
+      } else if (stepStatuses.every((s) => s === 'approved' || s === 'skipped')) {
+        status = 'approved'
+      } else {
+        status = 'pending'
+      }
+
+      // Update JSON approvalLevels for backward compatibility
+      approvalLevels = updatedSteps.map((step) => ({
+        level: step.level,
+        approverRole: step.approverRole,
+        approverStaffId: step.approverStaffId,
+        status: step.status,
+        approverName: step.approverName,
+        approvalDate: step.approvalDate?.toISOString(),
+        comments: step.comments,
+      }))
+    } else if (body.level !== undefined && approvalLevels && approvalLevels.length > 0) {
+      // Fallback to JSON approvalLevels (legacy support)
       approvalLevels = approvalLevels.map((al: any) => {
         if (al.level === body.level) {
-          // Check if this is a delegated approval
-          if (al.status === 'delegated' && al.delegatedTo === user.id) {
-            // Approver is the delegate
-            return {
-              ...al,
-              status: body.status,
-              approverName: approverName,
-              approvalDate: new Date().toISOString(),
-              ...(body.comments && { comments: body.comments }),
-              delegatedApproved: true,
-            }
-          } else if (al.status === 'pending' || (al.parallel && al.status === 'pending')) {
-            // Regular approval or parallel approval
+          if (al.status === 'pending' || (al.parallel && al.status === 'pending')) {
             return {
               ...al,
               status: body.status,
@@ -168,24 +208,45 @@ export async function PATCH(
         return al
       })
 
-      // Use enhanced workflow engine to calculate status
-      status = calculateApprovalStatus(approvalLevels)
+      // Use MoFA workflow engine to calculate status
+      status = calculateMoFAApprovalStatus(approvalLevels)
+    }
 
-      // Create approval history entry
-      await prisma.auditLog.create({
-        data: {
-          action: body.status === 'approved' ? 'leave_approved' : 'leave_rejected',
-          user: user.email || 'system',
-          staffId: user.staffId || undefined,
-          details: JSON.stringify({
-            leaveRequestId: id,
-            level: body.level,
-            approverName,
-            comments: body.comments,
-            previousStatus: 'pending',
-            newStatus: body.status,
-          }),
-        },
+    // MoFA Compliance: Create comprehensive audit log and approval history
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined
+    const userAgent = request.headers.get('user-agent') || undefined
+
+    if (body.status === 'approved') {
+      await logLeaveApproval({
+        leaveRequestId: id,
+        level: body.level,
+        approverId: user.id,
+        approverName,
+        approverRole: user.role,
+        approverStaffId: user.staffId || undefined,
+        comments: body.comments,
+        ip,
+        userAgent,
+      })
+    } else if (body.status === 'rejected') {
+      // Rejection requires comments per MoFA policy
+      if (!body.comments || body.comments.trim().length < 10) {
+        return NextResponse.json({
+          error: 'Rejection comments are required and must be at least 10 characters',
+          errorCode: 'REJECTION_COMMENTS_REQUIRED',
+        }, { status: 400 })
+      }
+
+      await logLeaveRejection({
+        leaveRequestId: id,
+        level: body.level,
+        approverId: user.id,
+        approverName,
+        approverRole: user.role,
+        approverStaffId: user.staffId || undefined,
+        comments: body.comments,
+        ip,
+        userAgent,
       })
     }
 
@@ -215,19 +276,25 @@ export async function PATCH(
         }, { status: 500 })
       }
       
-      // Log balance deduction
-      await prisma.auditLog.create({
-        data: {
-          action: 'LEAVE_BALANCE_DEDUCTED',
-          user: user.email || 'system',
-          staffId: leave.staffId,
-          details: JSON.stringify({
-            leaveRequestId: id,
-            leaveType: leave.leaveType,
-            daysDeducted: leave.days,
-            newBalance: deductionResult.newBalance,
-          }),
-        },
+      // MoFA Compliance: Log balance deduction with audit logger
+      // Get balance before deduction for logging
+      const balanceFieldName = getBalanceFieldName(leave.leaveType) || 'annual'
+      const balanceBefore = await prisma.leaveBalance.findUnique({
+        where: { staffId: leave.staffId },
+        select: { [balanceFieldName]: true } as any,
+      })
+      const balanceBeforeValue = balanceBefore && balanceFieldName ? 
+        ((balanceBefore as any)[balanceFieldName] as number || 0) + leave.days : leave.days
+
+      await logBalanceDeduction({
+        staffId: leave.staffId,
+        leaveType: leave.leaveType,
+        days: leave.days,
+        balanceBefore: balanceBeforeValue,
+        balanceAfter: deductionResult.newBalance || 0,
+        leaveRequestId: id,
+        userId: user.id,
+        userRole: user.role,
       })
     }
     
@@ -243,23 +310,32 @@ export async function PATCH(
         console.error('Failed to restore leave balance:', restorationResult.error)
         // Don't fail the request, but log the error
       } else {
-        // Log balance restoration
-        await prisma.auditLog.create({
-          data: {
-            action: 'LEAVE_BALANCE_RESTORED',
-            user: user.email || 'system',
-            staffId: leave.staffId,
-            details: JSON.stringify({
-              leaveRequestId: id,
-              leaveType: leave.leaveType,
-              daysRestored: leave.days,
-              newBalance: restorationResult.newBalance,
-              reason: isNewlyRejected ? 'rejected' : 'cancelled',
-            }),
-          },
+        // MoFA Compliance: Log balance restoration with audit logger
+        // Get balance before restoration for logging
+        const balanceFieldName = getBalanceFieldName(leave.leaveType) || 'annual'
+        const balanceBeforeRestore = await prisma.leaveBalance.findUnique({
+          where: { staffId: leave.staffId },
+          select: { [balanceFieldName]: true } as any,
+        })
+        const balanceBeforeValue = balanceBeforeRestore && balanceFieldName ? 
+          ((balanceBeforeRestore as any)[balanceFieldName] as number || 0) : 0
+        
+        await logBalanceRestoration({
+          staffId: leave.staffId,
+          leaveType: leave.leaveType,
+          days: leave.days,
+          balanceBefore: balanceBeforeValue,
+          balanceAfter: restorationResult.newBalance || 0,
+          leaveRequestId: id,
+          userId: user.id,
+          userRole: user.role,
         })
       }
     }
+
+    // MoFA Compliance: Lock record after final approval
+    const isFinalApproval = status === 'approved' && leave.status !== 'approved'
+    const shouldLock = isFinalApproval
 
     const updated = await prisma.leaveRequest.update({
       where: { id },
@@ -268,6 +344,7 @@ export async function PATCH(
         approvedBy: body.approvedBy || leave.approvedBy,
         approvalDate: status !== 'pending' ? new Date() : leave.approvalDate,
         approvalLevels: approvalLevels || null,
+        locked: shouldLock ? true : leave.locked, // Lock after final approval
       },
       include: {
         staff: {
@@ -280,95 +357,45 @@ export async function PATCH(
       },
     })
 
-    // Create notification and send push/email if status changed to approved/rejected
-    if (status !== 'pending' && status !== leave.status) {
-      // Get staff member details for email
-      const staffMember = await prisma.staffMember.findUnique({
-        where: { staffId: leave.staffId },
-        include: {
-          user: {
-            select: { id: true },
-          },
-        },
+    // MoFA Notification Service: Send multi-channel notification if status changed
+    if (status !== 'pending' && status !== leave.status && (status === 'approved' || status === 'rejected')) {
+      await notifyLeaveDecision({
+        leaveRequestId: id,
+        staffId: leave.staffId,
+        staffName: leave.staffName,
+        leaveType: leave.leaveType,
+        days: leave.days,
+        status: status as 'approved' | 'rejected',
+        approverName: approverName,
+        comments: body.comments,
       })
-      
-      const userId = staffMember?.user?.id
-      const staffEmail = staffMember?.email
-      const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-      
-      if (userId) {
-        // Create in-app notification
-        const notification = await prisma.notification.create({
-          data: {
-            userId,
-            staffId: leave.staffId,
-            type: status === 'approved' ? 'leave_approved' : 'leave_rejected',
-            title: `Leave Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-            message: `Your ${leave.leaveType} leave request for ${leave.days} day(s) has been ${status}.`,
-            link: `/leaves/${id}`,
-          },
-        })
 
-        // Send push notification (non-blocking)
-        sendPushNotification(userId, {
-          title: `Leave Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-          message: `Your ${leave.leaveType} leave request has been ${status}.`,
-          link: `/leaves/${id}`,
-          id: notification.id,
-          type: status === 'approved' ? 'leave_approved' : 'leave_rejected',
-          important: true,
-        }).catch((error) => {
-          console.error('Failed to send push notification:', error)
-          // Don't fail the request if push fails
-        })
-      }
-      
-      // Send email notification (non-blocking)
-      if (staffEmail && staffMember) {
-        const approverName = body.approvedBy || updated.approvedBy || 'Manager'
-        const comments = body.comments || undefined
-        
-        if (status === 'approved') {
-          const html = generateLeaveRequestApprovedEmail(
-            updated.staffName || leave.staffName,
-            updated.leaveType || leave.leaveType,
-            updated.startDate.toISOString(),
-            updated.endDate.toISOString(),
-            updated.days || leave.days,
-            approverName,
-            id,
-            portalUrl
-          )
-          
-          sendEmail({
-            to: staffEmail,
-            subject: `Leave Request Approved - ${updated.leaveType || leave.leaveType}`,
-            html,
-          }).catch((error) => {
-            console.error('Failed to send leave approval email:', error)
-            // Don't fail the request if email fails
-          })
-        } else if (status === 'rejected') {
-          const html = generateLeaveRequestRejectedEmail(
-            updated.staffName || leave.staffName,
-            updated.leaveType || leave.leaveType,
-            updated.startDate.toISOString(),
-            updated.endDate.toISOString(),
-            updated.days || leave.days,
-            approverName,
-            comments,
-            id,
-            portalUrl
-          )
-          
-          sendEmail({
-            to: staffEmail,
-            subject: `Leave Request Rejected - ${updated.leaveType || leave.leaveType}`,
-            html,
-          }).catch((error) => {
-            console.error('Failed to send leave rejection email:', error)
-            // Don't fail the request if email fails
-          })
+      // If approved and there are more levels, notify next approvers
+      if (status === 'approved' && approvalLevels && approvalLevels.length > 0) {
+        const nextApprovers = getNextMoFAApprovers(approvalLevels)
+        if (nextApprovers.length > 0) {
+          const approverUserIds: string[] = []
+          for (const approver of nextApprovers) {
+            const approverUsers = await prisma.user.findMany({
+              where: {
+                role: approver.approverRole,
+                active: true,
+              },
+              select: { id: true },
+            })
+            approverUserIds.push(...approverUsers.map(u => u.id))
+          }
+
+          if (approverUserIds.length > 0) {
+            await notifyLeaveSubmission({
+              leaveRequestId: id,
+              staffId: leave.staffId,
+              staffName: leave.staffName,
+              leaveType: leave.leaveType,
+              days: leave.days,
+              approverIds: approverUserIds,
+            })
+          }
         }
       }
     }
@@ -382,10 +409,49 @@ export async function PATCH(
       updatedAt: updated.updatedAt.toISOString(),
     }
     return NextResponse.json(transformed)
-    } catch (error) {
-      console.error('Error updating leave:', error)
-      return NextResponse.json({ error: 'Failed to update leave request' }, { status: 500 })
-    }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'manager', 'deputy_director'] })(request)
+  } catch (error) {
+    console.error('Error updating leave:', error)
+    return NextResponse.json({ error: 'Failed to update leave request' }, { status: 500 })
+  }
+  }, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'hr', 'hr_assistant', 'admin', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager'] })(request)
+}
+
+/**
+ * Get troubleshooting tips for error codes
+ */
+function getTroubleshootingTips(errorCode?: string): string[] {
+  const tips: Record<string, string[]> = {
+    SELF_APPROVAL_NOT_ALLOWED: [
+      'Approvers cannot approve their own leave requests per MoFA policy',
+      'Contact your supervisor or HR for approval',
+    ],
+    PERMISSION_DENIED: [
+      'Only authorized approvers can approve leave requests',
+      'Verify you have the correct role assigned',
+      'Contact IT support if you believe this is an error',
+    ],
+    NOT_ASSIGNED_APPROVER: [
+      'Check if you are the assigned approver for this leave request',
+      'Verify the approval level you are trying to approve',
+      'Refresh the page to see current approval status',
+      'Contact HR if you believe you should be able to approve this',
+    ],
+    SEQUENTIAL_APPROVAL_REQUIRED: [
+      'Previous approval levels must be completed before this level',
+      'Wait for the previous approver to complete their review',
+      'Check the approval workflow status',
+    ],
+    ROLE_MISMATCH: [
+      'Your role does not match the required role for this approval step',
+      'Verify you have the correct role assigned',
+      'Contact HR if you believe this is an error',
+    ],
+    LEAVE_LOCKED: [
+      'This leave request has been finalized and cannot be modified',
+      'Contact HR if changes are needed',
+    ],
+  }
+
+  return tips[errorCode || ''] || ['Contact HR or IT support for assistance']
 }
 

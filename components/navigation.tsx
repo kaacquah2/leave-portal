@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, Users, Calendar, BarChart3, LogOut, FileText, CalendarDays, FileCheck, CalendarCheck, Menu, UserCheck, CalendarClock, UserCog } from 'lucide-react'
+import { LayoutDashboard, Users, Calendar, BarChart3, LogOut, FileText, CalendarDays, FileCheck, CalendarCheck, Menu, UserCheck, CalendarClock, UserCog, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
@@ -10,7 +10,9 @@ import { hasPermission, type UserRole, type Permission } from '@/lib/permissions
 interface NavigationProps {
   activeTab: string
   setActiveTab: (tab: string) => void
-  userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
+  userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin' | 
+            'EMPLOYEE' | 'SUPERVISOR' | 'UNIT_HEAD' | 'DIVISION_HEAD' | 'DIRECTOR' | 
+            'REGIONAL_MANAGER' | 'HR_OFFICER' | 'HR_DIRECTOR' | 'CHIEF_DIRECTOR' | 'AUDITOR' | 'SYS_ADMIN'
   onLogout?: () => void
 }
 
@@ -26,7 +28,7 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
   const isMobile = useIsMobile()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // MoFAD: All roles use consistent blue/white theme
+  // MoFA: All roles use consistent blue/white theme
   const getRoleTheme = () => {
     return {
       bg: 'bg-white border-border', // White sidebar background
@@ -44,14 +46,14 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
       id: 'dashboard', 
       label: 'Dashboard', 
       icon: LayoutDashboard, 
-      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'EMPLOYEE', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
       permission: 'employee:view:all' // Basic view permission
     },
     { 
       id: 'staff', 
-      label: (userRole === 'hr' || userRole === 'hr_assistant') ? 'Staff Management' : 'My Team', 
+      label: (userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'HR_OFFICER' || userRole === 'HR_DIRECTOR') ? 'Staff Management' : 'My Team', 
       icon: Users, 
-      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
       permission: 'employee:view:all' // HR can view all, managers view team
     },
     { 
@@ -63,16 +65,16 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
     },
     { 
       id: 'leave', 
-      label: (userRole === 'manager' || userRole === 'deputy_director') ? 'Approve Leaves' : 'Leave Management', 
+      label: (userRole === 'manager' || userRole === 'deputy_director' || userRole === 'SUPERVISOR' || userRole === 'UNIT_HEAD' || userRole === 'DIVISION_HEAD' || userRole === 'DIRECTOR' || userRole === 'REGIONAL_MANAGER') ? 'Approve Leaves' : 'Leave Management', 
       icon: Calendar, 
-      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'EMPLOYEE', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
       permission: 'leave:view:all' // HR views all, managers view team
     },
     { 
       id: 'delegation', 
       label: 'Delegation', 
       icon: UserCheck,
-      roles: ['hr', 'manager', 'deputy_director'],
+      roles: ['hr', 'manager', 'deputy_director', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR'],
       permission: 'leave:approve:team' // Can delegate approvals
     },
     { 
@@ -100,8 +102,15 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
       id: 'reports', 
       label: 'Reports', 
       icon: BarChart3, 
-      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director'],
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
       permission: 'reports:hr:view' // View reports
+    },
+    { 
+      id: 'organizational-structure', 
+      label: 'Organizational Structure', 
+      icon: Building2, 
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'employee', 'admin', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'EMPLOYEE'],
+      permission: 'employee:view:all' // View organizational structure
     },
   ]
 

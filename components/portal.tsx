@@ -20,12 +20,19 @@ import YearEndProcessing from '@/components/year-end-processing'
 import ManagerAssignment from '@/components/manager-assignment'
 
 import AdminPortal from '@/components/admin-portal'
+import AuditorPortal from '@/components/auditor-portal'
+import OrganizationalStructure from '@/components/organizational-structure'
+import SupervisorDashboard from '@/components/supervisor-dashboard'
+import UnitHeadDashboard from '@/components/unit-head-dashboard'
+import DirectorDashboard from '@/components/director-dashboard'
 import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
 import { Card, CardContent } from '@/components/ui/card'
 import UnauthorizedMessage from '@/components/unauthorized-message'
 
+import { mapToMoFARole, getRoleDisplayName, isReadOnlyRole } from '@/lib/role-mapping'
+
 interface PortalProps {
-  userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
+  userRole: UserRole
   onLogout: () => void
   staffId?: string // Required for employee role
 }
@@ -71,8 +78,11 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
     }
   }, [store])
 
-  // Admin portal has its own navigation
-  if (userRole === 'admin') {
+  // Map role for compatibility
+  const normalizedRole = mapToMoFARole(userRole)
+  
+  // System Admin portal has its own navigation
+  if (normalizedRole === 'SYS_ADMIN' || normalizedRole === 'admin') {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
         <AdminPortal onLogout={onLogout} />
@@ -81,10 +91,19 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
   }
 
   // Employee portal has its own navigation
-  if (userRole === 'employee' && staffId) {
+  if ((normalizedRole === 'EMPLOYEE' || normalizedRole === 'employee') && staffId) {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-        <EmployeePortal staffId={staffId} userRole={userRole} onLogout={onLogout} />
+        <EmployeePortal staffId={staffId} userRole={normalizedRole} onLogout={onLogout} />
+      </Suspense>
+    )
+  }
+
+  // Auditor (read-only) portal
+  if (isReadOnlyRole(normalizedRole)) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+        <AuditorPortal userRole={normalizedRole} onLogout={onLogout} />
       </Suspense>
     )
   }
@@ -94,9 +113,20 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
       <UnauthorizedMessage message={message} requiredPermission={permission} requiredRole={role} />
     )
 
+    // Get current user's staff info if available (used for role-specific dashboards)
+    const currentStaff = staffId ? store.staff?.find((s: any) => s.staffId === staffId) : null
+
     switch (activeTab) {
       case 'dashboard':
-        // Dashboard accessible to all roles
+        // Route to role-specific dashboards for MoFAD roles
+        if (normalizedRole === 'SUPERVISOR' || normalizedRole === 'supervisor') {
+          return <SupervisorDashboard staffId={staffId} userRole={userRole} onNavigate={setActiveTab} />
+        } else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
+          return <UnitHeadDashboard staffId={staffId} userRole={userRole} unit={currentStaff?.unit || null} onNavigate={setActiveTab} />
+        } else if (normalizedRole === 'DIRECTOR' || normalizedRole === 'directorate_head' || normalizedRole === 'deputy_director') {
+          return <DirectorDashboard staffId={staffId} userRole={userRole} directorate={currentStaff?.directorate || null} onNavigate={setActiveTab} />
+        }
+        // Fallback to default dashboard for other roles
         return <Dashboard store={store} userRole={userRole} onNavigate={setActiveTab} />
       
       case 'staff':
@@ -107,10 +137,14 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
             'employee:view:all or employee:view:team'
           )
         }
-        if (userRole === 'manager' || userRole === 'deputy_director') {
+        // All supervisor/manager roles see team view
+        const isManagerRole = ['SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER',
+          'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager',
+          'manager', 'deputy_director'].includes(normalizedRole)
+        if (isManagerRole) {
           return <ManagerTeamView managerStaffId={staffId} />
         }
-        return <StaffManagement store={store} userRole={userRole} />
+        return <StaffManagement store={store} userRole={userRole} currentStaff={currentStaff} />
       
       case 'manager-assignment':
         if (!hasPermission(userRole as UserRole, 'employee:update')) {
@@ -183,28 +217,52 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
         }
         return <Reports store={store} userRole={userRole} />
       
+      case 'organizational-structure':
+        return (
+          <OrganizationalStructure 
+            userRole={userRole}
+            userUnit={currentStaff?.unit || undefined}
+            userDirectorate={currentStaff?.directorate || undefined}
+          />
+        )
+      
       default:
         return <Dashboard store={store} userRole={userRole} onNavigate={setActiveTab} />
     }
   }
 
   const getRoleBackground = () => {
-    switch (userRole) {
-      case 'hr':
-      case 'hr_assistant':
-        return 'bg-gradient-to-br from-green-50/50 via-background to-green-50/30'
-      case 'manager':
-      case 'deputy_director':
-        return 'bg-gradient-to-br from-amber-50/50 via-background to-amber-50/30'
-      default:
-        return 'bg-background'
+    const role = normalizedRole
+    // HR roles
+    if (role === 'HR_OFFICER' || role === 'HR_DIRECTOR' || role === 'hr' || role === 'hr_officer' || role === 'hr_director') {
+      return 'bg-gradient-to-br from-green-50/50 via-background to-green-50/30'
     }
+    // Manager/Supervisor roles
+    if (role === 'SUPERVISOR' || role === 'UNIT_HEAD' || role === 'DIVISION_HEAD' || role === 'DIRECTOR' || 
+        role === 'REGIONAL_MANAGER' || role === 'supervisor' || role === 'unit_head' || role === 'division_head' ||
+        role === 'directorate_head' || role === 'regional_manager' || role === 'manager' || role === 'deputy_director') {
+      return 'bg-gradient-to-br from-amber-50/50 via-background to-amber-50/30'
+    }
+    // Chief Director
+    if (role === 'CHIEF_DIRECTOR' || role === 'chief_director') {
+      return 'bg-gradient-to-br from-blue-50/50 via-background to-blue-50/30'
+    }
+    return 'bg-background'
   }
 
-  // Type narrowing: map roles to navigation roles
-  const navRole = (userRole === 'hr' || userRole === 'hr_assistant') ? 'hr' : 
-                  (userRole === 'manager' || userRole === 'deputy_director') ? 'manager' : 
-                  userRole as 'hr' | 'manager'
+  // Type narrowing: map roles to navigation roles for Navigation component
+  const getNavRole = (): 'hr' | 'manager' => {
+    const role = normalizedRole
+    // HR roles
+    if (role === 'HR_OFFICER' || role === 'HR_DIRECTOR' || role === 'CHIEF_DIRECTOR' ||
+        role === 'hr' || role === 'hr_officer' || role === 'hr_director' || role === 'chief_director') {
+      return 'hr'
+    }
+    // All other approver roles use manager navigation
+    return 'manager'
+  }
+  
+  const navRole = getNavRole()
   
   return (
     <div className={`min-h-screen ${getRoleBackground()}`}>

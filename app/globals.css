@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* MoFAD Official Color Palette: Blue & White Theme */
+  /* MoFA Official Color Palette: Blue & White Theme */
   /* Primary Brand: Government Blue #0B5ED7 */
   /* Background: White #FFFFFF */
   /* Text: Dark Blue/Charcoal #1F2A37 */
@@ -38,14 +38,14 @@
   --chart-5: oklch(0.75 0.15 80); /* Amber #F59E0B (Pending status) */
   --radius: 0.625rem;
   
-  /* MoFAD Status Colors (Use Sparingly) */
+  /* MoFA Status Colors (Use Sparingly) */
   --status-approved: oklch(0.65 0.15 150); /* Green #16A34A */
   --status-pending: oklch(0.75 0.15 80); /* Amber #F59E0B */
   --status-rejected: oklch(0.55 0.22 25); /* Red #DC2626 */
   
-  /* MoFAD Additional Colors */
-  --mofad-deep-navy: oklch(0.2 0.03 250); /* Deep Navy #0A2540 */
-  --mofad-light-blue: oklch(0.65 0.15 250); /* Light Blue #3B82F6 */
+  /* MoFA Additional Colors */
+  --mofa-deep-navy: oklch(0.2 0.03 250); /* Deep Navy #0A2540 */
+  --mofa-light-blue: oklch(0.65 0.15 250); /* Light Blue #3B82F6 */
 }
 
 .dark {

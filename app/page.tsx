@@ -6,14 +6,18 @@ import Landing from '@/components/landing'
 import LoginForm from '@/components/login-form'
 import Portal from '@/components/portal'
 
-function PortalWrapper({ userRole, onLogout, staffId }: { userRole: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin', onLogout: () => void, staffId?: string }) {
-  return <Portal userRole={userRole} onLogout={onLogout} staffId={staffId} />
+import { UserRole } from '@/lib/permissions'
+import { mapToMoFARole } from '@/lib/role-mapping'
+
+function PortalWrapper({ userRole, onLogout, staffId }: { userRole: UserRole, onLogout: () => void, staffId?: string }) {
+  const moFARole = mapToMoFARole(userRole)
+  return <Portal userRole={moFARole} onLogout={onLogout} staffId={staffId} />
 }
 
 export default function Page() {
   const router = useRouter()
   const [stage, setStage] = useState<'landing' | 'login' | 'portal' | 'checking'>('checking')
-  const [userRole, setUserRole] = useState<'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'>('hr')
+  const [userRole, setUserRole] = useState<UserRole>('EMPLOYEE')
   const [staffId, setStaffId] = useState<string | undefined>(undefined)
   const [mounted, setMounted] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('Initializing application...')

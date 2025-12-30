@@ -1,5 +1,5 @@
 # System Administration Guide
-## HR Leave Portal - Ministry of Fisheries and Aquaculture Development
+## HR Leave Portal - Ministry of Fisheries and Aquaculture
 
 **Version**: 1.0  
 **Last Updated**: December 2024
@@ -40,7 +40,7 @@
    NEXT_PUBLIC_APP_URL="http://localhost:3000"
    SMTP_HOST="smtp.example.com"
    SMTP_PORT=587
-   SMTP_USER="noreply@mofad.gov.gh"
+   SMTP_USER="noreply@mofa.gov.gh"
    SMTP_PASSWORD="password"
    ```
 

@@ -1,5 +1,5 @@
 # HR User Manual
-## HR Leave Portal - Ministry of Fisheries and Aquaculture Development
+## HR Leave Portal - Ministry of Fisheries and Aquaculture
 
 **Version**: 1.0  
 **Last Updated**: December 2024
@@ -309,7 +309,7 @@ View all managers and their team sizes:
 
 - **IT Support**: Contact IT for technical issues
 - **System Administrator**: For system configuration
-- **Email**: it-support@mofad.gov.gh (example)
+- **Email**: it-support@mofa.gov.gh (example)
 
 ---
 

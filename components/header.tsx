@@ -6,52 +6,54 @@ import { LogOut, Shield, Users, UserCheck } from 'lucide-react'
 import { APP_CONFIG } from '@/lib/app-config'
 import { useIsMobile } from '@/components/ui/use-mobile'
 
+import type { UserRole } from '@/lib/permissions'
+
 interface HeaderProps {
   onLogout?: () => void
-  userRole?: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
+  userRole?: UserRole
 }
 
 export default function Header({ onLogout, userRole }: HeaderProps) {
   const isMobile = useIsMobile()
   
   const getRoleConfig = (role?: string) => {
-    // MoFAD: All roles use blue theme (Government Blue)
+    // MoFA: All roles use blue theme (Government Blue)
     const configMap = {
       hr: {
         label: 'HR Officer',
         bgColor: 'bg-primary', // Government Blue
         icon: Users,
-        subtitle: 'MoFAD Staff Management & Leave Portal',
+        subtitle: 'MoFA Staff Management & Leave Portal',
       },
       hr_assistant: {
         label: 'HR Assistant',
         bgColor: 'bg-primary', // Government Blue
         icon: Users,
-        subtitle: 'MoFAD Staff Management & Leave Portal',
+        subtitle: 'MoFA Staff Management & Leave Portal',
       },
       manager: {
         label: 'Manager',
         bgColor: 'bg-primary', // Government Blue
         icon: UserCheck,
-        subtitle: 'MoFAD Staff Management & Leave Portal',
+        subtitle: 'MoFA Staff Management & Leave Portal',
       },
       deputy_director: {
         label: 'Deputy Director',
         bgColor: 'bg-primary', // Government Blue
         icon: UserCheck,
-        subtitle: 'MoFAD Staff Management & Leave Portal',
+        subtitle: 'MoFA Staff Management & Leave Portal',
       },
       employee: {
         label: 'Employee',
         bgColor: 'bg-primary', // Government Blue
         icon: UserCheck,
-        subtitle: 'MoFAD Staff Management & Leave Portal',
+        subtitle: 'MoFA Staff Management & Leave Portal',
       },
       admin: {
         label: 'System Administrator',
         bgColor: 'bg-primary', // Government Blue
         icon: Shield,
-        subtitle: 'MoFAD Staff Management & Leave Portal',
+        subtitle: 'MoFA Staff Management & Leave Portal',
       },
     }
     return configMap[role as keyof typeof configMap] || {

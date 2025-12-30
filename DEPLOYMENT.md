@@ -1,5 +1,5 @@
 # Deployment & Change Management Guide
-## Ministry of Fisheries and Aquaculture Development - HR Portal
+## Ministry of Fisheries and Aquaculture - HR Portal
 
 This document outlines the process for implementing changes to the MoFA HR Staff Leave Portal.
 

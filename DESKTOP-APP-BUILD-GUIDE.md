@@ -120,7 +120,7 @@ The build is configured in `package.json`:
     "win": {
       "target": ["nsis"],
       "icon": "public/icon.ico",
-      "publisherName": "Ministry of Fisheries and Aquaculture Development"
+      "publisherName": "Ministry of Fisheries and Aquaculture"
     },
     "nsis": {
       "oneClick": false,

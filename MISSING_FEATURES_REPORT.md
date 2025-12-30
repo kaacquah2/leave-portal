@@ -1,5 +1,5 @@
 # Missing Features & Components Report
-## Ministry of Fisheries and Aquaculture Development - HR Leave Portal
+## Ministry of Fisheries and Aquaculture - HR Leave Portal
 
 **Date**: 2024  
 **Project**: HR Staff Leave Portal  
@@ -598,6 +598,6 @@ Add to `prisma/schema.prisma`:
 ---
 
 **Report Generated**: 2024  
-**For**: Ministry of Fisheries and Aquaculture Development, Ghana  
+**For**: Ministry of Fisheries and Aquaculture, Ghana  
 **Project**: HR Staff Leave Portal
 

@@ -66,8 +66,8 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>MoFAD HR Portal</Text>
-        <Text style={styles.subtitle}>Ministry of Fisheries and Aquaculture Development</Text>
+        <Text style={styles.title}>MoFA HR Portal</Text>
+        <Text style={styles.subtitle}>Ministry of Fisheries and Aquaculture</Text>
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>

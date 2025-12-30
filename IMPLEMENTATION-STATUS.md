@@ -1,5 +1,5 @@
 # Implementation Status: Documentation vs Codebase
-## Ministry of Fisheries and Aquaculture Development - HR Leave Portal
+## Ministry of Fisheries and Aquaculture - HR Leave Portal
 
 **Date**: 2024  
 **Purpose**: Compare README-FOCUS.md documentation with actual codebase implementation

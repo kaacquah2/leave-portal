@@ -5,17 +5,17 @@
 
 export const APP_CONFIG = {
   // Application name
-  appName: 'MoFAD HR Portal',
-  appNameShort: 'MoFAD',
-  appDescription: 'MoFAD Staff Management & Leave Portal',
-  fullAppName: 'MoFAD HR Portal',
+  appName: 'MoFA HR Portal',
+  appNameShort: 'MoFA',
+  appDescription: 'MoFA Staff Management & Leave Portal',
+  fullAppName: 'MoFA HR Portal',
   
   // Organization details
-  organizationName: 'Ministry of Fisheries and Aquaculture Development',
-  organizationNameShort: 'Ministry of Fisheries & Aquaculture Development (MoFAD)',
+  organizationName: 'Ministry of Fisheries and Aquaculture',
+  organizationNameShort: 'Ministry of Fisheries & Aquaculture (MoFA)',
   
   // Full title for metadata
-  fullTitle: 'MoFAD Staff Management & Leave Portal | Ministry of Fisheries and Aquaculture Development',
+  fullTitle: 'MoFA Staff Management & Leave Portal | Ministry of Fisheries and Aquaculture',
   
   // Footer
   copyrightYear: new Date().getFullYear(),

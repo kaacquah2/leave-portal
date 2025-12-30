@@ -5,7 +5,23 @@
  * based on the Staff & HR Management Portal requirements.
  */
 
-export type UserRole = 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
+// MoFA Government HR Leave Workflow Roles (Exact Role Codes)
+export type UserRole = 
+  | 'EMPLOYEE'              // All confirmed MoFA staff
+  | 'SUPERVISOR'            // Immediate Supervisor / Line Manager
+  | 'UNIT_HEAD'             // Head of functional unit
+  | 'DIVISION_HEAD'         // Head of division under directorate
+  | 'DIRECTOR'              // Director of MoFA Directorate
+  | 'REGIONAL_MANAGER'      // Head of MoFA Regional Office
+  | 'HR_OFFICER'            // HR Officer (HRM) - Final approval authority
+  | 'HR_DIRECTOR'           // Head of Human Resource Directorate
+  | 'CHIEF_DIRECTOR'        // Chief Director / Ministerial Authority
+  | 'AUDITOR'               // Internal Auditor (IAA) - Read-only
+  | 'SYS_ADMIN'             // System Administrator
+  // Legacy roles (for backward compatibility during migration)
+  | 'employee' | 'supervisor' | 'unit_head' | 'division_head' | 'directorate_head' 
+  | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor' | 'admin'
+  | 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'
 
 /**
  * Permission types for different actions
@@ -75,11 +91,182 @@ export type Permission =
   | 'employee:leave:create:own'
   | 'employee:payslip:view:own'
   | 'employee:performance:view:own'
+  
+  // Unit-Based Permissions (MoFA Organizational Structure)
+  | 'unit:view:own'           // View own unit information
+  | 'unit:manage:own'         // Manage own unit (UNIT_HEAD)
+  | 'directorate:view:own'     // View own directorate
+  | 'directorate:manage:own'  // Manage own directorate (DIRECTOR)
+  | 'region:view:own'          // View own region
+  | 'region:manage:own'        // Manage own region (REGIONAL_MANAGER)
+  | 'org:view:all'             // View all organizational structure (HR, SYS_ADMIN)
+  | 'org:manage:all'           // Manage organizational structure (HR_DIRECTOR, SYS_ADMIN)
 
 /**
- * Permission matrix defining what each role can do
+ * MoFA Government HR Leave Workflow - Permission Matrix
+ * Exact role codes matching MoFA hierarchy
  */
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  // ========== MoFA EXACT ROLE CODES ==========
+  
+  // 1. EMPLOYEE - All confirmed MoFA staff
+  EMPLOYEE: [
+    'employee:self:view',
+    'employee:self:update',
+    'employee:leave:view:own',
+    'employee:leave:create:own',
+    'employee:payslip:view:own',
+    'employee:performance:view:own',
+  ],
+
+  // 2. SUPERVISOR - Immediate Supervisor / Line Manager (Level 1 Approval)
+  SUPERVISOR: [
+    'employee:view:team', // Direct reports only
+    'leave:view:team', // Direct reports only
+    'leave:approve:team', // Level 1 approval
+    'performance:view:team',
+    'attendance:view:team',
+    'reports:team:view',
+    'unit:view:own', // Can view own unit information
+  ],
+
+  // 3. UNIT_HEAD - Head of functional unit (Level 2 Approval)
+  UNIT_HEAD: [
+    'employee:view:team', // Unit level
+    'leave:view:team', // Unit level
+    'leave:approve:team', // Level 2 approval
+    'performance:view:team',
+    'attendance:view:team',
+    'reports:team:view',
+    'unit:view:own', // View own unit
+    'unit:manage:own', // Manage own unit
+    'directorate:view:own', // View parent directorate
+  ],
+
+  // 4. DIVISION_HEAD - Head of division under directorate (Level 3 Approval)
+  DIVISION_HEAD: [
+    'employee:view:team', // Division level
+    'leave:view:team', // Division level
+    'leave:approve:team', // Level 3 approval
+    'performance:view:team',
+    'attendance:view:team',
+    'reports:team:view',
+    'unit:view:own', // View units in division
+    'directorate:view:own', // View parent directorate
+  ],
+
+  // 5. DIRECTOR - Director of MoFA Directorate (Level 4 Approval)
+  DIRECTOR: [
+    'employee:view:team', // Directorate level
+    'leave:view:team', // Directorate level
+    'leave:approve:team', // Level 4 approval
+    'performance:view:team',
+    'attendance:view:team',
+    'reports:team:view',
+    'unit:view:own', // View all units in directorate
+    'directorate:view:own', // View own directorate
+    'directorate:manage:own', // Manage own directorate
+  ],
+
+  // 6. REGIONAL_MANAGER - Head of MoFA Regional Office
+  REGIONAL_MANAGER: [
+    'employee:view:team', // Regional/district staff
+    'leave:view:team', // Regional/district staff
+    'leave:approve:team', // Regional approval
+    'performance:view:team',
+    'attendance:view:team',
+    'reports:team:view',
+    'region:view:own', // View own region
+    'region:manage:own', // Manage own region
+  ],
+
+  // 7. HR_OFFICER - HR Officer (HRM) - Final approval authority
+  HR_OFFICER: [
+    'employee:view:all',
+    'employee:update',
+    'employee:documents:upload',
+    'leave:view:all',
+    'leave:approve:all', // Final approval authority
+    'leave:policy:manage',
+    'leave:create',
+    'performance:view:all',
+    'attendance:view:all',
+    'attendance:correct:all',
+    'timesheet:approve:all',
+    'reports:hr:view',
+    'org:view:all', // View all organizational structure
+  ],
+
+  // 8. HR_DIRECTOR - Head of Human Resource Directorate
+  HR_DIRECTOR: [
+    'employee:view:all',
+    'employee:create',
+    'employee:update',
+    'employee:documents:upload',
+    'leave:view:all',
+    'leave:approve:all', // Can approve senior staff/director leave
+    'leave:policy:manage',
+    'leave:create',
+    'performance:view:all',
+    'performance:review:all',
+    'attendance:view:all',
+    'attendance:correct:all',
+    'timesheet:approve:all',
+    'reports:hr:view',
+    'reports:system:view',
+    'system:audit:view',
+    'org:view:all', // View all organizational structure
+    'org:manage:all', // Manage organizational structure
+  ],
+
+  // 9. CHIEF_DIRECTOR - Chief Director / Ministerial Authority
+  CHIEF_DIRECTOR: [
+    'employee:view:all',
+    'leave:view:all',
+    'leave:approve:all', // Final authority for Directors & HR Director
+    'performance:view:all',
+    'performance:review:all',
+    'attendance:view:all',
+    'reports:hr:view',
+    'reports:system:view',
+    'system:audit:view',
+    'org:view:all', // View all organizational structure
+  ],
+
+  // 10. AUDITOR - Internal Auditor (IAA) - Read-only access
+  AUDITOR: [
+    'employee:view:all',
+    'leave:view:all',
+    'performance:view:all',
+    'attendance:view:all',
+    'reports:hr:view',
+    'reports:system:view',
+    'system:audit:view', // Full audit log access
+    'org:view:all', // View all organizational structure (read-only)
+  ],
+
+  // 11. SYS_ADMIN - System Administrator
+  SYS_ADMIN: [
+    'system:config:manage',
+    'system:users:manage',
+    'system:roles:assign',
+    'system:reports:view',
+    'system:audit:view',
+    'system:backup:manage',
+    'system:org:manage',
+    'employee:view:all',
+    'employee:create',
+    'employee:update',
+    'employee:delete',
+    'leave:view:all',
+    'leave:policy:manage',
+    'reports:system:view',
+    'org:view:all', // View all organizational structure
+    'org:manage:all', // Manage organizational structure
+  ],
+
+  // ========== LEGACY ROLES (Backward Compatibility) ==========
+  
   hr: [
     // Employee Management - HR's primary domain
     'employee:create',
@@ -253,6 +440,133 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Full Disciplinary Actions
     'disciplinary:manage:all',
   ],
+
+  // ========== GHANA GOVERNMENT PUBLIC SERVICE ROLES (MoFA) ==========
+  
+  // Supervisor / Line Manager: First level approval
+  supervisor: [
+    'employee:view:team',
+    'leave:view:team',
+    'leave:approve:team', // Can approve direct reports
+    'performance:view:team',
+    'performance:review:team',
+    'attendance:view:team',
+    'attendance:correct:team',
+    'timesheet:approve:team',
+    'reports:team:view',
+  ],
+
+  // Unit Head: Second level approval (after supervisor)
+  unit_head: [
+    'employee:view:team', // Extended to unit level
+    'leave:view:team',
+    'leave:approve:team', // Can approve unit staff
+    'performance:view:team',
+    'performance:review:team',
+    'attendance:view:team',
+    'attendance:correct:team',
+    'timesheet:approve:team',
+    'reports:team:view',
+  ],
+
+  // Division Head: Third level approval
+  division_head: [
+    'employee:view:team', // Extended to division level
+    'leave:view:team',
+    'leave:approve:team', // Can approve division staff
+    'performance:view:team',
+    'performance:review:team',
+    'attendance:view:team',
+    'attendance:correct:team',
+    'timesheet:approve:team',
+    'reports:team:view',
+  ],
+
+  // Directorate Head: Fourth level approval
+  directorate_head: [
+    'employee:view:team', // Extended to directorate level
+    'leave:view:team',
+    'leave:approve:team', // Can approve directorate staff
+    'performance:view:team',
+    'performance:review:team',
+    'attendance:view:team',
+    'attendance:correct:team',
+    'timesheet:approve:team',
+    'reports:team:view',
+  ],
+
+  // Regional Manager: For regional/district staff
+  regional_manager: [
+    'employee:view:team', // Regional/district staff
+    'leave:view:team',
+    'leave:approve:team', // Can approve regional staff
+    'performance:view:team',
+    'performance:review:team',
+    'attendance:view:team',
+    'attendance:correct:team',
+    'timesheet:approve:team',
+    'reports:team:view',
+  ],
+
+  // HR Officer: Final approval level, manages leave policies
+  hr_officer: [
+    'employee:view:all',
+    'employee:update',
+    'employee:documents:upload',
+    'leave:view:all',
+    'leave:approve:all', // Final approval authority
+    'leave:policy:manage',
+    'leave:create',
+    'performance:view:all',
+    'attendance:view:all',
+    'attendance:correct:all',
+    'timesheet:approve:all',
+    'reports:hr:view',
+  ],
+
+  // HR Director: Senior HR authority, can override
+  hr_director: [
+    'employee:view:all',
+    'employee:create',
+    'employee:update',
+    'employee:documents:upload',
+    'leave:view:all',
+    'leave:approve:all',
+    'leave:policy:manage',
+    'leave:create',
+    'performance:view:all',
+    'performance:review:all',
+    'attendance:view:all',
+    'attendance:correct:all',
+    'timesheet:approve:all',
+    'reports:hr:view',
+    'reports:system:view',
+    'system:audit:view',
+  ],
+
+  // Chief Director / Ministerial Authority: Highest approval authority
+  chief_director: [
+    'employee:view:all',
+    'leave:view:all',
+    'leave:approve:all', // Highest approval authority
+    'performance:view:all',
+    'performance:review:all',
+    'attendance:view:all',
+    'reports:hr:view',
+    'reports:system:view',
+    'system:audit:view',
+  ],
+
+  // Internal Auditor: Read-only access for compliance
+  internal_auditor: [
+    'employee:view:all',
+    'leave:view:all',
+    'performance:view:all',
+    'attendance:view:all',
+    'reports:hr:view',
+    'reports:system:view',
+    'system:audit:view', // Full audit log access
+  ],
 }
 
 /**
@@ -371,5 +685,98 @@ export const PermissionChecks = {
    * Can view audit logs
    */
   canViewAuditLogs: (role: UserRole) => hasPermission(role, 'system:audit:view'),
+  
+  /**
+   * Can view own unit information
+   */
+  canViewOwnUnit: (role: UserRole) => hasPermission(role, 'unit:view:own'),
+  
+  /**
+   * Can manage own unit
+   */
+  canManageOwnUnit: (role: UserRole) => hasPermission(role, 'unit:manage:own'),
+  
+  /**
+   * Can view own directorate
+   */
+  canViewOwnDirectorate: (role: UserRole) => hasPermission(role, 'directorate:view:own'),
+  
+  /**
+   * Can manage own directorate
+   */
+  canManageOwnDirectorate: (role: UserRole) => hasPermission(role, 'directorate:manage:own'),
+  
+  /**
+   * Can view own region
+   */
+  canViewOwnRegion: (role: UserRole) => hasPermission(role, 'region:view:own'),
+  
+  /**
+   * Can manage own region
+   */
+  canManageOwnRegion: (role: UserRole) => hasPermission(role, 'region:manage:own'),
+  
+  /**
+   * Can view all organizational structure
+   */
+  canViewAllOrg: (role: UserRole) => hasPermission(role, 'org:view:all'),
+  
+  /**
+   * Can manage all organizational structure
+   */
+  canManageAllOrg: (role: UserRole) => hasPermission(role, 'org:manage:all'),
+}
+
+/**
+ * Unit-based permission checks for MoFA organizational structure
+ */
+export const UnitBasedPermissions = {
+  /**
+   * Check if user can view staff in a specific unit
+   */
+  canViewUnitStaff: (userRole: UserRole, userUnit: string | null, targetUnit: string | null): boolean => {
+    // HR roles can view all
+    if (hasPermission(userRole, 'employee:view:all')) return true
+    
+    // Same unit
+    if (userUnit && targetUnit && userUnit === targetUnit) {
+      return hasPermission(userRole, 'unit:view:own')
+    }
+    
+    return false
+  },
+  
+  /**
+   * Check if user can view staff in a specific directorate
+   */
+  canViewDirectorateStaff: (userRole: UserRole, userDirectorate: string | null, targetDirectorate: string | null): boolean => {
+    // HR roles can view all
+    if (hasPermission(userRole, 'employee:view:all')) return true
+    
+    // Same directorate
+    if (userDirectorate && targetDirectorate && userDirectorate === targetDirectorate) {
+      return hasPermission(userRole, 'directorate:view:own')
+    }
+    
+    return false
+  },
+  
+  /**
+   * Check if user can view staff in a specific region
+   */
+  canViewRegionStaff: (userRole: UserRole, userDutyStation: string | null, targetDutyStation: string | null): boolean => {
+    // HR roles can view all
+    if (hasPermission(userRole, 'employee:view:all')) return true
+    
+    // Regional managers can view regional/district staff
+    if (
+      (userDutyStation === 'Region' || userDutyStation === 'District') &&
+      (targetDutyStation === 'Region' || targetDutyStation === 'District')
+    ) {
+      return hasPermission(userRole, 'region:view:own')
+    }
+    
+    return false
+  },
 }
 
