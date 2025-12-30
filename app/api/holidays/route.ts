@@ -14,13 +14,20 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error fetching holidays:', error)
     return NextResponse.json({ error: 'Failed to fetch holidays' }, { status: 500 })
   }
-}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })
+}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'EMPLOYEE', 'AUDITOR', 'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager', 'auditor', 'internal_auditor'] })
 
 // POST create holiday
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only HR and admin can create holidays
-    if (user.role !== 'hr' && user.role !== 'admin') {
+    const normalizedRole = user.role?.toUpperCase()
+    const isHR = normalizedRole === 'HR_OFFICER' || user.role === 'hr' || 
+                 normalizedRole === 'HR_DIRECTOR' || user.role === 'hr_director' ||
+                 normalizedRole === 'HR_ASSISTANT' || user.role === 'hr_assistant' ||
+                 normalizedRole === 'CHIEF_DIRECTOR' || user.role === 'chief_director' ||
+                 normalizedRole === 'SYS_ADMIN' || user.role === 'admin'
+    
+    if (!isHR) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -42,5 +49,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error creating holiday:', error)
     return NextResponse.json({ error: 'Failed to create holiday' }, { status: 500 })
   }
-}, { allowedRoles: ['hr', 'admin'] })
+}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_assistant', 'admin', 'hr_officer', 'hr_director', 'chief_director'] })
 

@@ -10,9 +10,20 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     // Employees and managers can only view their own balance
     let where: any = {}
     
-    if (user.role === 'employee' && user.staffId) {
+    const normalizedRole = user.role?.toUpperCase()
+    const isEmployee = normalizedRole === 'EMPLOYEE' || user.role === 'employee'
+    const isManager = normalizedRole === 'MANAGER' || user.role === 'manager' || 
+                      normalizedRole === 'DEPUTY_DIRECTOR' || user.role === 'deputy_director' ||
+                      normalizedRole === 'SUPERVISOR' || user.role === 'supervisor'
+    const isHR = normalizedRole === 'HR_OFFICER' || user.role === 'hr' || 
+                 normalizedRole === 'HR_DIRECTOR' || user.role === 'hr_director' ||
+                 normalizedRole === 'HR_ASSISTANT' || user.role === 'hr_assistant' ||
+                 normalizedRole === 'CHIEF_DIRECTOR' || user.role === 'chief_director' ||
+                 normalizedRole === 'SYS_ADMIN' || user.role === 'admin'
+    
+    if (isEmployee && user.staffId) {
       where.staffId = user.staffId
-    } else if ((user.role === 'manager' || user.role === 'deputy_director') && user.staffId) {
+    } else if (isManager && user.staffId) {
       // Managers and deputy directors see their team/directorate balances
       // In a full implementation, this would filter by team/directorate
       // For now, they see all (can be enhanced later)
@@ -30,13 +41,20 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error fetching balances:', error)
     return NextResponse.json({ error: 'Failed to fetch balances' }, { status: 500 })
   }
-}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })
+}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'EMPLOYEE', 'AUDITOR', 'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager', 'auditor', 'internal_auditor'] })
 
 // POST create or update leave balance
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only HR and admin can create/update balances
-    if (user.role !== 'hr' && user.role !== 'admin') {
+    const normalizedRole = user.role?.toUpperCase()
+    const isHR = normalizedRole === 'HR_OFFICER' || user.role === 'hr' || 
+                 normalizedRole === 'HR_DIRECTOR' || user.role === 'hr_director' ||
+                 normalizedRole === 'HR_ASSISTANT' || user.role === 'hr_assistant' ||
+                 normalizedRole === 'CHIEF_DIRECTOR' || user.role === 'chief_director' ||
+                 normalizedRole === 'SYS_ADMIN' || user.role === 'admin'
+    
+    if (!isHR) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -75,5 +93,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error creating/updating balance:', error)
     return NextResponse.json({ error: 'Failed to create/update balance' }, { status: 500 })
   }
-}, { allowedRoles: ['hr', 'admin'] })
+}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_assistant', 'admin', 'hr_officer', 'hr_director', 'chief_director'] })
 
