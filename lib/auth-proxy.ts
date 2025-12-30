@@ -6,6 +6,93 @@ export type { AuthUser }
 import { isSessionExpired, updateSessionActivity, isAccountLocked } from './security'
 import { prisma } from './prisma'
 
+/**
+ * Role mapping for backward compatibility and normalization
+ * Maps various role formats to their canonical equivalents
+ */
+const ROLE_EQUIVALENTS: Record<string, string[]> = {
+  // Admin roles
+  'admin': ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'],
+  'SYS_ADMIN': ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'],
+  'SYSTEM_ADMIN': ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'],
+  'SECURITY_ADMIN': ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'],
+  
+  // HR roles
+  'hr': ['hr', 'HR_OFFICER', 'hr_officer'],
+  'hr_assistant': ['hr_assistant', 'HR_OFFICER', 'hr', 'hr_officer'],
+  'HR_OFFICER': ['hr', 'HR_OFFICER', 'hr_officer', 'hr_assistant'],
+  'hr_officer': ['hr', 'HR_OFFICER', 'hr_officer', 'hr_assistant'],
+  'hr_director': ['hr_director', 'HR_DIRECTOR'],
+  'HR_DIRECTOR': ['hr_director', 'HR_DIRECTOR'],
+  
+  // Employee roles
+  'employee': ['employee', 'EMPLOYEE'],
+  'EMPLOYEE': ['employee', 'EMPLOYEE'],
+  
+  // Manager/Supervisor roles
+  'manager': ['manager', 'SUPERVISOR', 'supervisor'],
+  'supervisor': ['manager', 'SUPERVISOR', 'supervisor'],
+  'SUPERVISOR': ['manager', 'SUPERVISOR', 'supervisor'],
+  
+  // Director roles
+  'deputy_director': ['deputy_director', 'DIRECTOR', 'director', 'directorate_head'],
+  'director': ['deputy_director', 'DIRECTOR', 'director', 'directorate_head'],
+  'DIRECTOR': ['deputy_director', 'DIRECTOR', 'director', 'directorate_head'],
+  'directorate_head': ['deputy_director', 'DIRECTOR', 'director', 'directorate_head'],
+}
+
+/**
+ * Get all equivalent roles for a given role
+ */
+function getRoleEquivalents(role: string): string[] {
+  const normalized = role.toLowerCase()
+  const upper = role.toUpperCase()
+  
+  // Check direct mapping
+  if (ROLE_EQUIVALENTS[role]) {
+    return ROLE_EQUIVALENTS[role]
+  }
+  if (ROLE_EQUIVALENTS[normalized]) {
+    return ROLE_EQUIVALENTS[normalized]
+  }
+  if (ROLE_EQUIVALENTS[upper]) {
+    return ROLE_EQUIVALENTS[upper]
+  }
+  
+  // Return the role itself and normalized versions
+  return [role, normalized, upper]
+}
+
+/**
+ * Check if user role matches any of the allowed roles (with normalization)
+ */
+function hasMatchingRole(userRole: string, allowedRoles: string[]): boolean {
+  // Direct match
+  if (allowedRoles.includes(userRole)) {
+    return true
+  }
+  
+  // Get equivalents for user role
+  const userEquivalents = getRoleEquivalents(userRole)
+  
+  // Check if any allowed role matches any user equivalent
+  for (const allowedRole of allowedRoles) {
+    const allowedEquivalents = getRoleEquivalents(allowedRole)
+    
+    // Check for intersection
+    if (userEquivalents.some(eq => allowedEquivalents.includes(eq))) {
+      return true
+    }
+    
+    // Also check case-insensitive match
+    if (userRole.toLowerCase() === allowedRole.toLowerCase()) {
+      return true
+    }
+  }
+  
+  return false
+}
+
 export interface AuthContext {
   user: AuthUser
   request: NextRequest
@@ -115,9 +202,18 @@ export function withAuth<T = any>(
       await updateSessionActivity(session.id)
     }
 
-    // Check role-based access
+    // Check role-based access (with role normalization)
     if (options.allowedRoles && options.allowedRoles.length > 0) {
-      if (!options.allowedRoles.includes(user.role)) {
+      if (!hasMatchingRole(user.role, options.allowedRoles)) {
+        // Log for debugging
+        if (process.env.NODE_ENV === 'development' || process.env.DEBUG_AUTH === 'true') {
+          console.log('[Auth Debug] Role check failed:', {
+            userRole: user.role,
+            allowedRoles: options.allowedRoles,
+            url: request.url,
+            path: request.nextUrl.pathname,
+          })
+        }
         return NextResponse.json(
           { error: 'Forbidden' },
           { status: 403 }
@@ -161,9 +257,44 @@ export async function getAuthenticatedUser(
 }
 
 /**
- * Helper to check if user has required role
+ * Helper to check if user has required role (with normalization)
  */
 export function hasRole(user: AuthUser, allowedRoles: string[]): boolean {
-  return allowedRoles.includes(user.role)
+  return hasMatchingRole(user.role, allowedRoles)
+}
+
+/**
+ * Helper functions for common role checks (with normalization)
+ */
+export function isAdmin(user: AuthUser): boolean {
+  return hasMatchingRole(user.role, ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'])
+}
+
+export function isHR(user: AuthUser): boolean {
+  return hasMatchingRole(user.role, ['hr', 'hr_assistant', 'HR_OFFICER', 'HR_DIRECTOR', 'hr_officer', 'hr_director'])
+}
+
+export function isHROfficer(user: AuthUser): boolean {
+  return hasMatchingRole(user.role, ['hr', 'hr_assistant', 'HR_OFFICER', 'hr_officer'])
+}
+
+export function isHRDirector(user: AuthUser): boolean {
+  return hasMatchingRole(user.role, ['HR_DIRECTOR', 'hr_director'])
+}
+
+export function isEmployee(user: AuthUser): boolean {
+  return hasMatchingRole(user.role, ['employee', 'EMPLOYEE'])
+}
+
+export function isManager(user: AuthUser): boolean {
+  return hasMatchingRole(user.role, ['manager', 'supervisor', 'SUPERVISOR', 'deputy_director', 'DIRECTOR'])
+}
+
+export function isAuditor(user: AuthUser): boolean {
+  return hasMatchingRole(user.role, ['auditor', 'AUDITOR', 'internal_auditor'])
+}
+
+export function isChiefDirector(user: AuthUser): boolean {
+  return hasMatchingRole(user.role, ['CHIEF_DIRECTOR', 'chief_director'])
 }
 

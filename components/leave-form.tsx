@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { X, Upload, File, AlertCircle, CheckCircle } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import type { useDataStore } from '@/lib/data-store'
+import { LegalReference, GovernmentFormField } from '@/components/government'
 
 interface LeaveFormProps {
   store: ReturnType<typeof useDataStore>

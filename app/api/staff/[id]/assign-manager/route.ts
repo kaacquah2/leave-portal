@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 
 // PATCH assign manager to staff member
 export async function PATCH(
@@ -11,7 +11,7 @@ export async function PATCH(
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {
       // Only HR (not HR Assistant) and admin can assign managers
-      if (user.role !== 'hr' && user.role !== 'admin') {
+      if (!isHR(user) && !isAdmin(user)) {
         return NextResponse.json(
           { error: 'Forbidden - Only HR and Admin can assign managers' },
           { status: 403 }
@@ -165,6 +165,6 @@ export async function GET(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
 }
 

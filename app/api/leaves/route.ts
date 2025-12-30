@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isEmployee, isManager } from '@/lib/auth-proxy'
 import { calculateLeaveDays } from '@/lib/leave-calculation-utils'
 import { validateLeaveBalance, checkOverlappingLeaves } from '@/lib/leave-balance-utils'
 import { getNextApprovers } from '@/lib/approval-workflow'
@@ -26,9 +26,9 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     let where: any = {}
     
     // Employees can only view their own leaves
-    if (user.role === 'employee' && user.staffId) {
+    if (isEmployee(user) && user.staffId) {
       where.staffId = user.staffId
-    } else if ((user.role === 'manager' || user.role === 'deputy_director') && user.staffId) {
+    } else if (isManager(user) && user.staffId) {
       // Managers and deputy directors see their team/directorate leaves
       // In a full implementation, this would filter by managerId or department
       // For now, they see all (can be enhanced later)

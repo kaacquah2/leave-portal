@@ -116,8 +116,57 @@ export async function PATCH(
         )
       }
     
-      // CRITICAL FIX: Validate leave balance before approval
+      // Ghana Government Compliance: Check for retroactive approval
       if (body.status === 'approved' && leave.status !== 'approved') {
+        const { checkRetroactiveApproval, validateRetroactiveJustification, hasRetroactiveApprovalAuthority } = await import('@/lib/workflow-safeguards')
+        
+        const retroactiveCheck = await checkRetroactiveApproval(id)
+        
+        if (retroactiveCheck.isRetroactive) {
+          // Validate justification is provided
+          const justificationValidation = validateRetroactiveJustification(
+            body.retroactiveJustification,
+            retroactiveCheck.daysPastStart
+          )
+          
+          if (!justificationValidation.valid) {
+            return NextResponse.json({
+              error: justificationValidation.error || 'Justification required for retroactive approval',
+              errorCode: 'RETROACTIVE_JUSTIFICATION_REQUIRED',
+              isRetroactive: true,
+              daysPastStart: retroactiveCheck.daysPastStart,
+              requiresHigherApproval: retroactiveCheck.requiresHigherApproval,
+              troubleshooting: [
+                'This leave has already started',
+                'Retroactive approvals require mandatory justification',
+                retroactiveCheck.requiresHigherApproval
+                  ? 'Approval more than 7 days past start date requires HR Director authorization'
+                  : 'Provide a detailed justification for the retroactive approval',
+              ],
+            }, { status: 400 })
+          }
+          
+          // Check if user has authority for this level of retroactive approval
+          if (!hasRetroactiveApprovalAuthority(user.role, retroactiveCheck.requiresHigherApproval)) {
+            return NextResponse.json({
+              error: retroactiveCheck.errorMessage || 'Insufficient authority for retroactive approval',
+              errorCode: 'RETROACTIVE_APPROVAL_AUTHORITY_REQUIRED',
+              isRetroactive: true,
+              daysPastStart: retroactiveCheck.daysPastStart,
+              requiresHigherApproval: retroactiveCheck.requiresHigherApproval,
+              requiredRole: retroactiveCheck.requiresHigherApproval ? 'HR_DIRECTOR or CHIEF_DIRECTOR' : 'HR_OFFICER, HR_DIRECTOR, or DIRECTOR',
+              troubleshooting: [
+                'Retroactive approvals require elevated authorization',
+                retroactiveCheck.requiresHigherApproval
+                  ? 'This approval requires HR Director or Chief Director authorization'
+                  : 'This approval requires HR Officer, HR Director, or Director authorization',
+                'Contact the appropriate authority for retroactive approval',
+              ],
+            }, { status: 403 })
+          }
+        }
+        
+        // CRITICAL FIX: Validate leave balance before approval
         const balanceValidation = await validateLeaveBalance(
           leave.staffId,
           leave.leaveType,

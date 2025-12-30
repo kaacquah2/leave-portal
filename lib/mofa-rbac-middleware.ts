@@ -266,11 +266,17 @@ export async function canApproveLeaveRequest(
       }
     }
 
-    // SYS_ADMIN: Cannot approve leaves (system management only)
-    if (context.role === 'SYS_ADMIN' || context.role === 'admin') {
+    // SYS_ADMIN, SYSTEM_ADMIN, SECURITY_ADMIN: Cannot approve leaves (system management only)
+    // Ghana Government Compliance: System admins cannot approve leave (segregation of duties)
+    if (
+      context.role === 'SYS_ADMIN' ||
+      context.role === 'SYSTEM_ADMIN' ||
+      context.role === 'SECURITY_ADMIN' ||
+      context.role === 'admin'
+    ) {
       return {
         allowed: false,
-        reason: 'System administrators cannot approve leave requests',
+        reason: 'System administrators cannot approve leave requests (segregation of duties)',
         errorCode: 'ROLE_NOT_AUTHORIZED',
       }
     }

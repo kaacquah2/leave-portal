@@ -7,8 +7,14 @@ import { sendEmail, generateNewUserCredentialsEmail } from '@/lib/email'
 // GET all users (admin only)
 export const GET = withAuth(async ({ user }: AuthContext) => {
   try {
-    // Only admin can access this route
-    if (user.role !== 'admin') {
+    // Only admin can access this route (check normalized roles)
+    const normalizedRole = user.role?.toUpperCase()
+    const isAdmin = user.role === 'admin' || 
+                   normalizedRole === 'SYS_ADMIN' || 
+                   normalizedRole === 'SYSTEM_ADMIN' || 
+                   normalizedRole === 'SECURITY_ADMIN'
+    
+    if (!isAdmin) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -53,13 +59,19 @@ export const GET = withAuth(async ({ user }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['admin'] })
+}, { allowedRoles: ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'] })
 
 // POST create new user with staff member (admin only)
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
-    // Only admin can access this route
-    if (user.role !== 'admin') {
+    // Only admin can access this route (check normalized roles)
+    const normalizedRole = user.role?.toUpperCase()
+    const isAdmin = user.role === 'admin' || 
+                   normalizedRole === 'SYS_ADMIN' || 
+                   normalizedRole === 'SYSTEM_ADMIN' || 
+                   normalizedRole === 'SECURITY_ADMIN'
+    
+    if (!isAdmin) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -275,5 +287,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['admin'] })
+}, { allowedRoles: ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'] })
 

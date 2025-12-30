@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR } from '@/lib/auth-proxy'
 import { prisma } from '@/lib/prisma'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { join } from 'path'
@@ -44,9 +44,9 @@ export async function GET(
 
       // Check permissions - user must be the requester, approver, or HR
       const isRequester = leaveRequest.staffId === user.staffId
-      const isHR = ['HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_officer', 'hr_director'].includes(user.role)
+      const userIsHR = isHR(user)
 
-      if (!isRequester && !isHR) {
+      if (!isRequester && !userIsHR) {
         return NextResponse.json(
           { error: 'Forbidden - Access denied' },
           { status: 403 }
@@ -214,9 +214,9 @@ export async function DELETE(
 
       // Check permissions - only requester or HR can delete
       const isRequester = attachment.leaveRequest.staffId === user.staffId
-      const isHR = ['HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_officer', 'hr_director'].includes(user.role)
+      const userIsHR = isHR(user)
 
-      if (!isRequester && !isHR) {
+      if (!isRequester && !userIsHR) {
         return NextResponse.json(
           { error: 'Forbidden - Access denied' },
           { status: 403 }

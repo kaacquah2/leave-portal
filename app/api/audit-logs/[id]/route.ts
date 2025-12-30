@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 
 // GET single audit log
 export async function GET(
@@ -11,7 +11,7 @@ export async function GET(
   return withAuth(async ({ user }: AuthContext) => {
     try {
       // Only HR, HR Assistant, and admin can view audit logs
-      if (user.role !== 'hr' && user.role !== 'hr_assistant' && user.role !== 'admin') {
+      if (!isHR(user) && !isAdmin(user)) {
         return NextResponse.json(
           { error: 'Forbidden' },
           { status: 403 }
@@ -37,7 +37,7 @@ export async function GET(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
 }
 
 // DELETE audit log - IMMUTABLE: Audit logs cannot be deleted
@@ -60,7 +60,7 @@ export async function DELETE(
       },
       { status: 403 }
     )
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
 }
 
 // PATCH audit log - IMMUTABLE: Audit logs cannot be modified
@@ -83,6 +83,6 @@ export async function PATCH(
       },
       { status: 403 }
     )
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
 }
 

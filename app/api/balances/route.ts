@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isEmployee, isManager, isHR, isAdmin } from '@/lib/auth-proxy'
 
 
 // GET all leave balances
@@ -10,20 +10,13 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     // Employees and managers can only view their own balance
     let where: any = {}
     
-    const normalizedRole = user.role?.toUpperCase()
-    const isEmployee = normalizedRole === 'EMPLOYEE' || user.role === 'employee'
-    const isManager = normalizedRole === 'MANAGER' || user.role === 'manager' || 
-                      normalizedRole === 'DEPUTY_DIRECTOR' || user.role === 'deputy_director' ||
-                      normalizedRole === 'SUPERVISOR' || user.role === 'supervisor'
-    const isHR = normalizedRole === 'HR_OFFICER' || user.role === 'hr' || 
-                 normalizedRole === 'HR_DIRECTOR' || user.role === 'hr_director' ||
-                 normalizedRole === 'HR_ASSISTANT' || user.role === 'hr_assistant' ||
-                 normalizedRole === 'CHIEF_DIRECTOR' || user.role === 'chief_director' ||
-                 normalizedRole === 'SYS_ADMIN' || user.role === 'admin'
+    const userIsEmployee = isEmployee(user)
+    const userIsManager = isManager(user)
+    const userIsHR = isHR(user) || isAdmin(user)
     
-    if (isEmployee && user.staffId) {
+    if (userIsEmployee && user.staffId) {
       where.staffId = user.staffId
-    } else if (isManager && user.staffId) {
+    } else if (userIsManager && user.staffId) {
       // Managers and deputy directors see their team/directorate balances
       // In a full implementation, this would filter by team/directorate
       // For now, they see all (can be enhanced later)
@@ -44,17 +37,14 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
 }, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'EMPLOYEE', 'AUDITOR', 'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager', 'auditor', 'internal_auditor'] })
 
 // POST create or update leave balance
+// 
+// Ghana Government Compliance: Direct balance updates are restricted
+// Manual balance adjustments must go through override workflow (requires HR Director approval)
+// This endpoint is kept for backward compatibility but should redirect to override workflow
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only HR and admin can create/update balances
-    const normalizedRole = user.role?.toUpperCase()
-    const isHR = normalizedRole === 'HR_OFFICER' || user.role === 'hr' || 
-                 normalizedRole === 'HR_DIRECTOR' || user.role === 'hr_director' ||
-                 normalizedRole === 'HR_ASSISTANT' || user.role === 'hr_assistant' ||
-                 normalizedRole === 'CHIEF_DIRECTOR' || user.role === 'chief_director' ||
-                 normalizedRole === 'SYS_ADMIN' || user.role === 'admin'
-    
-    if (!isHR) {
+    if (!isHR(user) && !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -62,6 +52,37 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     }
 
     const body = await request.json()
+    
+    // CRITICAL: If this is a manual balance adjustment (not initial creation),
+    // redirect to override workflow which requires HR Director approval
+    const existingBalance = await prisma.leaveBalance.findUnique({
+      where: { staffId: body.staffId },
+    })
+    
+    if (existingBalance) {
+      // Check if any balance fields are being changed
+      const balanceFields = ['annual', 'sick', 'unpaid', 'specialService', 'training', 'study', 'maternity', 'paternity', 'compassionate']
+      const hasChanges = balanceFields.some(field => {
+        const newValue = body[field]
+        const oldValue = (existingBalance as any)[field]
+        return newValue !== undefined && newValue !== oldValue
+      })
+      
+      if (hasChanges) {
+        // This is a manual adjustment - require override workflow
+        return NextResponse.json(
+          { 
+            error: 'Manual balance adjustments require HR Director approval',
+            errorCode: 'BALANCE_OVERRIDE_REQUIRED',
+            message: 'Please use the balance override workflow which requires HR Director approval. This ensures proper segregation of duties and audit compliance.',
+            redirectTo: '/api/balances/override',
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Only allow initial balance creation or updates that don't change values
     const balance = await prisma.leaveBalance.upsert({
       where: { staffId: body.staffId },
       update: {

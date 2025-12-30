@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin, isChiefDirector } from '@/lib/auth-proxy'
 
 
 // GET all leave templates
@@ -20,14 +20,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only HR and admin can create leave templates
-    const normalizedRole = user.role?.toUpperCase()
-    const isHR = normalizedRole === 'HR_OFFICER' || user.role === 'hr' || 
-                 normalizedRole === 'HR_DIRECTOR' || user.role === 'hr_director' ||
-                 normalizedRole === 'HR_ASSISTANT' || user.role === 'hr_assistant' ||
-                 normalizedRole === 'CHIEF_DIRECTOR' || user.role === 'chief_director' ||
-                 normalizedRole === 'SYS_ADMIN' || user.role === 'admin'
-    
-    if (!isHR) {
+    if (!isHR(user) && !isAdmin(user) && !isChiefDirector(user)) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }

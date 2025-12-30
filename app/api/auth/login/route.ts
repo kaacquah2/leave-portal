@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyPassword, createToken, createSession, getUserFromToken } from '@/lib/auth'
+import { 
+  isPasswordExpired, 
+  isAccountLocked, 
+  handleFailedLoginAttempt, 
+  resetFailedLoginAttempts,
+  requirePasswordChange 
+} from '@/lib/password-policy'
 
 
 export async function POST(request: NextRequest) {
@@ -100,23 +107,91 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Ghana Government Compliance: Check if account is locked
+    const accountLocked = await isAccountLocked(user.id)
+    if (accountLocked) {
+      const lockInfo = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { lockedUntil: true },
+      })
+      
+      return NextResponse.json(
+        { 
+          error: 'Your account has been locked due to multiple failed login attempts',
+          errorCode: 'ACCOUNT_LOCKED',
+          lockedUntil: lockInfo?.lockedUntil,
+          troubleshooting: [
+            'Your account has been temporarily locked for security reasons',
+            'Please wait 30 minutes and try again',
+            'If this persists, contact IT support',
+          ],
+        },
+        { status: 403 }
+      )
+    }
+
     // Verify password
     const isValid = await verifyPassword(password, user.passwordHash)
     if (!isValid) {
       console.error(`Login failed: Invalid password for email: ${email}`)
+      
+      // Handle failed login attempt (may lock account)
+      const lockResult = await handleFailedLoginAttempt(user.id)
+      
       return NextResponse.json(
         { 
           error: 'Invalid email or password',
           errorCode: 'INVALID_PASSWORD',
+          attemptsRemaining: lockResult.attemptsRemaining,
+          accountLocked: lockResult.locked,
           troubleshooting: [
             'Verify that your password is correct',
             'Check for typos in your password',
             'Make sure Caps Lock is not enabled',
+            `You have ${lockResult.attemptsRemaining} attempts remaining`,
             'If you forgot your password, contact HR to reset it',
-            'Clear browser cookies and try again',
           ],
         },
         { status: 401 }
+      )
+    }
+
+    // Reset failed login attempts on successful login
+    await resetFailedLoginAttempts(user.id)
+
+    // Ghana Government Compliance: Check if password has expired
+    const passwordExpired = await isPasswordExpired(user.id)
+    if (passwordExpired) {
+      return NextResponse.json(
+        { 
+          error: 'Your password has expired and must be changed',
+          errorCode: 'PASSWORD_EXPIRED',
+          requiresPasswordChange: true,
+          troubleshooting: [
+            'Your password has expired (90 days maximum age)',
+            'You must change your password before you can log in',
+            'Contact HR if you need assistance',
+          ],
+        },
+        { status: 403 }
+      )
+    }
+
+    // Ghana Government Compliance: Force password change on first login
+    if (!user.passwordChangedAt) {
+      await requirePasswordChange(user.id)
+      return NextResponse.json(
+        { 
+          error: 'You must change your password on first login',
+          errorCode: 'PASSWORD_CHANGE_REQUIRED',
+          requiresPasswordChange: true,
+          troubleshooting: [
+            'This is your first login',
+            'You must change your password before you can continue',
+            'This is a security requirement',
+          ],
+        },
+        { status: 403 }
       )
     }
 

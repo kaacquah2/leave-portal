@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isAdmin, isHR } from '@/lib/auth-proxy'
 import { hashPassword } from '@/lib/auth'
 import { sendEmail, generateNewUserCredentialsEmail } from '@/lib/email'
+import { validatePasswordComplexity, addPasswordToHistory, setPasswordExpiry } from '@/lib/password-policy'
 
 /**
  * POST /api/admin/users/create-credentials
@@ -12,8 +13,7 @@ import { sendEmail, generateNewUserCredentialsEmail } from '@/lib/email'
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only admin and HR roles can create credentials
-    const allowedRoles = ['admin', 'SYS_ADMIN', 'HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_officer', 'hr_director']
-    if (!allowedRoles.includes(user.role)) {
+    if (!isAdmin(user) && !isHR(user)) {
       return NextResponse.json(
         { error: 'Forbidden - Admin or HR access required' },
         { status: 403 }
@@ -37,10 +37,15 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       )
     }
 
-    // Validate password length
-    if (password.length < 8) {
+    // Ghana Government Compliance: Validate password complexity
+    const passwordValidation = validatePasswordComplexity(password)
+    if (!passwordValidation.valid) {
       return NextResponse.json(
-        { error: 'Password must be at least 8 characters long' },
+        { 
+          error: 'Password does not meet complexity requirements',
+          errorCode: 'WEAK_PASSWORD',
+          errors: passwordValidation.errors,
+        },
         { status: 400 }
       )
     }
@@ -151,6 +156,10 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
 
       return { user: newUser, staff }
     })
+
+    // Ghana Government Compliance: Add password to history and set expiry
+    await addPasswordToHistory(result.user.id, passwordHash)
+    await setPasswordExpiry(result.user.id)
 
     // Send email with credentials (non-blocking)
     let emailSent = false

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, verifyPassword, verifyPasswordResetToken, markPasswordResetTokenAsUsed } from '@/lib/auth'
 import { sendEmail, generatePasswordResetSuccessEmail } from '@/lib/email'
+import { validatePasswordComplexity, isPasswordInHistory, addPasswordToHistory, setPasswordExpiry } from '@/lib/password-policy'
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,15 +30,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate password strength
-    if (newPassword.length < 8) {
+    // Ghana Government Compliance: Validate password complexity
+    const passwordValidation = validatePasswordComplexity(newPassword)
+    if (!passwordValidation.valid) {
       return NextResponse.json(
         { 
-          error: 'Password must be at least 8 characters long',
+          error: 'Password does not meet complexity requirements',
           errorCode: 'WEAK_PASSWORD',
+          errors: passwordValidation.errors,
           troubleshooting: [
-            'Password must be at least 8 characters',
-            'Use a combination of letters, numbers, and special characters',
+            ...passwordValidation.errors,
+            'Use a combination of uppercase, lowercase, numbers, and special characters',
             'Avoid common words or personal information',
           ],
         },
@@ -91,10 +94,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Ghana Government Compliance: Check password history (prevent reuse)
+    // Check BEFORE hashing (function takes plain password)
+    const isInHistory = await isPasswordInHistory(user.id, newPassword)
+    if (isInHistory) {
+      return NextResponse.json(
+        { 
+          error: 'This password has been used recently and cannot be reused',
+          errorCode: 'PASSWORD_IN_HISTORY',
+          troubleshooting: [
+            'You cannot reuse any of your last 5 passwords',
+            'Choose a password you have not used before',
+            'Use a completely new password',
+          ],
+        },
+        { status: 400 }
+      )
+    }
+
     // Hash new password
     const passwordHash = await hashPassword(newPassword)
 
-    // Update password
+    // Update password and set expiry
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -104,6 +125,10 @@ export async function POST(request: NextRequest) {
         lockedUntil: null, // Unlock account if locked
       },
     })
+
+    // Ghana Government Compliance: Add password to history and set expiry
+    await addPasswordToHistory(user.id, passwordHash)
+    await setPasswordExpiry(user.id)
 
     // Mark token as used
     await markPasswordResetTokenAsUsed(token)

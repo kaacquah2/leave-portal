@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
 import { restoreLeaveBalance } from '@/lib/leave-balance-utils'
+import { isEmployee } from '@/lib/auth-proxy'
 
 export async function POST(
   request: NextRequest,
@@ -31,7 +32,7 @@ export async function POST(
     }
 
     // Check permissions
-    if (user.role === 'employee' && leave.staffId !== user.staffId) {
+    if (isEmployee({ role: user.role, staffId: user.staffId } as any) && leave.staffId !== user.staffId) {
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }

@@ -17,7 +17,9 @@ export type UserRole =
   | 'HR_DIRECTOR'           // Head of Human Resource Directorate
   | 'CHIEF_DIRECTOR'        // Chief Director / Ministerial Authority
   | 'AUDITOR'               // Internal Auditor (IAA) - Read-only
-  | 'SYS_ADMIN'             // System Administrator
+  | 'SYS_ADMIN'             // System Administrator (Legacy - use SYSTEM_ADMIN or SECURITY_ADMIN)
+  | 'SYSTEM_ADMIN'           // System Administrator (Technical config only)
+  | 'SECURITY_ADMIN'         // Security Administrator (Audit logs, access review, compliance)
   // Legacy roles (for backward compatibility during migration)
   | 'employee' | 'supervisor' | 'unit_head' | 'division_head' | 'directorate_head' 
   | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor' | 'admin'
@@ -245,7 +247,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'org:view:all', // View all organizational structure (read-only)
   ],
 
-  // 11. SYS_ADMIN - System Administrator
+  // 11. SYS_ADMIN - System Administrator (Legacy - use SYSTEM_ADMIN or SECURITY_ADMIN)
   SYS_ADMIN: [
     'system:config:manage',
     'system:users:manage',
@@ -263,6 +265,35 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:system:view',
     'org:view:all', // View all organizational structure
     'org:manage:all', // Manage organizational structure
+  ],
+
+  // 12. SYSTEM_ADMIN - System Administrator (Technical config only)
+  // Ghana Government Compliance: Cannot approve leave or edit staff records (segregation of duties)
+  SYSTEM_ADMIN: [
+    'system:config:manage',
+    'system:users:manage',
+    'system:roles:assign',
+    'system:reports:view',
+    'system:backup:manage',
+    'system:org:manage',
+    'employee:view:all', // View only, cannot edit
+    'leave:view:all', // View only, cannot approve
+    'reports:system:view',
+    'org:view:all', // View all organizational structure
+    'org:manage:all', // Manage organizational structure
+    // Note: Cannot approve leave or edit staff records per compliance requirements
+  ],
+
+  // 13. SECURITY_ADMIN - Security Administrator (Audit logs, access review, compliance)
+  // Ghana Government Compliance: Cannot approve leave or edit staff records (segregation of duties)
+  SECURITY_ADMIN: [
+    'system:audit:view', // Full audit log access
+    'system:reports:view',
+    'reports:system:view',
+    'employee:view:all', // View only, cannot edit
+    'leave:view:all', // View only, cannot approve
+    'org:view:all', // View all organizational structure (read-only)
+    // Note: Cannot approve leave or edit staff records per compliance requirements
   ],
 
   // ========== LEGACY ROLES (Backward Compatibility) ==========

@@ -38,6 +38,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   passwordResetRequests PasswordResetRequest[]
   pushSubscription PushSubscription?
+  privacyAcknowledgement PrivacyAcknowledgement?
+  passwordHistory PasswordHistory[]
 }
 
 model Session {
@@ -104,6 +106,7 @@ model StaffMember {
   changeRequests    ProfileChangeRequest[]
   delegations       ApprovalDelegation[] @relation("Delegator") // As delegator
   delegatedTo       ApprovalDelegation[] @relation("Delegatee") // As delegatee
+  balanceOverrides  LeaveBalanceOverride[]
 }
 
 model LeaveRequest {
@@ -833,3 +836,123 @@ model ApprovalDelegation {
   @@index([delegateeId, status, endDate])
   @@index([startDate, endDate])
 }
+
+// ============================================
+// GHANA GOVERNMENT COMPLIANCE MODELS
+// ============================================
+
+// Leave Policy Versioning (for governance and audit)
+// Per requirement: Policies are immutable once applied, changes create new version
+model LeavePolicyVersion {
+  id              String   @id @default(cuid())
+  policyId        String?  // Reference to current active policy (if any, nullable for new policies)
+  leaveType       String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
+  maxDays         Int
+  accrualRate     Float
+  accrualFrequency String  @default("monthly")
+  carryoverAllowed Boolean  @default(false)
+  maxCarryover    Int      @default(0)
+  expiresAfterMonths Int?
+  requiresApproval Boolean  @default(true)
+  approvalLevels  Int      @default(1)
+  active          Boolean  @default(true)
+  
+  // Versioning fields
+  versionNumber   Int      // Sequential version number (1, 2, 3, ...)
+  effectiveFrom   DateTime // When this version became effective
+  effectiveTo     DateTime? // When this version was superseded (null = current)
+  supersededBy    String?  // ID of version that superseded this
+  changedBy       String   // User ID who created this version
+  changeReason    String   // Mandatory justification for policy change
+  approvedBy      String?  // HR Director who approved the change
+  approvedAt      DateTime? // When HR Director approved
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([policyId, versionNumber])
+  @@index([leaveType, effectiveFrom])
+  @@index([effectiveFrom, effectiveTo])
+}
+
+// Data Access Log (Data Protection Act 843 compliance)
+// Tracks ALL access to sensitive personal data
+model DataAccessLog {
+  id            String   @id @default(cuid())
+  userId        String   // User who accessed the data
+  userRole      String   // Role of user
+  staffId       String?  // Staff member whose data was accessed
+  dataType      String   // 'staff_profile' | 'leave_request' | 'medical_attachment' | 'dob' | 'salary' | 'performance_review'
+  action        String   // 'view' | 'export' | 'download' | 'edit'
+  ip            String?  // IP address
+  userAgent     String?  // User agent
+  timestamp     DateTime @default(now())
+  metadata      Json?    // Additional context (field names accessed, etc.)
+  
+  @@index([userId, timestamp])
+  @@index([staffId, timestamp])
+  @@index([dataType, timestamp])
+  @@index([timestamp])
+}
+
+// Privacy Acknowledgement (Data Protection Act 843)
+// Tracks staff acknowledgement of privacy notice
+model PrivacyAcknowledgement {
+  id            String   @id @default(cuid())
+  userId        String   @unique // User ID
+  staffId       String?  // Staff ID (if linked)
+  acknowledgedAt DateTime @default(now())
+  ip            String?  // IP address when acknowledged
+  userAgent     String?  // User agent
+  version       String   @default("1.0") // Privacy notice version
+  
+  // Relations
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([acknowledgedAt])
+}
+
+// Leave Balance Override (Manual balance adjustments with approval)
+// Per requirement: Manual edits require HR Director approval
+model LeaveBalanceOverride {
+  id            String   @id @default(cuid())
+  staffId       String
+  leaveType     String   // Type of leave being adjusted
+  previousBalance Float  // Balance before override
+  newBalance    Float    // Balance after override
+  adjustment    Float    // Difference (positive = increase, negative = decrease)
+  reason        String   // Mandatory reason for override
+  supportingDocumentUrl String? // Optional supporting document
+  requestedBy   String   // User ID who requested
+  requestedAt   DateTime @default(now())
+  status        String   @default("pending") // 'pending' | 'approved' | 'rejected'
+  approvedBy    String?  // HR Director who approved/rejected
+  approvedAt    DateTime?
+  rejectionReason String? // If rejected, reason
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  staff         StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  
+  @@index([staffId, status])
+  @@index([status, requestedAt])
+  @@index([requestedBy, requestedAt])
+}
+
+// Password History (for password reuse prevention)
+model PasswordHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  passwordHash  String   // Hashed password (for comparison)
+  createdAt     DateTime @default(now())
+  
+  // Relations
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+}
+
+// Add relations to existing models
+// Update User model to include new relations

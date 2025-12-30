@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { validateLeaveBalance, deductLeaveBalance } from '@/lib/leave-balance-utils'
 
 // POST bulk approve/reject leave requests
@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {
       // Only HR and admin can perform bulk operations
-      if (user.role !== 'hr' && user.role !== 'admin') {
+      if (!isHR(user) && !isAdmin(user)) {
         return NextResponse.json(
           { error: 'Forbidden - Only HR and Admin can perform bulk operations' },
           { status: 403 }
@@ -174,6 +174,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
 }
 

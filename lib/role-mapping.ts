@@ -47,6 +47,8 @@ export function getRoleDisplayName(role: UserRole): string {
     'CHIEF_DIRECTOR': 'Chief Director',
     'AUDITOR': 'Internal Auditor',
     'SYS_ADMIN': 'System Administrator',
+    'SYSTEM_ADMIN': 'System Administrator',
+    'SECURITY_ADMIN': 'Security Administrator',
     // Legacy
     'employee': 'Employee',
     'supervisor': 'Supervisor',
@@ -84,6 +86,8 @@ export function getRoleRoute(role: UserRole): string {
     'CHIEF_DIRECTOR': '/chief-director',
     'AUDITOR': '/auditor',
     'SYS_ADMIN': '/admin',
+    'SYSTEM_ADMIN': '/admin',
+    'SECURITY_ADMIN': '/admin',
     // Legacy routes
     'employee': '/employee',
     'supervisor': '/supervisor',

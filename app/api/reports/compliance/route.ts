@@ -5,16 +5,16 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, hasRole } from '@/lib/auth-proxy'
 
 // GET compliance reports
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only authorized roles can access reports
-    const allowedRoles = ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN',
-      'hr_officer', 'hr_director', 'chief_director', 'auditor', 'admin', 'hr']
+    const allowedRoles = ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN',
+      'hr_officer', 'hr_director', 'chief_director', 'auditor', 'internal_auditor', 'admin', 'hr', 'hr_assistant']
     
-    if (!allowedRoles.includes(user.role)) {
+    if (!hasRole(user, allowedRoles)) {
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions for compliance reports' },
         { status: 403 }

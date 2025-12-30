@@ -112,10 +112,12 @@ export async function PATCH(
     const normalizedRole = mapToMoFARole(user.role)
     
     // Only HR roles, HR Director, and SYS_ADMIN can update staff
+    // Check using helper functions for normalized role matching
+    const { isHR, isAdmin } = await import('@/lib/auth-proxy')
     if (
       !hasPermission(normalizedRole, 'employee:update') &&
-      normalizedRole !== 'hr' &&
-      normalizedRole !== 'admin'
+      !isHR(user) &&
+      !isAdmin(user)
     ) {
       return NextResponse.json(
         { error: 'Forbidden - Only HR roles can update staff members' },

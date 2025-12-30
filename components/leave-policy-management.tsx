@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Plus, Edit2, Trash2 } from 'lucide-react'
 import type { LeavePolicy } from '@/lib/data-store'
+import { StatutoryMinimumIndicator, GovernmentFormField, LegalReference } from '@/components/government'
+import { getStatutoryMinimum } from '@/lib/statutory-leave-validation'
 
 interface LeavePolicyManagementProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>

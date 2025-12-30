@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isHRDirector, isChiefDirector } from '@/lib/auth-proxy'
 import { processYearEndForAllStaff, processYearEndLeave } from '@/lib/leave-rules'
 import { prisma } from '@/lib/prisma'
 
@@ -24,18 +24,7 @@ export async function POST(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {
       // Only HR roles can trigger year-end processing
-      const allowedRoles = [
-        'HR_OFFICER',
-        'HR_DIRECTOR',
-        'CHIEF_DIRECTOR',
-        'hr',
-        'hr_officer',
-        'hr_director',
-        'hr_assistant',
-        'chief_director'
-      ]
-      
-      if (!allowedRoles.includes(user.role)) {
+      if (!isHR(user) && !isHRDirector(user) && !isChiefDirector(user)) {
         return NextResponse.json(
           {
             error: 'Forbidden - HR access required',
