@@ -148,7 +148,7 @@ The build is configured in `package.json`:
 Edit `package.json`:
 ```json
 {
-  "productName": "MoFAD HR Portal"
+  "productName": "MoFA HR Portal"
 }
 ```
 

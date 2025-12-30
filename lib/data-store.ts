@@ -18,7 +18,9 @@ export interface StaffMember {
   rank?: string | null
   step?: string | null
   directorate?: string | null
+  division?: string | null
   unit?: string | null
+  dutyStation?: string | null
   photoUrl?: string
   active: boolean
   employmentStatus?: string
@@ -26,7 +28,9 @@ export interface StaffMember {
   terminationReason?: string
   joinDate: string
   managerId?: string | null
+  immediateSupervisorId?: string | null
   createdAt: string
+  updatedAt?: string
 }
 
 export interface LeaveRequest {
@@ -38,7 +42,7 @@ export interface LeaveRequest {
   endDate: string
   days: number
   reason: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   approvedBy?: string
   approvalDate?: string
   approvalLevels?: LeaveApprovalLevel[]
@@ -46,7 +50,10 @@ export interface LeaveRequest {
   officerTakingOver?: string
   handoverNotes?: string
   declarationAccepted?: boolean
+  payrollImpactFlag?: boolean
+  locked?: boolean
   createdAt: string
+  updatedAt?: string
 }
 
 export interface LeaveBalance {

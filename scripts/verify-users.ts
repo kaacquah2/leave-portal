@@ -37,10 +37,10 @@ async function main() {
   console.log('🔍 Verifying test users...\n')
 
   const testEmails = [
-    'hr@mofad.gov.gh',
-    'manager@mofad.gov.gh',
-    'employee@mofad.gov.gh',
-    'admin@mofad.gov.gh',
+    'hr@mofa.gov.gh',
+    'manager@mofa.gov.gh',
+    'employee@mofa.gov.gh',
+    'admin@mofa.gov.gh',
   ]
 
   for (const email of testEmails) {

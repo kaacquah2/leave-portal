@@ -70,14 +70,14 @@ async function main() {
 
   // Create HR User (linked to Lucy Wambui - HR Officer)
   const hrUser = await prisma.user.upsert({
-    where: { email: 'hr@mofad.gov.gh' },
+    where: { email: 'hr@mofa.gov.gh' },
     update: {
       passwordHash,
       role: 'hr',
       active: true,
     },
     create: {
-      email: 'hr@mofad.gov.gh',
+      email: 'hr@mofa.gov.gh',
       passwordHash,
       role: 'hr',
       staffId: 'MFA-008', // Lucy Wambui - HR Officer
@@ -88,14 +88,14 @@ async function main() {
 
   // Create Manager User (linked to John Mwangi - Senior Fisheries Officer)
   const managerUser = await prisma.user.upsert({
-    where: { email: 'manager@mofad.gov.gh' },
+    where: { email: 'manager@mofa.gov.gh' },
     update: {
       passwordHash,
       role: 'manager',
       active: true,
     },
     create: {
-      email: 'manager@mofad.gov.gh',
+      email: 'manager@mofa.gov.gh',
       passwordHash,
       role: 'manager',
       staffId: 'MFA-001', // John Mwangi - Senior Fisheries Officer
@@ -106,14 +106,14 @@ async function main() {
 
   // Create Employee User (linked to Mary Wanjiku - Aquaculture Specialist)
   const employeeUser = await prisma.user.upsert({
-    where: { email: 'employee@mofad.gov.gh' },
+    where: { email: 'employee@mofa.gov.gh' },
     update: {
       passwordHash,
       role: 'employee',
       active: true,
     },
     create: {
-      email: 'employee@mofad.gov.gh',
+      email: 'employee@mofa.gov.gh',
       passwordHash,
       role: 'employee',
       staffId: 'MFA-002', // Mary Wanjiku - Aquaculture Specialist
@@ -124,14 +124,14 @@ async function main() {
 
   // Create Admin User (no staff link)
   const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@mofad.gov.gh' },
+    where: { email: 'admin@mofa.gov.gh' },
     update: {
       passwordHash,
       role: 'admin',
       active: true,
     },
     create: {
-      email: 'admin@mofad.gov.gh',
+      email: 'admin@mofa.gov.gh',
       passwordHash,
       role: 'admin',
       staffId: null,
@@ -145,10 +145,10 @@ async function main() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('   Role     | Email                      | Password')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('   HR       | hr@mofad.gov.gh           | Password123!')
-  console.log('   Manager  | manager@mofad.gov.gh     | Password123!')
-  console.log('   Employee | employee@mofad.gov.gh    | Password123!')
-  console.log('   Admin    | admin@mofad.gov.gh       | Password123!')
+  console.log('   HR       | hr@mofa.gov.gh           | Password123!')
+  console.log('   Manager  | manager@mofa.gov.gh     | Password123!')
+  console.log('   Employee | employee@mofa.gov.gh    | Password123!')
+  console.log('   Admin    | admin@mofa.gov.gh       | Password123!')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('\n💡 You can now login at http://localhost:3000')
 }

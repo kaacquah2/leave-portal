@@ -105,7 +105,7 @@ const secret = authenticator.generateSecret()
 
 // Generate QR code
 import QRCode from 'qrcode'
-const qrCodeUrl = await QRCode.toDataURL(authenticator.keyuri(email, 'MoFAD HR Portal', secret))
+const qrCodeUrl = await QRCode.toDataURL(authenticator.keyuri(email, 'MoFA HR Portal', secret))
 ```
 
 ### Report Generation

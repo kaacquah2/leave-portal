@@ -115,7 +115,7 @@ model LeaveRequest {
   endDate       DateTime
   days          Int
   reason        String
-  status        String   @default("pending") // 'pending' | 'approved' | 'rejected'
+  status        String   @default("pending") // 'pending' | 'approved' | 'rejected' | 'cancelled'
   approvedBy    String?
   approvalDate  DateTime?
   templateId    String?
