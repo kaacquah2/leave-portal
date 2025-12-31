@@ -12,6 +12,12 @@ import AdminPasswordResetRequests from '@/components/admin-password-reset-reques
 import AdminAuditLogs from '@/components/admin-audit-logs'
 import AdminSystemSettings from '@/components/admin-system-settings'
 import TwoFactorSetup from '@/components/two-factor-setup'
+import ComplianceDashboard from '@/components/compliance-dashboard'
+import PolicyManagement from '@/components/policy-management'
+import EnhancedAuditLogViewer from '@/components/enhanced-audit-log-viewer'
+import PayrollManagement from '@/components/payroll-management'
+import AssetManagement from '@/components/asset-management'
+import TrainingManagement from '@/components/training-management'
 
 interface AdminPortalProps {
   onLogout: () => void
@@ -54,11 +60,21 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
       case 'password-resets':
         return <AdminPasswordResetRequests />
       case 'audit-logs':
-        return <AdminAuditLogs />
+        return <EnhancedAuditLogViewer />
       case '2fa':
         return <TwoFactorSetup />
       case 'settings':
         return <AdminSystemSettings />
+      case 'compliance':
+        return <ComplianceDashboard />
+      case 'policies':
+        return <PolicyManagement />
+      case 'payroll':
+        return <PayrollManagement />
+      case 'assets':
+        return <AssetManagement />
+      case 'training':
+        return <TrainingManagement />
       default:
         return <AdminDashboard />
     }

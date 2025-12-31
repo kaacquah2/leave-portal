@@ -48,6 +48,16 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
       const data = await response.json()
 
       if (!response.ok) {
+        // Check if password change is required (first login or expired)
+        if (data.requiresPasswordChange && data.errorCode) {
+          const changePasswordUrl = `/change-password?email=${encodeURIComponent(email)}&${
+            data.errorCode === 'PASSWORD_CHANGE_REQUIRED' ? 'firstLogin=true' : 
+            data.errorCode === 'PASSWORD_EXPIRED' ? 'expired=true' : ''
+          }`
+          router.push(changePasswordUrl)
+          return
+        }
+
         setError(data.error || 'Invalid email or password. Please try again.')
         setErrorDetails(data as LoginError)
         setShowTroubleshooting(!!data.troubleshooting)

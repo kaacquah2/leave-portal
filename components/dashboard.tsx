@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Search, Users, FileText, BarChart3, UserCheck, Shield } from 'lucide-react'
+import { Search, Users, FileText, BarChart3, UserCheck, Shield, Clock, CheckCircle, AlertCircle, TrendingUp, Calendar, Activity } from 'lucide-react'
 import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
 import { PermissionGate } from '@/components/permission-gate'
 
@@ -234,158 +234,285 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
   const totalStaff = store.staff.filter((s: any) => s.active).length
   const activeRequests = store.leaves.filter((l: any) => l.status === 'approved').length
 
+  // Get recent pending leaves for preview
+  const recentPendingLeaves = store.leaves
+    .filter((l: any) => l.status === 'pending')
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5)
+
+  // Get approved leaves this month
+  const currentMonth = new Date().getMonth()
+  const currentYear = new Date().getFullYear()
+  const approvedThisMonth = store.leaves.filter((l: any) => {
+    if (l.status !== 'approved' || !l.approvalDate) return false
+    const approvalDate = new Date(l.approvalDate)
+    return approvalDate.getMonth() === currentMonth && approvalDate.getFullYear() === currentYear
+  }).length
+
   return (
-    <div className={`p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 bg-gradient-to-b ${theme.gradient}`}>
-      {/* Welcome Section */}
-      <div className="mb-4 sm:mb-6">
-        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-          <div className={`p-2 ${theme.iconBg} rounded-lg`}>
-            <WelcomeIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${theme.iconColor}`} />
+    <div className={`min-h-screen p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 bg-gradient-to-br ${theme.gradient} via-background to-background`}>
+      {/* Welcome Section - Enhanced */}
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`p-3 ${theme.iconBg} rounded-xl shadow-sm`}>
+              <WelcomeIcon className={`w-6 h-6 sm:w-7 sm:h-7 ${theme.iconColor}`} />
+            </div>
+            <div>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-1">Welcome Back</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">{roleDescriptions[userRole as 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'] || 'Welcome to the HR Leave Portal'}</p>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Welcome Back</h1>
+          <div className="flex items-center gap-2">
+            <span className={`inline-block px-4 py-2 ${theme.badgeBg} ${theme.badgeText} font-semibold rounded-full text-sm capitalize shadow-sm`}>
+              {userRole.replace(/_/g, ' ')} Role
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 mb-3 sm:mb-4">
-          <span className={`inline-block px-2 sm:px-3 py-1 ${theme.badgeBg} ${theme.badgeText} font-semibold rounded-full text-xs sm:text-sm capitalize`}>
-            {userRole} Role
-          </span>
-        </div>
-        <p className="text-muted-foreground text-sm sm:text-base md:text-lg">{roleDescriptions[userRole as 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'] || 'Welcome to the HR Leave Portal'}</p>
       </div>
 
-      {/* KPI Cards - Role Specific */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* KPI Cards - Role Specific - Enhanced Design */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {(userRole === 'hr' || userRole === 'hr_assistant') && (
           <>
-            <Card className={`border-2 ${theme.border}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Staff</CardTitle>
+            <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200 overflow-hidden relative`}>
+              <div className={`absolute top-0 right-0 w-32 h-32 ${theme.iconBg} opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Staff</CardTitle>
+                  <Users className={`w-5 h-5 ${theme.iconColor} opacity-60`} />
+                </div>
               </CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.totalStaff ?? 0}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {(metrics.totalStaff ?? 0) > 0 
-                    ? `${(store.staff || []).filter((s: any) => s.active).length} active employees`
-                    : 'No staff members'
-                  }
-                </p>
+                <p className={`text-4xl font-bold ${theme.accent} mb-2`}>{metrics.totalStaff ?? 0}</p>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${(store.staff || []).filter((s: any) => s.active).length > 0 ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <p className="text-xs text-muted-foreground">
+                    {(metrics.totalStaff ?? 0) > 0 
+                      ? `${(store.staff || []).filter((s: any) => s.active).length} active employees`
+                      : 'No staff members'
+                    }
+                  </p>
+                </div>
               </CardContent>
             </Card>
-            <Card className={`border-2 ${theme.border}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Pending Processing</CardTitle>
+            <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200 overflow-hidden relative ${(metrics.pendingLeaves ?? 0) > 0 ? 'border-amber-300 bg-amber-50/30' : ''}`}>
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-amber-100 opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Pending Processing</CardTitle>
+                  <Clock className="w-5 h-5 text-amber-600 opacity-60" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.pendingLeaves ?? 0}</p>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <p className={`text-4xl font-bold ${(metrics.pendingLeaves ?? 0) > 0 ? 'text-amber-600' : theme.accent}`}>{metrics.pendingLeaves ?? 0}</p>
                   {(metrics.hrPendingLeaves ?? 0) > 0 && (metrics.hrPendingLeaves ?? 0) < (metrics.pendingLeaves ?? 0) && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
                       {metrics.hrPendingLeaves} need HR
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Leave requests</p>
+                <p className="text-xs text-muted-foreground mb-1">Leave requests</p>
                 {(metrics.hrPendingLeaves ?? 0) > 0 && (
-                  <p className="text-xs text-amber-600 font-medium mt-1">
+                  <p className="text-xs text-amber-600 font-semibold mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
                     {metrics.hrPendingLeaves} awaiting your approval
                   </p>
                 )}
               </CardContent>
             </Card>
-            <Card className={`border-2 ${theme.border}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Processed</CardTitle>
+            <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200 overflow-hidden relative`}>
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-green-100 opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Processed</CardTitle>
+                  <CheckCircle className="w-5 h-5 text-green-600 opacity-60" />
+                </div>
               </CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.activeRequests}</p>
-                <p className="text-xs text-muted-foreground mt-1">Approved leaves</p>
+                <p className={`text-4xl font-bold text-green-600 mb-2`}>{metrics.activeRequests}</p>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-3 h-3 text-green-600" />
+                  <p className="text-xs text-muted-foreground">{approvedThisMonth} approved this month</p>
+                </div>
               </CardContent>
             </Card>
-            <Card className={`border-2 ${theme.border}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Activities</CardTitle>
+            <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200 overflow-hidden relative`}>
+              <div className={`absolute top-0 right-0 w-32 h-32 ${theme.iconBg} opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Activities</CardTitle>
+                  <Activity className={`w-5 h-5 ${theme.iconColor} opacity-60`} />
+                </div>
               </CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.totalAudits}</p>
-                <p className="text-xs text-muted-foreground mt-1">Recent activities</p>
+                <p className={`text-4xl font-bold ${theme.accent} mb-2`}>{metrics.totalAudits}</p>
+                <p className="text-xs text-muted-foreground">Recent activities logged</p>
               </CardContent>
             </Card>
           </>
         )}
         {(userRole === 'manager' || userRole === 'deputy_director') && (
           <>
-            <Card className={`border-2 ${theme.border}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Team Members</CardTitle>
+            <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200 overflow-hidden relative`}>
+              <div className={`absolute top-0 right-0 w-32 h-32 ${theme.iconBg} opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Team Members</CardTitle>
+                  <Users className={`w-5 h-5 ${theme.iconColor} opacity-60`} />
+                </div>
               </CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.teamMembers}</p>
-                <p className="text-xs text-muted-foreground mt-1">In your team</p>
+                <p className={`text-4xl font-bold ${theme.accent} mb-2`}>{metrics.teamMembers}</p>
+                <p className="text-xs text-muted-foreground">In your team</p>
               </CardContent>
             </Card>
-            <Card className={`border-2 ${theme.border}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approvals</CardTitle>
+            <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200 overflow-hidden relative ${(metrics.pendingApprovals ?? 0) > 0 ? 'border-amber-300 bg-amber-50/30' : ''}`}>
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-amber-100 opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approvals</CardTitle>
+                  <Clock className="w-5 h-5 text-amber-600 opacity-60" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.pendingApprovals ?? 0}</p>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <p className={`text-4xl font-bold ${(metrics.pendingApprovals ?? 0) > 0 ? 'text-amber-600' : theme.accent}`}>{metrics.pendingApprovals ?? 0}</p>
                   {(metrics.managerPendingLeaves ?? 0) > 0 && (
                     <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
                       {metrics.managerPendingLeaves} ready
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Awaiting your review</p>
+                <p className="text-xs text-muted-foreground mb-1">Awaiting your review</p>
                 {(metrics.managerPendingLeaves ?? 0) > 0 && (
-                  <p className="text-xs text-amber-600 font-medium mt-1">
-                    {metrics.managerPendingLeaves} ready for manager approval
+                  <p className="text-xs text-amber-600 font-semibold mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {metrics.managerPendingLeaves} ready for approval
                   </p>
                 )}
               </CardContent>
             </Card>
-            <Card className={`border-2 ${theme.border}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Approved This Month</CardTitle>
+            <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200 overflow-hidden relative`}>
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-green-100 opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Approved This Month</CardTitle>
+                  <Calendar className="w-5 h-5 text-green-600 opacity-60" />
+                </div>
               </CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.approvedThisMonth}</p>
-                <p className="text-xs text-muted-foreground mt-1">Team leaves</p>
+                <p className={`text-4xl font-bold text-green-600 mb-2`}>{approvedThisMonth}</p>
+                <p className="text-xs text-muted-foreground">Team leaves approved</p>
               </CardContent>
             </Card>
-            <Card className={`border-2 ${theme.border}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Leaves</CardTitle>
+            <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200 overflow-hidden relative`}>
+              <div className={`absolute top-0 right-0 w-32 h-32 ${theme.iconBg} opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Leaves</CardTitle>
+                  <FileText className={`w-5 h-5 ${theme.iconColor} opacity-60`} />
+                </div>
               </CardHeader>
               <CardContent>
-                <p className={`text-3xl font-bold ${theme.accent}`}>{metrics.teamLeaves}</p>
-                <p className="text-xs text-muted-foreground mt-1">All team requests</p>
+                <p className={`text-4xl font-bold ${theme.accent} mb-2`}>{metrics.teamLeaves}</p>
+                <p className="text-xs text-muted-foreground">All team requests</p>
               </CardContent>
             </Card>
           </>
         )}
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Enhanced */}
       {onNavigate && currentActions.length > 0 && (
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-3 sm:mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 mb-4">
+            <div className={`w-1 h-6 ${theme.iconBg} rounded-full`}></div>
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">Quick Actions</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {currentActions.map((action, idx) => {
               const Icon = action.icon
               return (
-                <Button
+                <Card
                   key={idx}
+                  className={`border-2 ${theme.border} hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer group`}
                   onClick={() => onNavigate(action.action)}
-                  variant="outline"
-                  className="h-auto p-6 flex flex-col items-center gap-3 hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
-                  <Icon className="w-8 h-8" />
-                  <span className="text-base font-semibold text-center">{action.label}</span>
-                </Button>
+                  <CardContent className="p-6 flex flex-col items-center gap-4">
+                    <div className={`p-4 ${theme.iconBg} rounded-xl group-hover:scale-110 transition-transform duration-200`}>
+                      <Icon className={`w-8 h-8 ${theme.iconColor}`} />
+                    </div>
+                    <span className="text-base font-semibold text-center text-foreground group-hover:text-primary transition-colors">
+                      {action.label}
+                    </span>
+                  </CardContent>
+                </Card>
               )
             })}
           </div>
         </div>
+      )}
+
+      {/* Recent Pending Leaves Preview - For Managers and HR */}
+      {recentPendingLeaves.length > 0 && (
+        <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200`}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className={`w-5 h-5 ${theme.iconColor}`} />
+                  Recent Pending Requests
+                </CardTitle>
+                <CardDescription className="mt-1">Latest leave requests awaiting action</CardDescription>
+              </div>
+              {onNavigate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onNavigate('leave')}
+                  className="gap-2"
+                >
+                  View All
+                  <FileText className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {recentPendingLeaves.map((leave: any) => (
+                <div
+                  key={leave.id}
+                  className="flex items-start justify-between p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => onNavigate && onNavigate('leave')}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold text-sm text-foreground">{leave.staffName}</p>
+                      <Badge variant="outline" className="text-xs">
+                        {leave.leaveType}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {leave.days} {leave.days === 1 ? 'day' : 'days'}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge className="bg-amber-100 text-amber-800 text-xs">Pending</Badge>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(leave.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Staff Search - Only for HR and HR Assistant */}
@@ -471,29 +598,50 @@ export default function Dashboard({ store, userRole, onNavigate }: DashboardProp
       </Card>
       )}
 
-      {/* Recent Activities - Different for each role */}
-      <Card className={theme.border ? `border-2 ${theme.border}` : ''}>
+      {/* Recent Activities - Enhanced */}
+      <Card className={`border-2 ${theme.border} hover:shadow-lg transition-all duration-200`}>
         <CardHeader>
-          <CardTitle>
-            {(userRole === 'hr' || userRole === 'hr_assistant') && 'Recent Activities'}
-            {(userRole === 'manager' || userRole === 'deputy_director') && 'Team Activities'}
-          </CardTitle>
-          <CardDescription>
-            {(userRole === 'hr' || userRole === 'hr_assistant') && 'Recent HR activities and changes'}
-            {(userRole === 'manager' || userRole === 'deputy_director') && 'Recent team leave activities'}
-          </CardDescription>
+          <div className="flex items-center gap-2">
+            <div className={`w-1 h-6 ${theme.iconBg} rounded-full`}></div>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className={`w-5 h-5 ${theme.iconColor}`} />
+                {(userRole === 'hr' || userRole === 'hr_assistant') && 'Recent Activities'}
+                {(userRole === 'manager' || userRole === 'deputy_director') && 'Team Activities'}
+              </CardTitle>
+              <CardDescription className="mt-1">
+                {(userRole === 'hr' || userRole === 'hr_assistant') && 'Recent HR activities and changes'}
+                {(userRole === 'manager' || userRole === 'deputy_director') && 'Recent team leave activities'}
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 max-h-64 overflow-y-auto">
-            {store.auditLogs.slice(0, 10).map((log: any) => (
-              <div key={log.id} className="flex items-start justify-between py-2 border-b border-border last:border-0">
-                <div className="space-y-1 flex-1">
-                  <p className="font-medium text-sm">{log.action}</p>
-                  <p className="text-xs text-muted-foreground">{log.details}</p>
+            {store.auditLogs.length > 0 ? (
+              store.auditLogs.slice(0, 10).map((log: any) => (
+                <div
+                  key={log.id}
+                  className="flex items-start justify-between p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors"
+                >
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${theme.iconBg}`}></div>
+                      <p className="font-semibold text-sm text-foreground">{log.action.replace(/_/g, ' ')}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground ml-4">{log.details}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                    {new Date(log.timestamp).toLocaleDateString()}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</p>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <Activity className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <p className="text-muted-foreground text-sm">No recent activities</p>
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>

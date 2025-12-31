@@ -1,0 +1,138 @@
+/**
+ * GET /api/performance/pips
+ * POST /api/performance/pips
+ * 
+ * Get and create Performance Improvement Plans
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(request: NextRequest) {
+  return withAuth(async ({ user }: AuthContext) => {
+    try {
+      const searchParams = request.nextUrl.searchParams
+      const staffId = searchParams.get('staffId')
+      const status = searchParams.get('status')
+
+      const where: any = {}
+
+      if (staffId) {
+        where.staffId = staffId
+      } else if (!['HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_officer', 'hr_director', 'admin'].includes(user.role)) {
+        if (user.staffId) {
+          where.staffId = user.staffId
+        } else {
+          return NextResponse.json([])
+        }
+      }
+
+      if (status) {
+        where.status = status
+      }
+
+      const pips = await prisma.performanceImprovementPlan.findMany({
+        where,
+        include: {
+          staff: {
+            select: {
+              staffId: true,
+              firstName: true,
+              lastName: true,
+              department: true,
+            },
+          },
+        },
+        orderBy: { startDate: 'desc' },
+      })
+
+      return NextResponse.json(pips)
+    } catch (error: any) {
+      console.error('Error fetching performance improvement plans:', error)
+      return NextResponse.json(
+        { error: error.message || 'Failed to fetch performance improvement plans' },
+        { status: 500 }
+      )
+    }
+  })(request)
+}
+
+export async function POST(request: NextRequest) {
+  return withAuth(async ({ user, request: req }: AuthContext) => {
+    try {
+      // Only HR/Admin can create PIPs
+      if (!['HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_officer', 'hr_director', 'admin'].includes(user.role)) {
+        return NextResponse.json(
+          { error: 'Forbidden - HR/Admin access required' },
+          { status: 403 }
+        )
+      }
+
+      const body = await req.json()
+      const {
+        staffId,
+        title,
+        description,
+        performanceIssues,
+        expectedOutcomes,
+        actionItems,
+        startDate,
+        endDate,
+        reviewDate,
+      } = body
+
+      if (!staffId || !title || !description || !performanceIssues || !expectedOutcomes || !actionItems || !startDate || !endDate) {
+        return NextResponse.json(
+          { error: 'All required fields must be provided' },
+          { status: 400 }
+        )
+      }
+
+      const pip = await prisma.performanceImprovementPlan.create({
+        data: {
+          staffId,
+          title,
+          description,
+          performanceIssues,
+          expectedOutcomes,
+          actionItems,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          reviewDate: reviewDate ? new Date(reviewDate) : null,
+          createdBy: user.email,
+        },
+        include: {
+          staff: {
+            select: {
+              staffId: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      })
+
+      // Create audit log
+      await prisma.auditLog.create({
+        data: {
+          action: 'PERFORMANCE_IMPROVEMENT_PLAN_CREATED',
+          user: user.email,
+          userRole: user.role,
+          staffId,
+          details: `Created Performance Improvement Plan: ${title} for ${staffId}`,
+          ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
+        },
+      })
+
+      return NextResponse.json(pip, { status: 201 })
+    } catch (error: any) {
+      console.error('Error creating performance improvement plan:', error)
+      return NextResponse.json(
+        { error: error.message || 'Failed to create performance improvement plan' },
+        { status: 500 }
+      )
+    }
+  })(request)
+}
+

@@ -158,31 +158,210 @@ export async function GET(request: NextRequest) {
         ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length
         : 0
 
-      return NextResponse.json({
-        success: true,
-        summary: {
-          total: totalLeaves,
-          pending: pendingLeaves,
-          approved: approvedLeaves,
-          rejected: rejectedLeaves,
-          approvalRate: Math.round(approvalRate * 100) / 100,
-          avgProcessingTimeHours: Math.round((avgProcessingTime / (1000 * 60 * 60)) * 100) / 100,
+      // Get approved leaves with days for calculations
+      const approvedLeavesData = await prisma.leaveRequest.findMany({
+        where: {
+          ...where,
+          status: 'approved',
         },
-        byType: typeStats,
-        byStatus: statusStats,
-        byDepartment: departmentStats,
-        recent: recentLeaves.map((leave) => ({
-          id: leave.id,
-          staffId: leave.staffId,
-          staffName: `${leave.staff?.firstName || ''} ${leave.staff?.lastName || ''}`.trim(),
-          department: leave.staff?.department,
-          leaveType: leave.leaveType,
-          startDate: leave.startDate,
-          endDate: leave.endDate,
-          days: leave.days,
-          status: leave.status,
-          createdAt: leave.createdAt,
-        })),
+        select: {
+          days: true,
+        },
+      })
+
+      const totalApprovedDays = approvedLeavesData.reduce((sum, leave) => sum + leave.days, 0)
+      const avgLeaveDuration = approvedLeavesData.length > 0
+        ? totalApprovedDays / approvedLeavesData.length
+        : 0
+
+      // Get total staff count
+      const staffWhere: any = {}
+      if (department && department !== 'all') {
+        staffWhere.department = department
+      }
+      const [totalStaff, activeStaff] = await Promise.all([
+        prisma.staffMember.count({ where: staffWhere }),
+        prisma.staffMember.count({ where: { ...staffWhere, active: true, employmentStatus: 'active' } }),
+      ])
+
+      // Generate utilization trends (monthly)
+      const utilizationTrends: Array<{ month: string; days: number; count: number }> = []
+      if (startDate && endDate) {
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        const months: Record<string, { days: number; count: number }> = {}
+
+        const approvedLeavesForTrend = await prisma.leaveRequest.findMany({
+          where: {
+            ...where,
+            status: 'approved',
+          },
+          select: {
+            startDate: true,
+            days: true,
+          },
+        })
+
+        approvedLeavesForTrend.forEach((leave) => {
+          const monthKey = new Date(leave.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+          if (!months[monthKey]) {
+            months[monthKey] = { days: 0, count: 0 }
+          }
+          months[monthKey].days += leave.days
+          months[monthKey].count += 1
+        })
+
+        Object.entries(months).forEach(([month, data]) => {
+          utilizationTrends.push({ month, ...data })
+        })
+        utilizationTrends.sort((a, b) => {
+          const dateA = new Date(a.month + ' 1')
+          const dateB = new Date(b.month + ' 1')
+          return dateA.getTime() - dateB.getTime()
+        })
+      }
+
+      // Generate department comparison
+      const departmentComparison: Array<{
+        department: string
+        totalLeaves: number
+        totalDays: number
+        approvedLeaves: number
+        approvedDays: number
+        pendingLeaves: number
+        staffCount: number
+        avgDaysPerStaff: number
+      }> = []
+
+      const deptLeaves = await prisma.leaveRequest.findMany({
+        where,
+        include: {
+          staff: {
+            select: {
+              department: true,
+            },
+          },
+        },
+      })
+
+      const deptStats: Record<string, any> = {}
+      deptLeaves.forEach((leave) => {
+        const dept = leave.staff?.department || 'Unknown'
+        if (!deptStats[dept]) {
+          deptStats[dept] = {
+            totalLeaves: 0,
+            totalDays: 0,
+            approvedLeaves: 0,
+            approvedDays: 0,
+            pendingLeaves: 0,
+            staffIds: new Set<string>(),
+          }
+        }
+        deptStats[dept].totalLeaves++
+        deptStats[dept].totalDays += leave.days
+        deptStats[dept].staffIds.add(leave.staffId)
+        if (leave.status === 'approved') {
+          deptStats[dept].approvedLeaves++
+          deptStats[dept].approvedDays += leave.days
+        } else if (leave.status === 'pending') {
+          deptStats[dept].pendingLeaves++
+        }
+      })
+
+      // Get staff counts per department
+      for (const [dept, stats] of Object.entries(deptStats)) {
+        const staffCount = await prisma.staffMember.count({
+          where: { department: dept },
+        })
+        departmentComparison.push({
+          department: dept,
+          totalLeaves: stats.totalLeaves,
+          totalDays: stats.totalDays,
+          approvedLeaves: stats.approvedLeaves,
+          approvedDays: stats.approvedDays,
+          pendingLeaves: stats.pendingLeaves,
+          staffCount,
+          avgDaysPerStaff: staffCount > 0 ? stats.approvedDays / staffCount : 0,
+        })
+      }
+
+      // Generate predictive data (monthly patterns)
+      const predictive = {
+        peakMonths: [] as Array<{ month: number; monthName: string; days: number }>,
+        monthlyPattern: [] as Array<{ month: number; monthName: string; days: number }>,
+        dayOfWeekPattern: [] as Array<{ day: number; dayName: string; count: number }>,
+        leaveTypePattern: [] as Array<{ type: string; days: number }>,
+      }
+
+      if (startDate && endDate) {
+        const approvedLeavesForPattern = await prisma.leaveRequest.findMany({
+          where: {
+            ...where,
+            status: 'approved',
+          },
+          select: {
+            startDate: true,
+            days: true,
+            leaveType: true,
+          },
+        })
+
+        // Monthly pattern
+        const monthlyData: Record<number, number> = {}
+        approvedLeavesForPattern.forEach((leave) => {
+          const month = new Date(leave.startDate).getMonth() + 1
+          monthlyData[month] = (monthlyData[month] || 0) + leave.days
+        })
+
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        Object.entries(monthlyData).forEach(([month, days]) => {
+          predictive.monthlyPattern.push({
+            month: parseInt(month),
+            monthName: monthNames[parseInt(month) - 1],
+            days,
+          })
+        })
+
+        // Leave type pattern
+        const typeData: Record<string, number> = {}
+        approvedLeavesForPattern.forEach((leave) => {
+          typeData[leave.leaveType] = (typeData[leave.leaveType] || 0) + leave.days
+        })
+        Object.entries(typeData).forEach(([type, days]) => {
+          predictive.leaveTypePattern.push({ type, days })
+        })
+      }
+
+      return NextResponse.json({
+        summary: {
+          totalLeaves,
+          approvedLeaves,
+          pendingLeaves,
+          rejectedLeaves,
+          totalApprovedDays,
+          avgLeaveDuration: Math.round(avgLeaveDuration * 100) / 100,
+          approvalRate: Math.round(approvalRate * 100) / 100,
+          totalStaff,
+          activeStaff,
+        },
+        utilizationTrends,
+        departmentComparison,
+        costAnalysis: {
+          totalCost: 0, // Cost calculation would require salary data
+          totalDays: totalApprovedDays,
+          byDepartment: departmentComparison.map((dept) => ({
+            department: dept.department,
+            totalCost: 0,
+            days: dept.approvedDays,
+          })),
+          byLeaveType: Object.entries(typeStats).map(([leaveType, count]) => ({
+            leaveType,
+            totalCost: 0,
+            days: 0, // Would need to calculate from actual leaves
+          })),
+          avgDailyCost: 0,
+        },
+        predictive,
       })
     } catch (error: any) {
       console.error('Error fetching analytics:', error)

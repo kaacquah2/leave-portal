@@ -30,10 +30,12 @@ export class OfflineService {
 
   /**
    * Check if running in Electron (offline mode available)
-   * NOTE: Offline mode is disabled - app requires internet connection
+   * For web, we use IndexedDB/localStorage for offline queue
    */
   isOfflineModeAvailable(): boolean {
-    return false; // Offline mode disabled - app requires internet
+    // Enable offline mode for both Electron and web
+    // Web uses localStorage/IndexedDB for queue
+    return true
   }
 
   /**
@@ -53,20 +55,37 @@ export class OfflineService {
     recordId: string,
     payload: any
   ): Promise<void> {
-    if (!this.isElectron) {
-      // Not in Electron, skip offline mode
-      return;
+    if (this.isElectron) {
+      // Use Electron's sync queue
+      try {
+        const electronAPI = (window as any).electronAPI;
+        if (electronAPI?.db?.addToSyncQueue) {
+          await electronAPI.db.addToSyncQueue(tableName, operation, recordId, payload);
+          console.log('[OfflineService] Added to sync queue:', tableName, operation, recordId);
+          return;
+        }
+      } catch (error) {
+        console.error('[OfflineService] Error adding to sync queue:', error);
+        throw error;
+      }
     }
 
+    // For web, use IndexedDB-based queue
     try {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.db?.addToSyncQueue) {
-        await electronAPI.db.addToSyncQueue(tableName, operation, recordId, payload);
-        console.log('[OfflineService] Added to sync queue:', tableName, operation, recordId);
-      }
+      const { offlineQueue } = await import('./offline-queue');
+      const endpoint = `/api/${tableName.toLowerCase()}${recordId ? `/${recordId}` : ''}`;
+      const method = operation === 'INSERT' ? 'POST' : operation === 'UPDATE' ? 'PATCH' : 'DELETE';
+      
+      await offlineQueue.add({
+        type: 'CUSTOM',
+        endpoint,
+        method,
+        payload: operation === 'DELETE' ? undefined : payload,
+      });
+      console.log('[OfflineService] Added to web sync queue:', tableName, operation, recordId);
     } catch (error) {
-      console.error('[OfflineService] Error adding to sync queue:', error);
-      throw error;
+      console.error('[OfflineService] Error adding to web sync queue:', error);
+      // Don't throw - allow action to continue
     }
   }
 
@@ -158,8 +177,24 @@ export class OfflineService {
    * Sync queue to server
    */
   async syncQueue(): Promise<{ success: boolean; synced: number; failed: number; errors: string[] }> {
-    if (!this.isElectron || !this.isOnline()) {
-      return { success: false, synced: 0, failed: 0, errors: ['Not online or not in Electron'] };
+    if (!this.isOnline()) {
+      return { success: false, synced: 0, failed: 0, errors: ['Not online'] };
+    }
+
+    // Use web-based queue if not in Electron
+    if (!this.isElectron) {
+      try {
+        const { offlineQueue } = await import('./offline-queue');
+        const result = await offlineQueue.process();
+        return {
+          success: result.success > 0,
+          synced: result.success,
+          failed: result.failed,
+          errors: result.errors,
+        };
+      } catch (error: any) {
+        return { success: false, synced: 0, failed: 0, errors: [error.message || 'Sync failed'] };
+      }
     }
 
     if (this.syncInProgress) {
@@ -299,11 +334,28 @@ export class OfflineService {
     // Periodic sync check (every 5 minutes when online)
     setInterval(() => {
       if (this.isOnline() && !this.syncInProgress) {
-        this.syncQueue().catch(error => {
+        this.syncQueue().then(result => {
+          if (result.synced > 0) {
+            console.log(`[OfflineService] Periodic sync: ${result.synced} items synced`);
+          }
+        }).catch(error => {
           console.error('[OfflineService] Periodic sync error:', error);
         });
       }
     }, 5 * 60 * 1000); // 5 minutes
+
+    // Also sync immediately when coming back online
+    window.addEventListener('online', () => {
+      setTimeout(() => {
+        this.syncQueue().then(result => {
+          if (result.synced > 0) {
+            console.log(`[OfflineService] Online sync: ${result.synced} items synced`);
+          }
+        }).catch(error => {
+          console.error('[OfflineService] Online sync error:', error);
+        });
+      }, 2000); // Wait 2 seconds for connection to stabilize
+    });
   }
 
   /**

@@ -40,6 +40,7 @@ model User {
   pushSubscription PushSubscription?
   privacyAcknowledgement PrivacyAcknowledgement?
   passwordHistory PasswordHistory[]
+  notificationPreference NotificationPreference?
 }
 
 model Session {
@@ -95,6 +96,10 @@ model StaffMember {
   leaveBalance      LeaveBalance?
   payslips          Payslip[]
   performanceReviews PerformanceReview[]
+  performanceGoals PerformanceGoal[]
+  feedback360 Feedback360[]
+  performanceImprovementPlans PerformanceImprovementPlan[]
+  promotions Promotion[]
   attendances      Attendance[]
   timesheets        Timesheet[]
   disciplinaryActions DisciplinaryAction[]
@@ -107,6 +112,10 @@ model StaffMember {
   delegations       ApprovalDelegation[] @relation("Delegator") // As delegator
   delegatedTo       ApprovalDelegation[] @relation("Delegatee") // As delegatee
   balanceOverrides  LeaveBalanceOverride[]
+  exitInterviews    ExitInterview[]
+  assets            Asset[]
+  payrollItems      PayrollItem[]
+  trainingCertificates TrainingCertificate[]
 }
 
 model LeaveRequest {
@@ -319,6 +328,122 @@ model PerformanceReview {
 
   // Relations
   staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  performanceGoals PerformanceGoal[]
+}
+
+// Performance Goals (separate tracking from review goals)
+model PerformanceGoal {
+  id          String   @id @default(cuid())
+  staffId     String
+  title       String
+  description String?
+  category    String   // 'performance' | 'development' | 'behavioral' | 'skill'
+  targetValue String?  // Target metric/value
+  currentValue String? // Current progress
+  dueDate     DateTime?
+  status      String   @default("active") // 'active' | 'completed' | 'cancelled' | 'on_hold'
+  progress    Int      @default(0) // 0-100 percentage
+  reviewId    String?  // Link to performance review if created during review
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  review PerformanceReview? @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+
+  @@index([staffId, status])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// 360-Degree Feedback
+model Feedback360 {
+  id                   String   @id @default(cuid())
+  staffId              String   // Employee being reviewed
+  reviewerId           String   // Staff ID of reviewer
+  reviewerName         String
+  reviewerRole         String   // 'peer' | 'subordinate' | 'manager' | 'client' | 'other'
+  reviewPeriod         String   // e.g., "2024 Q1"
+  rating               Int      // 1-5 overall rating
+  strengths            String[]
+  areasForImprovement  String[]
+  communication        Int?     // 1-5 rating
+  teamwork             Int?     // 1-5 rating
+  leadership           Int?     // 1-5 rating (if applicable)
+  problemSolving      Int?     // 1-5 rating
+  comments             String?
+  anonymous            Boolean  @default(false)
+  status               String   @default("draft") // 'draft' | 'submitted' | 'reviewed'
+  submittedAt          DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId, reviewPeriod])
+  @@index([reviewerId])
+  @@index([status])
+}
+
+// Performance Improvement Plans (PIPs)
+model PerformanceImprovementPlan {
+  id              String   @id @default(cuid())
+  staffId         String
+  title           String
+  description     String
+  performanceIssues String[] // Array of identified issues
+  expectedOutcomes String[] // Expected improvements
+  actionItems     Json     // Array of {task, dueDate, responsible, status}
+  startDate       DateTime
+  endDate         DateTime
+  reviewDate      DateTime? // Next review date
+  status          String   @default("active") // 'active' | 'completed' | 'extended' | 'terminated'
+  createdBy       String
+  approvedBy     String?
+  approvedAt      DateTime?
+  progressNotes  String[] // Progress tracking notes
+  outcome         String? // 'successful' | 'partially_successful' | 'unsuccessful' | null
+  outcomeNotes     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId, status])
+  @@index([status])
+  @@index([startDate])
+}
+
+// Promotion Tracking
+model Promotion {
+  id            String   @id @default(cuid())
+  staffId       String
+  fromPosition  String
+  fromGrade     String?
+  fromLevel     String?
+  toPosition    String
+  toGrade       String?
+  toLevel       String?
+  promotionDate DateTime
+  effectiveDate DateTime
+  salaryIncrease Float?   // Percentage or amount
+  reason        String
+  approvedBy    String
+  approvedAt    DateTime
+  status        String   @default("pending") // 'pending' | 'approved' | 'rejected' | 'completed'
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([status])
+  @@index([promotionDate])
 }
 
 model LeavePolicy {
@@ -600,9 +725,13 @@ model SalaryStructure {
   allowances  Json?    // {housing: 0, transport: 0, medical: 0, etc.}
   deductions  Json?    // {tax: 0, pension: 0, loan: 0, etc.}
   effectiveDate DateTime
+  effectiveFrom DateTime? // Alias for effectiveDate (for compatibility)
   endDate     DateTime?
   approvedBy  String
   notes       String?
+  grade       String?  // Grade level
+  position    String?  // Position title
+  active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -610,6 +739,8 @@ model SalaryStructure {
   staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
 
   @@index([staffId, effectiveDate])
+  @@index([grade])
+  @@index([active])
 }
 
 model Payroll {
@@ -627,6 +758,9 @@ model Payroll {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Relations
+  items       PayrollItem[]
+
   @@unique([period])
   @@index([year, month, status])
 }
@@ -637,18 +771,25 @@ model TrainingProgram {
   description String
   provider    String
   type        String   // 'internal' | 'external' | 'online'
+  category    String?  // Training category
   startDate   DateTime
   endDate     DateTime
   location    String?
   capacity    Int?
+  duration    Int?     // Duration in hours
+  cost        Float?   // Cost in GHS
+  maxParticipants Int? // Max participants
+  createdBy   String?  // User who created
   status      String   @default("scheduled") // 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
-  attendees TrainingAttendance[]
+  attendees   TrainingAttendance[]
+  certificates TrainingCertificate[]
 
   @@index([status, startDate])
+  @@index([category])
 }
 
 model TrainingAttendance {
@@ -952,6 +1093,120 @@ model PasswordHistory {
   user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId, createdAt])
+}
+
+// Notification Preferences (Employee Notification System Enhancement)
+model NotificationPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  emailEnabled          Boolean  @default(true)
+  pushEnabled           Boolean  @default(true)
+  inAppEnabled          Boolean  @default(true)
+  leaveNotifications    Boolean  @default(true)
+  approvalNotifications Boolean  @default(true)
+  systemNotifications   Boolean  @default(true)
+  reminderNotifications Boolean  @default(true)
+  escalationNotifications Boolean @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Payroll Item (Individual staff payroll records)
+model PayrollItem {
+  id              String   @id @default(cuid())
+  payrollId       String
+  staffId         String
+  basicSalary     Decimal  @db.Decimal(10, 2)
+  allowances      Decimal  @default(0) @db.Decimal(10, 2)
+  grossSalary     Decimal  @db.Decimal(10, 2)
+  taxDeduction    Decimal  @default(0) @db.Decimal(10, 2)
+  pensionDeduction Decimal @default(0) @db.Decimal(10, 2)
+  otherDeductions Decimal  @default(0) @db.Decimal(10, 2)
+  netSalary       Decimal  @db.Decimal(10, 2)
+  status          String   @default("draft") // 'draft' | 'approved' | 'processed' | 'paid'
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  payroll         Payroll  @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  staff           StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([payrollId])
+  @@index([staffId])
+  @@index([status])
+}
+
+// Exit Interview (Employee Onboarding & Offboarding)
+model ExitInterview {
+  id                String   @id @default(cuid())
+  staffId           String
+  interviewDate     DateTime
+  conductedBy       String
+  reasonForLeaving  String?
+  satisfactionRating Int?    // 1-5
+  feedback          String?
+  recommendations   String?
+  status            String   @default("scheduled") // 'scheduled' | 'completed' | 'cancelled'
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  staff             StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([status])
+}
+
+// Asset Tracking (Employee Onboarding & Offboarding)
+model Asset {
+  id            String    @id @default(cuid())
+  assetNumber   String    @unique
+  assetName     String
+  assetType     String    // 'laptop' | 'phone' | 'vehicle' | 'furniture' | 'other'
+  serialNumber  String?
+  assignedTo    String?   // staffId
+  assignedDate  DateTime?
+  returnedDate  DateTime?
+  status        String    @default("available") // 'available' | 'assigned' | 'returned' | 'damaged' | 'lost'
+  condition     String?   // 'new' | 'good' | 'fair' | 'poor'
+  notes         String?
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  staff         StaffMember? @relation(fields: [assignedTo], references: [staffId], onDelete: SetNull)
+
+  @@index([assignedTo])
+  @@index([status])
+}
+
+// Training Certificate (Training & Development)
+model TrainingCertificate {
+  id                  String    @id @default(cuid())
+  staffId             String
+  trainingProgramId   String?
+  certificateNumber   String    @unique
+  certificateName     String
+  issuingOrganization String
+  issueDate           DateTime
+  expiryDate          DateTime?
+  fileUrl             String?
+  verified            Boolean   @default(false)
+  verifiedBy           String?
+  verifiedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  staff               StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  trainingProgram     TrainingProgram? @relation(fields: [trainingProgramId], references: [id], onDelete: SetNull)
+
+  @@index([staffId])
+  @@index([trainingProgramId])
 }
 
 // Add relations to existing models

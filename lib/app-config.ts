@@ -12,7 +12,7 @@ export const APP_CONFIG = {
   
   // Organization details
   organizationName: 'Ministry of Fisheries and Aquaculture',
-  organizationNameShort: 'Ministry of Fisheries & Aquaculture (MoFA)',
+  organizationNameShort: 'Ministry of Fisheries and Aquaculture (MoFA)',
   
   // Full title for metadata
   fullTitle: 'MoFA Staff Management & Leave Portal | Ministry of Fisheries and Aquaculture',

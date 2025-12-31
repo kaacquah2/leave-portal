@@ -65,7 +65,8 @@ export default function AdminPasswordResetRequests() {
 
       if (response.ok) {
         const data = await response.json()
-        setRequests(data)
+        // API returns { success: true, requests: [...], total: ..., ... }
+        setRequests(Array.isArray(data) ? data : (data.requests || []))
       }
     } catch (error) {
       console.error('Error fetching password reset requests:', error)

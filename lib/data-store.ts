@@ -455,12 +455,40 @@ export function useDataStore(options?: {
       ])
 
       if (leavesRes.ok && 'json' in leavesRes) {
-        const data = await leavesRes.json()
-        setLeaves(transformDates(data))
+        const data = transformDates(await leavesRes.json())
+        // Use selective update to minimize re-renders
+        setLeaves(prev => applySelectiveUpdate(prev, data))
       }
       if (balancesRes.ok && 'json' in balancesRes) {
-        const data = await balancesRes.json()
-        setBalances(transformDates(data))
+        const data = transformDates(await balancesRes.json()) as LeaveBalance[]
+        // Use selective update for balances
+        setBalances(prev => {
+          const prevMap = new Map<string, LeaveBalance>()
+          prev.forEach(b => prevMap.set(b.staffId, b))
+          
+          const updated: LeaveBalance[] = []
+          const processedStaffIds = new Set<string>()
+          
+          prev.forEach(item => {
+            processedStaffIds.add(item.staffId)
+            const updatedItem = data.find(d => d.staffId === item.staffId)
+            if (updatedItem) {
+              if (JSON.stringify(item) !== JSON.stringify(updatedItem)) {
+                updated.push(updatedItem)
+              } else {
+                updated.push(item) // Keep original reference
+              }
+            }
+          })
+          
+          data.forEach(item => {
+            if (!processedStaffIds.has(item.staffId)) {
+              updated.push(item)
+            }
+          })
+          
+          return updated
+        })
       }
     } catch (error) {
       console.error('Error fetching critical data:', error)

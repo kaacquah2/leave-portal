@@ -6,6 +6,9 @@ import { Settings, Save, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import type { ComponentType } from 'react'
 import PushNotificationSettings from '@/components/push-notification-settings'
+import UserRoleManagement from '@/components/user-role-management'
+import AuditLogViewer from '@/components/audit-log-viewer'
+import SystemHealth from '@/components/system-health'
 
 // Type-safe icon components to work around React 19 type issues
 const SaveIcon = Save as ComponentType<{ className?: string }>
@@ -188,7 +191,15 @@ export default function AdminSystemSettings() {
       <div className="mt-6">
         <PushNotificationSettings />
       </div>
+
+      {/* User Role Management */}
+      <div className="mt-6">
+        <UserRoleManagement />
+      </div>
     </div>
   )
 }
+
+// Export additional components for use in separate pages
+export { AuditLogViewer, SystemHealth }
 

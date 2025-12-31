@@ -142,12 +142,25 @@ export async function GET(request: NextRequest) {
       // Sort by timestamp
       history.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
-      return NextResponse.json({
-        success: true,
+      // Format for component expectations
+      const formattedHistory = history.map((entry) => ({
+        id: entry.id,
         leaveRequestId,
-        history,
-        total: history.length,
-      })
+        action: entry.action,
+        performedBy: entry.actor?.staffId || (entry.actor && 'email' in entry.actor ? entry.actor.email : undefined) || 'system',
+        performedByName: entry.actor?.name || 'System',
+        performedAt: entry.timestamp instanceof Date ? entry.timestamp.toISOString() : entry.timestamp,
+        level: entry.level,
+        comments: entry.comment,
+        previousStatus: 'previousStatus' in entry ? entry.previousStatus : undefined,
+        newStatus: 'newStatus' in entry ? entry.newStatus : undefined,
+        metadata: {
+          role: entry.role,
+          ...(entry.actor && 'email' in entry.actor && { email: entry.actor.email }),
+        },
+      }))
+
+      return NextResponse.json(formattedHistory)
     } catch (error: any) {
       console.error('Error fetching approval history:', error)
       return NextResponse.json(
