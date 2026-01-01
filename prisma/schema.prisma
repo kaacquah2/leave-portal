@@ -14,7 +14,7 @@ model User {
   id            String   @id @default(cuid())
   email         String   @unique
   passwordHash  String
-  role          String   // Ghana Government roles: 'employee' | 'supervisor' | 'unit_head' | 'division_head' | 'directorate_head' | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor' | 'admin' | Legacy: 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'
+  role          String   // MoFA Government HR roles: 'EMPLOYEE' | 'SUPERVISOR' | 'UNIT_HEAD' | 'DIVISION_HEAD' | 'DIRECTOR' | 'REGIONAL_MANAGER' | 'HR_OFFICER' | 'HR_DIRECTOR' | 'CHIEF_DIRECTOR' | 'AUDITOR' | 'SYSTEM_ADMIN' | 'SECURITY_ADMIN' | Legacy: 'employee' | 'supervisor' | 'unit_head' | 'division_head' | 'directorate_head' | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor' | 'admin' | 'SYS_ADMIN' | 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'
   staffId       String?  @unique
   active        Boolean  @default(true)
   emailVerified Boolean  @default(false)
@@ -22,9 +22,6 @@ model User {
   // Security enhancements
   passwordChangedAt DateTime? // Track password change date
   passwordExpiresAt DateTime? // Password expiration date
-  twoFactorEnabled Boolean @default(false)
-  twoFactorSecret String?  // TOTP secret
-  twoFactorBackupCodes String[] // Backup codes
   sessionTimeout Int @default(1800) // Session timeout in seconds (default 30 minutes)
   failedLoginAttempts Int @default(0)
   lockedUntil DateTime? // Account lock until this date
@@ -83,6 +80,7 @@ model StaffMember {
   terminationDate DateTime?
   terminationReason String?
   joinDate         DateTime
+  confirmationDate DateTime? // Date when staff was confirmed (after probation period)
   managerId        String?  // Staff ID of the manager (for team assignment)
   immediateSupervisorId String? // Staff ID of immediate supervisor/line manager
   createdAt        DateTime @default(now())
@@ -94,6 +92,8 @@ model StaffMember {
   teamMembers       StaffMember[] @relation("TeamMembers")
   leaveRequests     LeaveRequest[]
   leaveBalance      LeaveBalance?
+  leaveDefermentRequests LeaveDefermentRequest[]
+  leaveEncashmentRequests LeaveEncashmentRequest[]
   payslips          Payslip[]
   performanceReviews PerformanceReview[]
   performanceGoals PerformanceGoal[]
@@ -460,6 +460,68 @@ model LeavePolicy {
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// Leave Deferment Request - For exceptional cases before year-end
+model LeaveDefermentRequest {
+  id                      String   @id @default(cuid())
+  staffId                 String
+  leaveType               String   // 'Annual' | 'Sick' | 'Special Service' | 'Training' | 'Study'
+  unusedDays              Float
+  reason                  String   // National duty, emergency assignment, staff shortages
+  reasonCode              String?  // Standardized reason code
+  status                  String   @default("pending") // pending | supervisor_approved | hr_validated | approved | rejected
+  supervisorRecommendation String? // Supervisor's recommendation
+  supervisorApprovedBy    String?  // User ID of supervisor who approved
+  supervisorApprovedAt    DateTime?
+  hrValidation            String?  // HR's validation notes
+  hrValidatedBy           String?  // User ID of HR officer who validated
+  hrValidatedAt           DateTime?
+  authorizedOfficer       String?  // Authorized officer name/ID
+  authorizedOfficerApprovedBy String? // User ID of authorized officer
+  authorizedOfficerApprovedAt DateTime?
+  approvedBy              String?  // Final approver user ID
+  approvedAt              DateTime?
+  rejectedBy              String?
+  rejectedAt              DateTime?
+  rejectionReason         String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Leave Encashment Request - Very restricted, only for retirement/exit/special authorization
+model LeaveEncashmentRequest {
+  id            String   @id @default(cuid())
+  staffId       String
+  leaveType     String   // 'Annual' | 'Sick' | 'Special Service'
+  days          Float
+  reason        String   // 'retirement' | 'exit' | 'special_authorization'
+  reasonCode    String?  // Standardized reason code
+  reasonDetails String?  // Additional details for special authorization
+  status        String   @default("pending") // pending | approved | rejected
+  authorizedBy  String?  // HR Director or Chief Director user ID
+  approvedAt    DateTime?
+  rejectedBy    String?
+  rejectedAt    DateTime?
+  rejectionReason String?
+  amount        Float?   // Calculated encashment amount (if applicable)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([status])
+  @@index([reason])
+  @@index([createdAt])
 }
 
 model Holiday {

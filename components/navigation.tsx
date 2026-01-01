@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, Users, Calendar, BarChart3, LogOut, FileText, CalendarDays, FileCheck, CalendarCheck, Menu, UserCheck, CalendarClock, UserCog, Building2 } from 'lucide-react'
+import { LayoutDashboard, Users, Calendar, BarChart3, LogOut, FileText, CalendarDays, FileCheck, CalendarCheck, Menu, UserCheck, CalendarClock, UserCog, Building2, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
@@ -47,14 +47,16 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
       label: 'Dashboard', 
       icon: LayoutDashboard, 
       roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'EMPLOYEE', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
-      permission: 'employee:view:all' // Basic view permission
+      // Dashboard accessible to all - no specific permission required
     },
     { 
       id: 'staff', 
-      label: (userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'HR_OFFICER' || userRole === 'HR_DIRECTOR') ? 'Staff Management' : 'My Team', 
+      label: (userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'HR_OFFICER' || userRole === 'HR_DIRECTOR' || (userRole as string) === 'hr_officer' || (userRole as string) === 'hr_director') ? 'Staff Management' : 
+             (userRole === 'CHIEF_DIRECTOR' || (userRole as string) === 'chief_director') ? 'Staff Directory' : 'My Team', 
       icon: Users, 
-      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
-      permission: 'employee:view:all' // HR can view all, managers view team
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'hr_officer', 'hr_director', 'chief_director'],
+      // Check both view:all (HR) and view:team (managers/supervisors)
+      permission: undefined // Will be checked in portal component
     },
     { 
       id: 'manager-assignment', 
@@ -68,7 +70,8 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
       label: (userRole === 'manager' || userRole === 'deputy_director' || userRole === 'SUPERVISOR' || userRole === 'UNIT_HEAD' || userRole === 'DIVISION_HEAD' || userRole === 'DIRECTOR' || userRole === 'REGIONAL_MANAGER') ? 'Approve Leaves' : 'Leave Management', 
       icon: Calendar, 
       roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'EMPLOYEE', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
-      permission: 'leave:view:all' // HR views all, managers view team
+      // Check both view:all (HR) and view:team (managers/supervisors)
+      permission: undefined // Will be checked in portal component
     },
     { 
       id: 'delegation', 
@@ -78,39 +81,69 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
       permission: 'leave:approve:team' // Can delegate approvals
     },
     { 
+      id: 'deferment', 
+      label: 'Deferment Request', 
+      icon: Calendar,
+      roles: ['EMPLOYEE', 'employee', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'supervisor', 'manager'],
+      // Employees can create, supervisors/HR can view
+    },
+    { 
+      id: 'encashment', 
+      label: 'Encashment', 
+      icon: DollarSign,
+      roles: ['HR_DIRECTOR', 'CHIEF_DIRECTOR', 'hr_director', 'chief_director'],
+      // Only HR Director or Chief Director
+    },
+    { 
       id: 'holidays', 
       label: 'Holidays', 
       icon: CalendarCheck, 
-      roles: ['hr'],
+      roles: ['hr', 'hr_assistant', 'HR_OFFICER', 'HR_DIRECTOR', 'hr_officer', 'hr_director'],
       permission: 'leave:policy:manage' // Part of policy management
     },
     { 
       id: 'leave-templates', 
       label: 'Leave Templates', 
       icon: FileText, 
-      roles: ['hr'],
+      roles: ['hr', 'hr_assistant', 'HR_OFFICER', 'HR_DIRECTOR', 'hr_officer', 'hr_director'],
       permission: 'leave:policy:manage' // Part of policy management
     },
     { 
       id: 'year-end', 
       label: 'Year-End Processing', 
       icon: CalendarClock, 
-      roles: ['hr'],
+      roles: ['hr', 'hr_assistant', 'HR_OFFICER', 'HR_DIRECTOR', 'hr_officer', 'hr_director'],
       permission: 'leave:policy:manage' // Year-end processing
+    },
+    { 
+      id: 'calendar', 
+      label: 'Leave Calendar', 
+      icon: CalendarDays, 
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'EMPLOYEE', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
+      permission: undefined // Will be checked in portal component
+    },
+    { 
+      id: 'availability', 
+      label: 'Availability', 
+      icon: Users, 
+      roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'EMPLOYEE', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
+      permission: undefined // Will be checked in portal component
     },
     { 
       id: 'reports', 
       label: 'Reports', 
       icon: BarChart3, 
       roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN'],
-      permission: 'reports:hr:view' // View reports
+      // Check both hr:view (HR) and team:view (managers/supervisors)
+      permission: undefined // Will be checked in portal component
     },
     { 
       id: 'organizational-structure', 
       label: 'Organizational Structure', 
       icon: Building2, 
       roles: ['hr', 'hr_assistant', 'manager', 'deputy_director', 'employee', 'admin', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'EMPLOYEE'],
-      permission: 'employee:view:all' // View organizational structure
+      // Supervisors can view own unit, so allow this
+      permission: undefined // Will be checked in portal component
     },
   ]
 
@@ -129,6 +162,32 @@ export default function Navigation({ activeTab, setActiveTab, userRole, onLogout
       }
       return hasAccess
     }
+    // For items without explicit permission, check based on item type
+    if (item.id === 'staff') {
+      // Staff view: check for view:all (HR) or view:team (managers/supervisors)
+      return hasPermission(userRole as UserRole, 'employee:view:all') || 
+             hasPermission(userRole as UserRole, 'employee:view:team')
+    }
+    if (item.id === 'leave') {
+      // Leave view: check for view:all (HR) or view:team (managers/supervisors) or view:own (employees)
+      return hasPermission(userRole as UserRole, 'leave:view:all') || 
+             hasPermission(userRole as UserRole, 'leave:view:team') ||
+             hasPermission(userRole as UserRole, 'employee:leave:view:own')
+    }
+    if (item.id === 'reports') {
+      // Reports: check for hr:view (HR) or team:view (managers/supervisors) or system:view (executives)
+      return hasPermission(userRole as UserRole, 'reports:hr:view') || 
+             hasPermission(userRole as UserRole, 'reports:team:view') ||
+             hasPermission(userRole as UserRole, 'reports:system:view')
+    }
+    if (item.id === 'organizational-structure') {
+      // Org structure: check for view:all (HR) or view:own (managers/supervisors)
+      return hasPermission(userRole as UserRole, 'org:view:all') || 
+             hasPermission(userRole as UserRole, 'unit:view:own') ||
+             hasPermission(userRole as UserRole, 'directorate:view:own') ||
+             hasPermission(userRole as UserRole, 'region:view:own')
+    }
+    // Dashboard and other items without explicit permission are accessible
     return true
   })
 

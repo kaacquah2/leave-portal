@@ -116,7 +116,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director',
     'EMPLOYEE', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR',
     'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR',
-    'AUDITOR', 'SYS_ADMIN'
+    'AUDITOR', 'SYSTEM_ADMIN', 'SYS_ADMIN', 'SECURITY_ADMIN'
   ] 
 })
 
@@ -281,6 +281,7 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         active: body.active ?? true,
         employmentStatus: body.employmentStatus || 'active',
         joinDate: body.joinDate ? new Date(body.joinDate) : new Date(),
+        confirmationDate: body.confirmationDate ? new Date(body.confirmationDate) : null,
         managerId: body.managerId || null,
         immediateSupervisorId: body.immediateSupervisorId || null,
       },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isEmployee, isManager } from '@/lib/auth-proxy'
+import { READ_ONLY_ROLES } from '@/lib/role-utils'
 import { calculateLeaveDays } from '@/lib/leave-calculation-utils'
 import { validateLeaveBalance, checkOverlappingLeaves } from '@/lib/leave-balance-utils'
 import { getNextApprovers } from '@/lib/approval-workflow'
@@ -69,35 +70,48 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error fetching leaves:', error)
     return NextResponse.json({ error: 'Failed to fetch leave requests' }, { status: 500 })
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'EMPLOYEE', 'AUDITOR', 'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager', 'auditor', 'internal_auditor'] })
+}, { allowedRoles: READ_ONLY_ROLES })
 
 // POST create leave request
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const body = await request.json()
     
-    // Validate required fields (MoFA Compliance)
-    if (!body.staffId || !body.leaveType || !body.startDate || !body.endDate || !body.reason) {
-      return NextResponse.json(
-        { error: 'Missing required fields: staffId, leaveType, startDate, endDate, reason' },
-        { status: 400 }
-      )
-    }
+    // Check if this is a draft (draft has relaxed validation)
+    const isDraft = body.status === 'draft'
+    
+    // Validate required fields (MoFA Compliance) - relaxed for drafts
+    if (!isDraft) {
+      if (!body.staffId || !body.leaveType || !body.startDate || !body.endDate || !body.reason) {
+        return NextResponse.json(
+          { error: 'Missing required fields: staffId, leaveType, startDate, endDate, reason' },
+          { status: 400 }
+        )
+      }
 
-    // Validate MoFA compliance fields
-    if (!body.officerTakingOver || !body.handoverNotes || !body.declarationAccepted) {
-      return NextResponse.json(
-        { error: 'Missing required MoFA compliance fields: officerTakingOver, handoverNotes, declarationAccepted' },
-        { status: 400 }
-      )
-    }
+      // Validate MoFA compliance fields (not required for drafts)
+      if (!body.officerTakingOver || !body.handoverNotes || !body.declarationAccepted) {
+        return NextResponse.json(
+          { error: 'Missing required MoFA compliance fields: officerTakingOver, handoverNotes, declarationAccepted' },
+          { status: 400 }
+        )
+      }
 
-    // Validate reason length (minimum 20 characters)
-    if (body.reason.trim().length < 20) {
-      return NextResponse.json(
-        { error: 'Reason for leave must be at least 20 characters long' },
-        { status: 400 }
-      )
+      // Validate reason length (minimum 20 characters) - not required for drafts
+      if (body.reason.trim().length < 20) {
+        return NextResponse.json(
+          { error: 'Reason for leave must be at least 20 characters long' },
+          { status: 400 }
+        )
+      }
+    } else {
+      // For drafts, only staffId and leaveType are required
+      if (!body.staffId || !body.leaveType) {
+        return NextResponse.json(
+          { error: 'Missing required fields for draft: staffId, leaveType' },
+          { status: 400 }
+        )
+      }
     }
 
     // RBAC: Check if user can create leave request for this staff member
@@ -138,45 +152,60 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       )
     }
 
-    // Calculate days (excluding holidays)
-    const startDate = new Date(body.startDate)
-    const endDate = new Date(body.endDate)
+    // Calculate days (excluding holidays) - handle drafts with missing dates
+    let startDate: Date
+    let endDate: Date
+    let days: number
     
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid date format' },
-        { status: 400 }
+    if (isDraft && (!body.startDate || !body.endDate)) {
+      // For drafts, use default dates if not provided
+      const today = new Date()
+      startDate = body.startDate ? new Date(body.startDate) : today
+      endDate = body.endDate ? new Date(body.endDate) : today
+      days = body.days || 1
+    } else {
+      startDate = new Date(body.startDate)
+      endDate = new Date(body.endDate)
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid date format' },
+          { status: 400 }
+        )
+      }
+
+      if (startDate > endDate) {
+        return NextResponse.json(
+          { error: 'Start date must be before end date' },
+          { status: 400 }
+        )
+      }
+
+      const daysCalculation = await calculateLeaveDays(startDate, endDate, true)
+      days = body.days || daysCalculation.workingDays
+    }
+
+    // Get staff organizational info for MoFA workflow (skip approval workflow for drafts)
+    let approvalLevels: any[] = []
+    if (!isDraft) {
+      const staffOrgInfo = await getStaffOrganizationalInfo(body.staffId)
+      if (!staffOrgInfo) {
+        return NextResponse.json(
+          { error: 'Staff organizational information not found' },
+          { status: 404 }
+        )
+      }
+
+      // Determine MoFA approval workflow based on organizational structure
+      approvalLevels = await determineMoFAApprovalWorkflow(
+        staffOrgInfo,
+        body.leaveType,
+        days
       )
     }
 
-    if (startDate > endDate) {
-      return NextResponse.json(
-        { error: 'Start date must be before end date' },
-        { status: 400 }
-      )
-    }
-
-    const daysCalculation = await calculateLeaveDays(startDate, endDate, true)
-    const days = body.days || daysCalculation.workingDays
-
-    // Get staff organizational info for MoFA workflow
-    const staffOrgInfo = await getStaffOrganizationalInfo(body.staffId)
-    if (!staffOrgInfo) {
-      return NextResponse.json(
-        { error: 'Staff organizational information not found' },
-        { status: 404 }
-      )
-    }
-
-    // Determine MoFA approval workflow based on organizational structure
-    const approvalLevels = await determineMoFAApprovalWorkflow(
-      staffOrgInfo,
-      body.leaveType,
-      days
-    )
-
-    // Validate leave balance (for paid leave types)
-    if (body.leaveType !== 'Unpaid') {
+    // Validate leave balance (for paid leave types) - skip for drafts
+    if (!isDraft && body.leaveType !== 'Unpaid') {
       const balanceValidation = await validateLeaveBalance(
         body.staffId,
         body.leaveType,
@@ -195,35 +224,37 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       }
     }
 
-    // CRITICAL FIX: Check for overlapping leave requests
-    const overlapCheck = await checkOverlappingLeaves(
-      body.staffId,
-      startDate,
-      endDate
-    )
-    
-    if (overlapCheck.hasOverlap) {
-      return NextResponse.json(
-        {
-          error: 'Overlapping leave request exists. You already have a pending or approved leave request for these dates.',
-          errorCode: 'OVERLAPPING_LEAVE',
-          overlappingLeaves: overlapCheck.overlappingLeaves.map(leave => ({
-            id: leave.id,
-            leaveType: leave.leaveType,
-            startDate: leave.startDate,
-            endDate: leave.endDate,
-            days: leave.days,
-            status: leave.status,
-          })),
-          troubleshooting: [
-            'You cannot have multiple leave requests with overlapping dates',
-            'Please cancel or modify your existing leave request first',
-            'Or choose different dates that do not overlap',
-            'Contact HR if you need assistance',
-          ],
-        },
-        { status: 400 }
+    // CRITICAL FIX: Check for overlapping leave requests (skip for drafts)
+    if (!isDraft && body.startDate && body.endDate) {
+      const overlapCheck = await checkOverlappingLeaves(
+        body.staffId,
+        startDate,
+        endDate
       )
+      
+      if (overlapCheck.hasOverlap) {
+        return NextResponse.json(
+          {
+            error: 'Overlapping leave request exists. You already have a pending or approved leave request for these dates.',
+            errorCode: 'OVERLAPPING_LEAVE',
+            overlappingLeaves: overlapCheck.overlappingLeaves.map(leave => ({
+              id: leave.id,
+              leaveType: leave.leaveType,
+              startDate: leave.startDate,
+              endDate: leave.endDate,
+              days: leave.days,
+              status: leave.status,
+            })),
+            troubleshooting: [
+              'You cannot have multiple leave requests with overlapping dates',
+              'Please cancel or modify your existing leave request first',
+              'Or choose different dates that do not overlap',
+              'Contact HR if you need assistance',
+            ],
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Flag unpaid leave for payroll impact
@@ -238,14 +269,14 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         startDate,
         endDate,
         days,
-        reason: body.reason,
-        status: 'pending',
+        reason: body.reason || (isDraft ? 'Draft leave request' : ''),
+        status: isDraft ? 'draft' : 'pending',
         templateId: body.templateId,
         approvalLevels: approvalLevels.length > 0 ? (approvalLevels as any) : undefined, // Legacy support
-        // MoFA Compliance fields
-        officerTakingOver: body.officerTakingOver,
-        handoverNotes: body.handoverNotes,
-        declarationAccepted: body.declarationAccepted,
+        // MoFA Compliance fields (optional for drafts)
+        officerTakingOver: body.officerTakingOver || (isDraft ? undefined : null),
+        handoverNotes: body.handoverNotes || (isDraft ? undefined : null),
+        declarationAccepted: isDraft ? false : (body.declarationAccepted || false),
         payrollImpactFlag,
         locked: false, // Will be locked after final approval
       },
@@ -290,8 +321,8 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       userAgent,
     })
 
-    // Create notifications for approvers using MoFA notification service
-    if (approvalLevels && approvalLevels.length > 0) {
+    // Create notifications for approvers using MoFA notification service (skip for drafts)
+    if (!isDraft && approvalLevels && approvalLevels.length > 0) {
       const nextApprovers = getNextMoFAApprovers(approvalLevels)
       
       // Find users with the approver roles
@@ -325,5 +356,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error creating leave request:', error)
     return NextResponse.json({ error: 'Failed to create leave request' }, { status: 500 })
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'EMPLOYEE', 'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager'] })
+}, { allowedRoles: READ_ONLY_ROLES })
 

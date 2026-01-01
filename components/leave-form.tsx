@@ -203,6 +203,66 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
     return { valid: true }
   }
 
+  const handleSaveDraft = async () => {
+    const staff = store.staff.find(s => s.staffId === formData.staffId)
+    if (!staff) {
+      toast({
+        title: 'Error',
+        description: 'Staff member not found',
+        variant: 'destructive',
+      })
+      return
+    }
+    
+    setIsSubmitting(true)
+    try {
+      const { apiRequest, API_BASE_URL } = await import('@/lib/api-config')
+      const leaveUrl = API_BASE_URL ? `${API_BASE_URL}/api/leaves` : '/api/leaves'
+      
+      const response = await fetch(leaveUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          staffId: formData.staffId,
+          staffName: `${staff.firstName} ${staff.lastName}`,
+          leaveType: formData.leaveType,
+          startDate: formData.startDate || new Date().toISOString().split('T')[0],
+          endDate: formData.endDate || new Date().toISOString().split('T')[0],
+          days: formData.days || 1,
+          reason: formData.reason || 'Draft leave request',
+          templateId: formData.templateId,
+          status: 'draft', // Explicit draft status
+          // MoFA Compliance fields (optional for draft)
+          officerTakingOver: formData.officerTakingOver || undefined,
+          handoverNotes: formData.handoverNotes || undefined,
+          declarationAccepted: false, // Can be false for draft
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to save draft')
+      }
+
+      toast({
+        title: 'Draft Saved',
+        description: 'Your leave request has been saved as a draft. You can continue editing it later.',
+      })
+      
+      // Don't close the form, allow user to continue editing
+    } catch (error: any) {
+      console.error('Error saving draft:', error)
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to save draft',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -705,6 +765,14 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel
+        </Button>
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={handleSaveDraft}
+          disabled={isSubmitting}
+        >
+          Save Draft
         </Button>
         <Button type="submit" className="bg-primary" disabled={isSubmitting}>
           {isSubmitting ? 'Submitting...' : 'Submit Leave Request'}

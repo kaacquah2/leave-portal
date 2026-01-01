@@ -39,6 +39,7 @@ export default function StaffForm({ store, editingId, userRole, onClose }: Staff
     unit: editingStaff?.unit || '',
     dutyStation: (editingStaff as any)?.dutyStation || 'HQ',
     joinDate: editingStaff?.joinDate || '',
+    confirmationDate: (editingStaff as any)?.confirmationDate || '',
     managerId: editingStaff?.managerId || '',
     immediateSupervisorId: (editingStaff as any)?.immediateSupervisorId || '',
     active: editingStaff?.active ?? true,
@@ -285,6 +286,18 @@ export default function StaffForm({ store, editingId, userRole, onClose }: Staff
             onChange={(e) => setFormData({...formData, joinDate: e.target.value})}
             required
           />
+        </div>
+        <div>
+          <Label htmlFor="confirmationDate">Confirmation Date (Optional)</Label>
+          <Input
+            id="confirmationDate"
+            type="date"
+            value={formData.confirmationDate}
+            onChange={(e) => setFormData({...formData, confirmationDate: e.target.value})}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Date when staff was confirmed after probation period
+          </p>
         </div>
         <div>
           <Label htmlFor="firstName">First Name</Label>

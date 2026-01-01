@@ -160,6 +160,8 @@ export async function PATCH(
         ...(body.managerId !== undefined && { managerId: body.managerId || null }),
         ...(body.immediateSupervisorId !== undefined && { immediateSupervisorId: body.immediateSupervisorId || null }),
         ...(body.joinDate && { joinDate: new Date(body.joinDate) }),
+        ...(body.confirmationDate && { confirmationDate: new Date(body.confirmationDate) }),
+        ...(body.confirmationDate === null && { confirmationDate: null }),
       },
     })
     

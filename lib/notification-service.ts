@@ -10,7 +10,7 @@ import { sendPushNotification } from './send-push-notification'
 export interface NotificationData {
   userId?: string
   staffId?: string
-  type: 'leave_submitted' | 'leave_approved' | 'leave_rejected' | 'leave_reminder' | 'escalation' | 'system'
+  type: 'leave_submitted' | 'leave_approved' | 'leave_rejected' | 'leave_reminder' | 'leave_start_reminder' | 'escalation' | 'system' | 'approval' | 'rejection' | 'approval_required'
   title: string
   message: string
   link?: string
@@ -88,13 +88,17 @@ export async function sendNotification(data: NotificationData): Promise<void> {
  * Generate enhanced email template with role-specific styling
  */
 function generateEmailTemplate(data: NotificationData): string {
-  const colors = {
+  const colors: Record<string, { primary: string; bg: string }> = {
     leave_submitted: { primary: '#1a73e8', bg: '#e8f0fe' },
     leave_approved: { primary: '#34a853', bg: '#e6f4ea' },
     leave_rejected: { primary: '#ea4335', bg: '#fce8e6' },
     leave_reminder: { primary: '#fbbc04', bg: '#fef7e0' },
+    leave_start_reminder: { primary: '#fbbc04', bg: '#fef7e0' },
     escalation: { primary: '#ea4335', bg: '#fce8e6' },
     system: { primary: '#5f6368', bg: '#f1f3f4' },
+    approval: { primary: '#34a853', bg: '#e6f4ea' },
+    rejection: { primary: '#ea4335', bg: '#fce8e6' },
+    approval_required: { primary: '#fbbc04', bg: '#fef7e0' },
   }
   
   const notificationColor = colors[data.type] || colors.system
@@ -164,7 +168,10 @@ export async function notifyLeaveSubmission(data: {
   approverIds: string[]
   approverStaffIds?: string[]
 }): Promise<void> {
-  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!portalUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
   
   for (const approverId of data.approverIds) {
     const user = await prisma.user.findUnique({
@@ -211,7 +218,10 @@ export async function notifyLeaveDecision(data: {
 
   if (!user) return
 
-  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!portalUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
   const statusText = data.status === 'approved' ? 'Approved' : 'Rejected'
   const emoji = data.status === 'approved' ? '✅' : '❌'
 
@@ -247,7 +257,10 @@ export async function sendEscalationReminder(data: {
   level: number
   hoursPending: number
 }): Promise<void> {
-  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!portalUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
   
   await sendNotification({
     userId: data.approverId,
@@ -358,7 +371,10 @@ export async function sendPolicyThresholdAlert(data: {
 
   if (!user) return
 
-  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!portalUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
   const percentage = (data.currentUsage / data.threshold) * 100
   const emoji = data.alertType === 'critical' ? '🚨' : '⚠️'
 
@@ -377,5 +393,145 @@ export async function sendPolicyThresholdAlert(data: {
       percentage,
     },
   })
+}
+
+/**
+ * Notify employee about approaching year-end
+ */
+export async function notifyYearEndApproaching(data: {
+  staffId: string
+  staffName: string
+  daysUntilYearEnd: number
+  unusedLeave: number
+  maxCarryForward: number
+  leaveType: string
+}): Promise<void> {
+  const user = await prisma.user.findFirst({
+    where: { staffId: data.staffId },
+  })
+
+  if (!user) return
+
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!portalUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
+
+  const daysText = data.daysUntilYearEnd === 1 ? 'day' : 'days'
+  const willForfeit = Math.max(0, data.unusedLeave - data.maxCarryForward)
+  
+  let message = `Year-end is approaching in ${data.daysUntilYearEnd} ${daysText}. `
+  message += `You have ${data.unusedLeave.toFixed(1)} unused ${data.leaveType} leave days. `
+  
+  if (data.maxCarryForward > 0) {
+    message += `Only ${data.maxCarryForward.toFixed(1)} days can be carried forward. `
+    if (willForfeit > 0) {
+      message += `${willForfeit.toFixed(1)} days will be forfeited. `
+    }
+  } else {
+    message += `No carry-forward is allowed for this leave type. `
+    if (data.unusedLeave > 0) {
+      message += `All ${data.unusedLeave.toFixed(1)} days will be forfeited. `
+    }
+  }
+  
+  message += `Please consider using your leave before year-end.`
+
+  await sendNotification({
+    userId: user.id,
+    staffId: data.staffId,
+    type: 'system',
+    title: `📅 Year-End Reminder - ${data.leaveType} Leave`,
+    message,
+    link: `${portalUrl}/leaves/balance`,
+    priority: data.daysUntilYearEnd <= 7 ? 'urgent' : data.daysUntilYearEnd <= 14 ? 'high' : 'normal',
+    metadata: {
+      daysUntilYearEnd: data.daysUntilYearEnd,
+      unusedLeave: data.unusedLeave,
+      maxCarryForward: data.maxCarryForward,
+      leaveType: data.leaveType,
+      willForfeit,
+    },
+  })
+}
+
+/**
+ * Notify supervisor about team members with high leave balances
+ */
+export async function notifySupervisorHighBalances(data: {
+  supervisorId: string
+  supervisorName: string
+  teamMembers: Array<{
+    staffId: string
+    staffName: string
+    leaveType: string
+    unusedLeave: number
+    maxCarryForward: number
+  }>
+}): Promise<void> {
+  const user = await prisma.user.findFirst({
+    where: { staffId: data.supervisorId },
+  })
+
+  if (!user) return
+
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!portalUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
+
+  const memberList = data.teamMembers
+    .map(m => `${m.staffName}: ${m.unusedLeave.toFixed(1)} ${m.leaveType} days (${Math.max(0, m.unusedLeave - m.maxCarryForward).toFixed(1)} will forfeit)`)
+    .join('\n')
+
+  await sendNotification({
+    userId: user.id,
+    type: 'system',
+    title: '⚠️ Team Members with High Leave Balances',
+    message: `The following team members have unused leave that may be forfeited at year-end:\n\n${memberList}\n\nPlease encourage them to use their leave.`,
+    link: `${portalUrl}/staff`,
+    priority: 'high',
+    metadata: {
+      teamMembersCount: data.teamMembers.length,
+      teamMembers: data.teamMembers,
+    },
+  })
+}
+
+/**
+ * Notify HR about year-end approaching
+ */
+export async function notifyHRYearEndApproaching(data: {
+  daysUntilYearEnd: number
+  staffWithHighBalances: number
+  totalUnusedLeave: number
+}): Promise<void> {
+  const hrUsers = await prisma.user.findMany({
+    where: {
+      role: { in: ['HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_officer', 'hr_director'] },
+      active: true,
+    },
+  })
+
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!portalUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
+
+  for (const hrUser of hrUsers) {
+    await sendNotification({
+      userId: hrUser.id,
+      type: 'system',
+      title: `📅 Year-End Processing Reminder`,
+      message: `Year-end is approaching in ${data.daysUntilYearEnd} days. ${data.staffWithHighBalances} staff members have high leave balances (${data.totalUnusedLeave.toFixed(1)} total unused days). Year-end processing will run automatically on December 31.`,
+      link: `${portalUrl}/year-end`,
+      priority: data.daysUntilYearEnd <= 7 ? 'urgent' : 'high',
+      metadata: {
+        daysUntilYearEnd: data.daysUntilYearEnd,
+        staffWithHighBalances: data.staffWithHighBalances,
+        totalUnusedLeave: data.totalUnusedLeave,
+      },
+    })
+  }
 }
 
