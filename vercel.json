@@ -13,10 +13,6 @@
     {
       "path": "/api/cron/daily-reminders",
       "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/year-end",
-      "schedule": "0 0 31 12 *"
     }
   ],
   "env": {

@@ -4,6 +4,7 @@
  * 1. Escalation reminders for pending approvals
  * 2. Leave start date reminders (3 days before)
  * 3. Year-end notifications (when within 30 days of year-end)
+ * 4. Year-end processing (on December 31st)
  * 
  * Schedule: Daily at 9 AM
  * Vercel Cron Configuration (vercel.json):
@@ -17,6 +18,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { processYearEndForAllStaff } from '@/lib/leave-rules'
 import { 
   checkAndSendEscalationReminders,
   sendNotification,
@@ -38,10 +40,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const today = new Date()
+    const isYearEnd = today.getMonth() === 11 && today.getDate() === 31 // December 31st
+
     const results = {
       escalationReminders: { success: false, message: '' },
       leaveStartReminders: { success: false, sent: 0, errors: 0, total: 0 },
-      yearEndNotifications: { success: false, message: '', daysUntilYearEnd: 0 }
+      yearEndNotifications: { success: false, message: '', daysUntilYearEnd: 0 },
+      yearEndProcessing: { success: false, message: '', processed: false }
     }
 
     // 1. Process escalation reminders
@@ -55,10 +61,10 @@ export async function GET(request: NextRequest) {
 
     // 2. Process leave start reminders
     try {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      const reminderToday = new Date(today)
+      reminderToday.setHours(0, 0, 0, 0)
       
-      const reminderDate = new Date(today)
+      const reminderDate = new Date(reminderToday)
       reminderDate.setDate(reminderDate.getDate() + 3)
       reminderDate.setHours(23, 59, 59, 999)
 
@@ -94,7 +100,7 @@ export async function GET(request: NextRequest) {
               userId: leave.staff.user?.id,
               type: 'leave_start_reminder',
               createdAt: {
-                gte: new Date(today),
+                gte: reminderToday,
               },
               link: `/leaves/${leave.id}`,
             },
@@ -105,7 +111,7 @@ export async function GET(request: NextRequest) {
           }
 
           const daysUntilLeave = Math.ceil(
-            (new Date(leave.startDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+            (new Date(leave.startDate).getTime() - reminderToday.getTime()) / (1000 * 60 * 60 * 24)
           )
 
           await sendNotification({
@@ -325,6 +331,102 @@ export async function GET(request: NextRequest) {
         success: false,
         message: error?.message || 'Failed',
         daysUntilYearEnd: 0,
+      }
+    }
+
+    // 4. Process year-end processing if it's December 31st
+    if (isYearEnd) {
+      try {
+        console.log('[Year-End Processing] Starting automatic year-end processing...')
+        const year = new Date().getFullYear()
+
+        // Process year-end for all staff
+        const yearEndResults = await processYearEndForAllStaff()
+
+        // Calculate summary statistics
+        let totalCarryForward = 0
+        let totalForfeited = 0
+
+        yearEndResults.forEach((result) => {
+          result.results.forEach((r) => {
+            totalCarryForward += r.carryForwardDays || 0
+            totalForfeited += r.forfeitedDays || 0
+          })
+        })
+
+        // Create audit log
+        await prisma.auditLog.create({
+          data: {
+            action: 'YEAR_END_PROCESSING_COMPLETED',
+            user: 'system',
+            userRole: 'SYSTEM',
+            details: JSON.stringify({
+              year,
+              processedBy: 'system',
+              processAll: true,
+              staffProcessed: yearEndResults.length,
+              totalCarryForward,
+              totalForfeited,
+              timestamp: new Date().toISOString(),
+            }),
+          },
+        })
+
+        // Notify HR about completion
+        const hrUsers = await prisma.user.findMany({
+          where: {
+            role: { in: ['HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_officer', 'hr_director'] },
+            active: true,
+          },
+        })
+
+        const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+        for (const hrUser of hrUsers) {
+          await sendNotification({
+            userId: hrUser.id,
+            type: 'system',
+            title: '✅ Year-End Processing Completed',
+            message: `Year-end processing completed automatically. ${yearEndResults.length} staff members processed. ${totalCarryForward.toFixed(1)} days carried forward, ${totalForfeited.toFixed(1)} days forfeited.`,
+            link: portalUrl ? `${portalUrl}/year-end` : '/year-end',
+            priority: 'normal',
+          })
+        }
+
+        console.log(`[Year-End Processing] Completed: ${yearEndResults.length} staff processed, ${totalCarryForward} days carried forward, ${totalForfeited} days forfeited`)
+
+        results.yearEndProcessing = {
+          success: true,
+          message: `Year-end processing completed. ${yearEndResults.length} staff processed.`,
+          processed: true,
+        }
+      } catch (error: any) {
+        console.error('[Year-End Processing] Error:', error)
+
+        // Create error audit log
+        await prisma.auditLog.create({
+          data: {
+            action: 'YEAR_END_PROCESSING_FAILED',
+            user: 'system',
+            userRole: 'SYSTEM',
+            details: JSON.stringify({
+              error: error.message,
+              year: new Date().getFullYear(),
+              timestamp: new Date().toISOString(),
+            }),
+          },
+        })
+
+        results.yearEndProcessing = {
+          success: false,
+          message: error?.message || 'Failed to process year-end',
+          processed: false,
+        }
+      }
+    } else {
+      results.yearEndProcessing = {
+        success: true,
+        message: 'Not year-end date, skipping processing',
+        processed: false,
       }
     }
 
