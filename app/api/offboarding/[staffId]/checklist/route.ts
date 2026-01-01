@@ -18,6 +18,13 @@ import { logDataAccess } from '@/lib/data-access-logger'
 import { hasPermission } from '@/lib/permissions'
 import { mapToMoFARole } from '@/lib/role-mapping'
 
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ staffId: 'dummy' }]
+}
+
 /**
  * GET /api/offboarding/[staffId]/checklist
  * Get offboarding checklist for staff member

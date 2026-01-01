@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { AUDIT_ROLES } from '@/lib/role-utils'
 
+// Generate static params for dynamic route
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 // GET single audit log
 export async function GET(
   request: NextRequest,

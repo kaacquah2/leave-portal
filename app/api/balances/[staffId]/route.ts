@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
+// Generate static params for dynamic route
+export function generateStaticParams() {
+  return [{ staffId: 'dummy' }]
+}
+
 // GET leave balance for specific staff
 export async function GET(
   request: NextRequest,

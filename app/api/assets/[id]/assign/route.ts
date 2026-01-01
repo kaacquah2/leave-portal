@@ -14,6 +14,14 @@ import { logDataAccess } from '@/lib/data-access-logger'
 import { hasPermission } from '@/lib/permissions'
 import { mapToMoFARole } from '@/lib/role-mapping'
 
+// For static export, API routes are not generated but need generateStaticParams
+// Return a dummy value to satisfy Next.js static export requirements
+export function generateStaticParams() {
+  // Return at least one value to satisfy static export requirements
+  // This route will not actually be used in static export (API routes require server)
+  return [{ id: 'dummy' }]
+}
+
 /**
  * POST /api/assets/[id]/assign
  * Assign asset to staff member

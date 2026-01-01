@@ -13,6 +13,13 @@ import { unlink } from 'fs/promises'
 import { join } from 'path'
 import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 // GET - Get single document
 export async function GET(
   request: NextRequest,

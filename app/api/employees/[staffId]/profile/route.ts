@@ -13,6 +13,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+
+// Generate static params for dynamic route
+export function generateStaticParams() {
+  return [{ staffId: 'dummy' }]
+}
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { logDataAccess } from '@/lib/data-access-logger'
 

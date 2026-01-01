@@ -3,9 +3,6 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isAdmin } from '@/lib/auth-proxy'
 import { ADMIN_ROLES } from '@/lib/role-utils'
 
-// Required for static export (Electron build)
-export const dynamic = 'force-static'
-
 // GET audit logs (admin only, including SECURITY_ADMIN)
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {

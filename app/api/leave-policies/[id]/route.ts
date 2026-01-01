@@ -5,6 +5,13 @@ import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-lea
 import { createAuditLog } from '@/lib/audit-logger'
 import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 /**
  * PATCH update leave policy
  * 

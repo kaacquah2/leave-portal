@@ -10,6 +10,13 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHRDirector } from '@/lib/auth-proxy'
 import { createAuditLog } from '@/lib/audit-logger'
 
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 /**
  * POST /api/balances/override/[id]/approve
  * Approve a balance override request (HR Director only)

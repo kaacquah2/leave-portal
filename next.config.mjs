@@ -50,6 +50,14 @@ const nextConfig = {
     }
     config.resolve.alias['@'] = resolve(__dirname)
     
+    // Ensure proper file extension resolution
+    if (!config.resolve.extensions) {
+      config.resolve.extensions = []
+    }
+    if (!config.resolve.extensions.includes('.ts')) {
+      config.resolve.extensions.unshift('.ts', '.tsx', '.js', '.jsx')
+    }
+    
     // Ensure node_modules are properly resolved
     config.resolve.modules = ['node_modules', ...(config.resolve.modules || [])]
     

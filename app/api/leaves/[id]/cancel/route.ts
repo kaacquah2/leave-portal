@@ -4,6 +4,13 @@ import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
 import { restoreLeaveBalance } from '@/lib/leave-balance-utils'
 import { isEmployee } from '@/lib/auth-proxy'
 
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -47,14 +47,70 @@ try {
   // Build Next.js static export
   try {
     console.log('\n🔨 Running Next.js static export...');
-    // Set ELECTRON=1 environment variable for the build
-    const buildEnv = { ...process.env, ELECTRON: '1' };
-    execSync('npm run build', {
-      stdio: 'inherit',
-      cwd: path.join(__dirname, '..'),
-      env: buildEnv
-    });
-    console.log('✅ Static files built successfully');
+    
+    // Temporarily move API routes folder to avoid static export errors
+    // Next.js static export doesn't support API routes
+    const apiDir = path.join(__dirname, '..', 'app', 'api');
+    const apiBackupDir = path.join(__dirname, '..', 'app', '_api_backup');
+    let apiRoutesMoved = false;
+    
+    if (fs.existsSync(apiDir)) {
+      console.log('📦 Temporarily moving API routes for static export...');
+      // Remove backup if it exists
+      if (fs.existsSync(apiBackupDir)) {
+        fs.rmSync(apiBackupDir, { recursive: true, force: true });
+      }
+      // Move API routes to backup location
+      fs.renameSync(apiDir, apiBackupDir);
+      apiRoutesMoved = true;
+      console.log('✅ API routes moved to _api_backup');
+    }
+    
+    try {
+      // Create .next directory if it doesn't exist
+      const nextDir = path.join(__dirname, '..', '.next');
+      if (!fs.existsSync(nextDir)) {
+        fs.mkdirSync(nextDir, { recursive: true });
+      }
+      
+      // Create required-server-files.json if it doesn't exist (workaround for static export)
+      // This file is needed during the build process even for static exports
+      const requiredServerFilesPath = path.join(nextDir, 'required-server-files.json');
+      if (!fs.existsSync(requiredServerFilesPath)) {
+        const requiredServerFiles = {
+          version: 1,
+          config: {
+            output: 'export'
+          },
+          appDir: true,
+          relativeAppDir: 'app',
+          relativePagesDir: '',
+          relativeRootDir: '.',
+          routes: {}
+        };
+        fs.writeFileSync(requiredServerFilesPath, JSON.stringify(requiredServerFiles, null, 2));
+        console.log('✅ Created required-server-files.json for static export');
+      }
+      
+      // Set ELECTRON=1 environment variable for the build
+      const buildEnv = { ...process.env, ELECTRON: '1' };
+      execSync('npm run build', {
+        stdio: 'inherit',
+        cwd: path.join(__dirname, '..'),
+        env: buildEnv
+      });
+      console.log('✅ Static files built successfully');
+    } finally {
+      // Restore API routes after build
+      if (apiRoutesMoved && fs.existsSync(apiBackupDir)) {
+        console.log('📦 Restoring API routes...');
+        if (fs.existsSync(apiDir)) {
+          fs.rmSync(apiDir, { recursive: true, force: true });
+        }
+        fs.renameSync(apiBackupDir, apiDir);
+        console.log('✅ API routes restored');
+      }
+    }
     
     // Verify out folder exists
     const outDir = path.join(__dirname, '..', 'out');

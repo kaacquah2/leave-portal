@@ -16,6 +16,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { logDataAccess } from '@/lib/data-access-logger'
+
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ staffId: 'dummy' }]
+}
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'

@@ -13,6 +13,11 @@ import {
   updateApprovalStep,
   getApprovalSteps 
 } from '@/lib/mofa-approval-workflow'
+
+// Generate static params for dynamic route
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
 import { logLeaveApproval, logLeaveRejection, logBalanceDeduction, logBalanceRestoration } from '@/lib/audit-logger'
 import { notifyLeaveDecision, notifyLeaveSubmission } from '@/lib/notification-service'
 import { getUserRBACContext, canApproveLeaveRequest, canViewLeaveRequest } from '@/lib/mofa-rbac-middleware'

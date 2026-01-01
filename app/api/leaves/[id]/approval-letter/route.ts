@@ -10,6 +10,13 @@ import { prisma } from '@/lib/prisma'
 import jsPDF from 'jspdf'
 import { HR_ROLES, ADMIN_ROLES, READ_ONLY_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

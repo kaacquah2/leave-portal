@@ -13,6 +13,13 @@ import { writeFile, mkdir, unlink } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'attachments')
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 

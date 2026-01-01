@@ -4,6 +4,12 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { mapToMoFARole } from '@/lib/role-mapping'
 import { hasPermission } from '@/lib/permissions'
 
+// Force static export configuration (required for static export mode)
+// Generate static params for dynamic route
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 // GET single staff member
 export async function GET(
   request: NextRequest,

@@ -11,6 +11,13 @@ import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 import { prisma } from '@/lib/prisma'
 
+// Force static export configuration (required for static export mode)
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 // GET - Get single job posting
 export async function GET(
   request: NextRequest,
