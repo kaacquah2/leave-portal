@@ -178,6 +178,7 @@ export async function GET(request: NextRequest) {
         if (shouldNotify) {
           console.log(`[Year-End Notifications] Sending notifications (${daysUntilYearEnd} days until year-end)...`)
 
+          // Get all active staff with leave balances
           const allStaff = await prisma.staffMember.findMany({
             where: { active: true, employmentStatus: 'active' },
             include: {
@@ -188,23 +189,116 @@ export async function GET(request: NextRequest) {
             },
           })
 
+          // Get leave policies for carry-forward calculations
+          const leavePolicies = await prisma.leavePolicy.findMany({
+            where: { active: true },
+          })
+
+          const leaveTypes = ['annual', 'sick', 'specialService', 'training', 'study']
           let notifiedCount = 0
+          let staffWithHighBalances = 0
+          let totalUnusedLeave = 0
+
+          // Process each staff member
           for (const staff of allStaff) {
-            if (staff.user) {
-              try {
-                await notifyYearEndApproaching(staff.staffId, daysUntilYearEnd)
-                notifiedCount++
-              } catch (error) {
-                console.error(`Error notifying staff ${staff.staffId}:`, error)
+            if (!staff.user || !staff.leaveBalance) continue
+
+            try {
+              // Process each leave type
+              for (const leaveType of leaveTypes) {
+                const balance = staff.leaveBalance[leaveType as keyof typeof staff.leaveBalance] as number
+                if (balance <= 0) continue
+
+                // Find policy for this leave type
+                const policy = leavePolicies.find(
+                  p => p.leaveType.toLowerCase() === leaveType.charAt(0).toUpperCase() + leaveType.slice(1)
+                )
+
+                const maxCarryForward = policy?.carryoverAllowed ? (policy.maxCarryover || 0) : 0
+                const unusedLeave = balance
+
+                if (unusedLeave > 0) {
+                  totalUnusedLeave += unusedLeave
+                  if (unusedLeave > maxCarryForward) {
+                    staffWithHighBalances++
+                  }
+
+                  // Send notification for this leave type
+                  await notifyYearEndApproaching({
+                    staffId: staff.staffId,
+                    staffName: `${staff.firstName} ${staff.lastName}`,
+                    daysUntilYearEnd,
+                    unusedLeave,
+                    maxCarryForward,
+                    leaveType: leaveType.charAt(0).toUpperCase() + leaveType.slice(1),
+                  })
+                }
+              }
+
+              notifiedCount++
+            } catch (error) {
+              console.error(`Error notifying staff ${staff.staffId}:`, error)
+            }
+          }
+
+          // Group team members by supervisor
+          const supervisorMap = new Map<string, Array<{
+            staffId: string
+            staffName: string
+            leaveType: string
+            unusedLeave: number
+            maxCarryForward: number
+          }>>()
+
+          for (const staff of allStaff) {
+            if (!staff.immediateSupervisorId || !staff.leaveBalance) continue
+
+            for (const leaveType of leaveTypes) {
+              const balance = staff.leaveBalance[leaveType as keyof typeof staff.leaveBalance] as number
+              if (balance <= 0) continue
+
+              const policy = leavePolicies.find(
+                p => p.leaveType.toLowerCase() === leaveType.charAt(0).toUpperCase() + leaveType.slice(1)
+              )
+              const maxCarryForward = policy?.carryoverAllowed ? (policy.maxCarryover || 0) : 0
+
+              if (balance > maxCarryForward) {
+                if (!supervisorMap.has(staff.immediateSupervisorId)) {
+                  supervisorMap.set(staff.immediateSupervisorId, [])
+                }
+                supervisorMap.get(staff.immediateSupervisorId)!.push({
+                  staffId: staff.staffId,
+                  staffName: `${staff.firstName} ${staff.lastName}`,
+                  leaveType: leaveType.charAt(0).toUpperCase() + leaveType.slice(1),
+                  unusedLeave: balance,
+                  maxCarryForward,
+                })
               }
             }
           }
 
-          // Notify supervisors about high balances
-          await notifySupervisorHighBalances()
+          // Send notifications to supervisors
+          for (const [supervisorId, teamMembers] of supervisorMap.entries()) {
+            const supervisor = allStaff.find(s => s.staffId === supervisorId)
+            if (supervisor && supervisor.user) {
+              try {
+                await notifySupervisorHighBalances({
+                  supervisorId: supervisor.staffId,
+                  supervisorName: `${supervisor.firstName} ${supervisor.lastName}`,
+                  teamMembers,
+                })
+              } catch (error) {
+                console.error(`Error notifying supervisor ${supervisorId}:`, error)
+              }
+            }
+          }
 
           // Notify HR
-          await notifyHRYearEndApproaching(daysUntilYearEnd)
+          await notifyHRYearEndApproaching({
+            daysUntilYearEnd,
+            staffWithHighBalances,
+            totalUnusedLeave,
+          })
 
           results.yearEndNotifications = {
             success: true,

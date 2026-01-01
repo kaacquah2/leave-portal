@@ -16,10 +16,12 @@ try {
   // Fall back to NODE_ENV check
   isDev = process.env.NODE_ENV === 'development';
 }
-const apiUrl = 'https://hr-leave-portal.vercel.app'; // Embedded at build time
+const apiUrl = process.env.ELECTRON_API_URL || 
+               process.env.NEXT_PUBLIC_API_URL || 
+               (isDev ? '' : DEFAULT_VERCEL_URL);
 
 // Normalize API URL (remove trailing slash)
-const normalizedApiUrl = 'https://hr-leave-portal.vercel.app'; // Embedded at build time
+const normalizedApiUrl = apiUrl ? apiUrl.replace(/\/$/, '') : '';
 
 // Expose protected methods that allow the renderer process
 // to use Electron APIs without exposing the entire object
