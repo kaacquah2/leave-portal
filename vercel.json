@@ -11,20 +11,12 @@
   },
   "crons": [
     {
-      "path": "/api/cron/escalation-reminders",
+      "path": "/api/cron/daily-reminders",
       "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/year-end",
       "schedule": "0 0 31 12 *"
-    },
-    {
-      "path": "/api/cron/year-end-notifications",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/leave-start-reminders",
-      "schedule": "0 9 * * *"
     }
   ],
   "env": {
