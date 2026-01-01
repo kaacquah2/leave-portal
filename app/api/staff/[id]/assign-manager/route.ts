@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
+import { ADMIN_ROLES } from '@/lib/role-utils'
 
 // PATCH assign manager to staff member
 export async function PATCH(
@@ -112,7 +113,7 @@ export async function PATCH(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: ['hr', ...ADMIN_ROLES] })(request)
 }
 
 // GET get manager assignment
@@ -165,6 +166,6 @@ export async function GET(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
+  }, { allowedRoles: ['hr', 'hr_assistant', 'HR_OFFICER', 'HR_DIRECTOR', 'SYSTEM_ADMIN', 'hr_officer', 'hr_director'] })(request)
 }
 

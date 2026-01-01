@@ -17,13 +17,12 @@ export type UserRole =
   | 'HR_DIRECTOR'           // Head of Human Resource Directorate
   | 'CHIEF_DIRECTOR'        // Chief Director / Ministerial Authority
   | 'AUDITOR'               // Internal Auditor (IAA) - Read-only
-  | 'SYS_ADMIN'             // System Administrator (Legacy - use SYSTEM_ADMIN or SECURITY_ADMIN)
-  | 'SYSTEM_ADMIN'           // System Administrator (Technical config only)
+  | 'SYSTEM_ADMIN'           // System Administrator (Technical config and system management)
   | 'SECURITY_ADMIN'         // Security Administrator (Audit logs, access review, compliance)
   // Legacy roles (for backward compatibility during migration)
   | 'employee' | 'supervisor' | 'unit_head' | 'division_head' | 'directorate_head' 
-  | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor' | 'admin'
-  | 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'
+  | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor'
+  | 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'admin' | 'SYS_ADMIN'
 
 /**
  * Permission types for different actions
@@ -103,6 +102,15 @@ export type Permission =
   | 'region:manage:own'        // Manage own region (REGIONAL_MANAGER)
   | 'org:view:all'             // View all organizational structure (HR, SYS_ADMIN)
   | 'org:manage:all'           // Manage organizational structure (HR_DIRECTOR, SYS_ADMIN)
+  
+  // Calendar & Availability Permissions
+  | 'calendar:view:own'         // View own leave on calendar
+  | 'calendar:view:team'        // View team calendar
+  | 'calendar:view:department'  // View department calendar
+  | 'calendar:view:organization' // View organization-wide calendar
+  | 'availability:view:own'      // View own availability
+  | 'availability:view:team'    // View team availability
+  | 'availability:view:all'     // View all availability
 
 /**
  * MoFA Government HR Leave Workflow - Permission Matrix
@@ -119,6 +127,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'employee:leave:create:own',
     'employee:payslip:view:own',
     'employee:performance:view:own',
+    'calendar:view:own',
+    'availability:view:own',
   ],
 
   // 2. SUPERVISOR - Immediate Supervisor / Line Manager (Level 1 Approval)
@@ -130,6 +140,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'attendance:view:team',
     'reports:team:view',
     'unit:view:own', // Can view own unit information
+    'calendar:view:team',
+    'availability:view:team',
   ],
 
   // 3. UNIT_HEAD - Head of functional unit (Level 2 Approval)
@@ -143,6 +155,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'unit:view:own', // View own unit
     'unit:manage:own', // Manage own unit
     'directorate:view:own', // View parent directorate
+    'calendar:view:team', // Unit level
+    'availability:view:team', // Unit level
   ],
 
   // 4. DIVISION_HEAD - Head of division under directorate (Level 3 Approval)
@@ -155,6 +169,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:team:view',
     'unit:view:own', // View units in division
     'directorate:view:own', // View parent directorate
+    'calendar:view:team', // Division level
+    'availability:view:team', // Division level
   ],
 
   // 5. DIRECTOR - Director of MoFA Directorate (Level 4 Approval)
@@ -168,6 +184,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'unit:view:own', // View all units in directorate
     'directorate:view:own', // View own directorate
     'directorate:manage:own', // Manage own directorate
+    'calendar:view:team', // Directorate level
+    'availability:view:team', // Directorate level
   ],
 
   // 6. REGIONAL_MANAGER - Head of MoFA Regional Office
@@ -180,6 +198,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:team:view',
     'region:view:own', // View own region
     'region:manage:own', // Manage own region
+    'calendar:view:team', // Regional level
+    'availability:view:team', // Regional level
   ],
 
   // 7. HR_OFFICER - HR Officer (HRM) - Final approval authority
@@ -197,6 +217,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'timesheet:approve:all',
     'reports:hr:view',
     'org:view:all', // View all organizational structure
+    'calendar:view:organization',
+    'availability:view:all',
   ],
 
   // 8. HR_DIRECTOR - Head of Human Resource Directorate
@@ -219,6 +241,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'system:audit:view',
     'org:view:all', // View all organizational structure
     'org:manage:all', // Manage organizational structure
+    'calendar:view:organization',
+    'availability:view:all',
   ],
 
   // 9. CHIEF_DIRECTOR - Chief Director / Ministerial Authority
@@ -233,6 +257,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:system:view',
     'system:audit:view',
     'org:view:all', // View all organizational structure
+    'calendar:view:organization',
+    'availability:view:all',
   ],
 
   // 10. AUDITOR - Internal Auditor (IAA) - Read-only access
@@ -245,10 +271,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:system:view',
     'system:audit:view', // Full audit log access
     'org:view:all', // View all organizational structure (read-only)
+    'calendar:view:organization', // Read-only
+    'availability:view:all', // Read-only
   ],
 
-  // 11. SYS_ADMIN - System Administrator (Legacy - use SYSTEM_ADMIN or SECURITY_ADMIN)
-  SYS_ADMIN: [
+  // 11. SYSTEM_ADMIN - System Administrator (Consolidated from SYS_ADMIN, SYSTEM_ADMIN, and admin)
+  SYSTEM_ADMIN: [
     'system:config:manage',
     'system:users:manage',
     'system:roles:assign',
@@ -261,27 +289,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'employee:update',
     'employee:delete',
     'leave:view:all',
+    'leave:approve:all',
     'leave:policy:manage',
+    'performance:view:all',
+    'performance:review:all',
+    'attendance:view:all',
+    'attendance:correct:all',
+    'timesheet:approve:all',
     'reports:system:view',
+    'reports:hr:view',
     'org:view:all', // View all organizational structure
     'org:manage:all', // Manage organizational structure
-  ],
-
-  // 12. SYSTEM_ADMIN - System Administrator (Technical config only)
-  // Ghana Government Compliance: Cannot approve leave or edit staff records (segregation of duties)
-  SYSTEM_ADMIN: [
-    'system:config:manage',
-    'system:users:manage',
-    'system:roles:assign',
-    'system:reports:view',
-    'system:backup:manage',
-    'system:org:manage',
-    'employee:view:all', // View only, cannot edit
-    'leave:view:all', // View only, cannot approve
-    'reports:system:view',
-    'org:view:all', // View all organizational structure
-    'org:manage:all', // Manage organizational structure
-    // Note: Cannot approve leave or edit staff records per compliance requirements
   ],
 
   // 13. SECURITY_ADMIN - Security Administrator (Audit logs, access review, compliance)
@@ -334,6 +352,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Recruitment
     'recruitment:create',
     'recruitment:review',
+    
+    // Calendar & Availability
+    'calendar:view:organization',
+    'availability:view:all',
   ],
   
   manager: [
@@ -363,6 +385,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Optional: Recruitment for their department
     'recruitment:create',
     'recruitment:review',
+    
+    // Calendar & Availability
+    'calendar:view:team',
+    'availability:view:team',
   ],
   
   employee: [
@@ -373,6 +399,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'employee:leave:create:own',
     'employee:payslip:view:own',
     'employee:performance:view:own',
+    'calendar:view:own',
+    'availability:view:own',
   ],
   
   // Deputy Director: Between Manager and HR, can approve across directorates
@@ -432,45 +460,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // - Manage disciplinary actions
   ],
   
-  // Admin role (already exists in schema, adding permissions)
-  admin: [
-    // System Administration
-    'system:config:manage',
-    'system:users:manage',
-    'system:roles:assign',
-    'system:reports:view',
-    'system:audit:view',
-    'system:backup:manage',
-    'system:org:manage',
-    
-    // Full Employee Management (for system admin purposes)
-    'employee:view:all',
-    'employee:create',
-    'employee:update',
-    'employee:delete',
-    
-    // Full Leave Management
-    'leave:view:all',
-    'leave:approve:all',
-    'leave:policy:manage',
-    
-    // Full Performance Management
-    'performance:view:all',
-    'performance:review:all',
-    
-    // Full Attendance & Timesheets
-    'attendance:view:all',
-    'attendance:correct:all',
-    'timesheet:approve:all',
-    
-    // All Reports
-    'reports:hr:view',
-    'reports:system:view',
-    'reports:team:view',
-    
-    // Full Disciplinary Actions
-    'disciplinary:manage:all',
-  ],
+  // Note: admin role has been consolidated into SYSTEM_ADMIN
 
   // ========== GHANA GOVERNMENT PUBLIC SERVICE ROLES (MoFA) ==========
   
@@ -597,6 +587,60 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:hr:view',
     'reports:system:view',
     'system:audit:view', // Full audit log access
+  ],
+
+  // Legacy admin role (consolidated into SYSTEM_ADMIN)
+  admin: [
+    'system:config:manage',
+    'system:users:manage',
+    'system:roles:assign',
+    'system:reports:view',
+    'system:audit:view',
+    'system:backup:manage',
+    'system:org:manage',
+    'employee:view:all',
+    'employee:create',
+    'employee:update',
+    'employee:delete',
+    'leave:view:all',
+    'leave:approve:all',
+    'leave:policy:manage',
+    'performance:view:all',
+    'performance:review:all',
+    'attendance:view:all',
+    'attendance:correct:all',
+    'timesheet:approve:all',
+    'reports:system:view',
+    'reports:hr:view',
+    'org:view:all',
+    'org:manage:all',
+  ],
+
+  // Legacy SYS_ADMIN role (consolidated into SYSTEM_ADMIN)
+  SYS_ADMIN: [
+    'system:config:manage',
+    'system:users:manage',
+    'system:roles:assign',
+    'system:reports:view',
+    'system:audit:view',
+    'system:backup:manage',
+    'system:org:manage',
+    'employee:view:all',
+    'employee:create',
+    'employee:update',
+    'employee:delete',
+    'leave:view:all',
+    'leave:approve:all',
+    'leave:policy:manage',
+    'performance:view:all',
+    'performance:review:all',
+    'attendance:view:all',
+    'attendance:correct:all',
+    'timesheet:approve:all',
+    'reports:system:view',
+    'reports:hr:view',
+    'org:view:all',
+    'org:manage:all',
   ],
 }
 

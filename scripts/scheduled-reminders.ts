@@ -35,7 +35,12 @@ async function main() {
 
     if (leaveIds.length > 0) {
       // Call the reminders API to send notifications
-      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/approvals/reminders`, {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      if (!appUrl) {
+        console.error('ERROR: NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+        return
+      }
+      const response = await fetch(`${appUrl}/api/approvals/reminders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -8,8 +8,11 @@ const __dirname = dirname(__filename)
 const nextConfig = {
   // Explicitly set the workspace root to silence lockfile warning
   outputFileTracingRoot: __dirname,
+  // Export static files for Electron builds (offline capability)
+  output: process.env.ELECTRON === '1' ? 'export' : undefined,
   typescript: {
-    ignoreBuildErrors: true,
+    // Removed ignoreBuildErrors to ensure type safety in production
+    // All TypeScript errors must be fixed before deployment
   },
   images: {
     unoptimized: true,
@@ -36,14 +39,22 @@ const nextConfig = {
       }
     }
     
+    // Ensure proper module resolution
+    if (!config.resolve) {
+      config.resolve = {}
+    }
+    
+    // Configure path aliases to match tsconfig.json
+    if (!config.resolve.alias) {
+      config.resolve.alias = {}
+    }
+    config.resolve.alias['@'] = resolve(__dirname)
+    
+    // Ensure node_modules are properly resolved
+    config.resolve.modules = ['node_modules', ...(config.resolve.modules || [])]
+    
     // Ensure proper module resolution for server-side packages
     if (isServer) {
-      // Ensure node_modules are properly resolved
-      if (!config.resolve) {
-        config.resolve = {}
-      }
-      config.resolve.modules = ['node_modules', ...(config.resolve.modules || [])]
-      
       // Ensure bcryptjs and jose are properly resolved and bundled
       if (typeof config.externals === 'function') {
         const originalExternals = config.externals

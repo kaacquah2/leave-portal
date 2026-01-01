@@ -899,7 +899,10 @@ export function generateSystemAnnouncementEmail(
   actionUrl?: string,
   actionText?: string
 ): string {
-  const appUrl = portalUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = portalUrl || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!appUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
 
   return `
     <!DOCTYPE html>
@@ -994,7 +997,10 @@ export async function sendSystemAnnouncement(
   actionText?: string
 ): Promise<{ sent: number; failed: number }> {
   const results = { sent: 0, failed: 0 }
-  const appUrl = portalUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = portalUrl || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  if (!appUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+  }
 
   for (const email of recipientEmails) {
     const html = generateSystemAnnouncementEmail(title, message, undefined, appUrl, actionUrl, actionText)

@@ -41,8 +41,8 @@ export default function AssetManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
   const [formData, setFormData] = useState({
@@ -64,8 +64,8 @@ export default function AssetManagement() {
       setError(null)
 
       const params = new URLSearchParams()
-      if (statusFilter) params.append('status', statusFilter)
-      if (typeFilter) params.append('type', typeFilter)
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter)
+      if (typeFilter && typeFilter !== 'all') params.append('type', typeFilter)
 
       const response = await apiRequest(`/api/assets?${params.toString()}`)
 
@@ -277,7 +277,7 @@ export default function AssetManagement() {
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 {assetStatuses.map((status) => (
                   <SelectItem key={status} value={status}>
                     {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -290,7 +290,7 @@ export default function AssetManagement() {
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 {assetTypes.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type.charAt(0).toUpperCase() + type.slice(1)}

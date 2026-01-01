@@ -13,9 +13,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { logDataAccess } from '@/lib/data-access-logger'
-import { hasPermission } from '@/lib/permissions'
 import { mapToMoFARole } from '@/lib/role-mapping'
 
 /**
@@ -30,12 +29,7 @@ export async function GET(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {
       // Check permissions - only HR roles can view salary structures
-      const normalizedRole = mapToMoFARole(user.role)
-      if (!hasPermission(normalizedRole, 'employee:view:all') && 
-          normalizedRole !== 'HR_OFFICER' && 
-          normalizedRole !== 'HR_DIRECTOR' &&
-          user.role !== 'hr' && 
-          user.role !== 'admin') {
+      if (!isHR(user) && !isAdmin(user)) {
         return NextResponse.json(
           { error: 'Forbidden - Insufficient permissions to view salary structures' },
           { status: 403 }

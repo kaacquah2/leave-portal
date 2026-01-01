@@ -11,7 +11,6 @@ import AdminUserManagement from '@/components/admin-user-management'
 import AdminPasswordResetRequests from '@/components/admin-password-reset-requests'
 import AdminAuditLogs from '@/components/admin-audit-logs'
 import AdminSystemSettings from '@/components/admin-system-settings'
-import TwoFactorSetup from '@/components/two-factor-setup'
 import ComplianceDashboard from '@/components/compliance-dashboard'
 import PolicyManagement from '@/components/policy-management'
 import EnhancedAuditLogViewer from '@/components/enhanced-audit-log-viewer'
@@ -27,7 +26,7 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('dashboard')
-  const store = useDataStore({ enablePolling: true, pollingInterval: 60000, userRole: 'admin' })
+  const store = useDataStore({ enablePolling: true, pollingInterval: 60000, userRole: 'SYSTEM_ADMIN' })
   const { connected } = useRealtime(true)
 
   // Sync activeTab state with URL on mount and when URL changes
@@ -61,8 +60,6 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
         return <AdminPasswordResetRequests />
       case 'audit-logs':
         return <EnhancedAuditLogViewer />
-      case '2fa':
-        return <TwoFactorSetup />
       case 'settings':
         return <AdminSystemSettings />
       case 'compliance':
@@ -82,9 +79,9 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50/50 via-background to-purple-50/30">
-      <Header onLogout={onLogout} userRole="admin" />
+      <Header onLogout={onLogout} userRole="SYSTEM_ADMIN" />
       <div className="flex">
-        <AdminNavigation activeTab={activeTab} setActiveTab={handleTabChange} onLogout={onLogout} userRole="admin" />
+        <AdminNavigation activeTab={activeTab} setActiveTab={handleTabChange} onLogout={onLogout} userRole="SYSTEM_ADMIN" />
         <main className="flex-1 overflow-auto min-h-[calc(100vh-80px)] md:min-h-[calc(100vh-96px)]">
           <div className="p-4 sm:p-6 md:p-8">
             {renderContent()}

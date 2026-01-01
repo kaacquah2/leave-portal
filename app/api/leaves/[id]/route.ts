@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendPushNotification } from '@/lib/send-push-notification'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { READ_ONLY_ROLES } from '@/lib/role-utils'
 import { sendEmail, generateLeaveRequestApprovedEmail, generateLeaveRequestRejectedEmail } from '@/lib/email'
 import { calculateApprovalStatus, areParallelApprovalsComplete, getNextApprovers } from '@/lib/approval-workflow'
 import { validateLeaveBalance, deductLeaveBalance, restoreLeaveBalance, getBalanceFieldName } from '@/lib/leave-balance-utils'
@@ -65,7 +66,7 @@ export async function GET(
       console.error('Error fetching leave:', error)
       return NextResponse.json({ error: 'Failed to fetch leave' }, { status: 500 })
     }
-  }, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'EMPLOYEE', 'AUDITOR', 'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager', 'auditor', 'internal_auditor'] })(request)
+  }, { allowedRoles: READ_ONLY_ROLES })(request)
 }
 
 // PATCH update leave request (for approval/rejection)
@@ -462,7 +463,7 @@ export async function PATCH(
     console.error('Error updating leave:', error)
     return NextResponse.json({ error: 'Failed to update leave request' }, { status: 500 })
   }
-  }, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'hr', 'hr_assistant', 'admin', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager'] })(request)
+  }, { allowedRoles: READ_ONLY_ROLES })(request)
 }
 
 /**

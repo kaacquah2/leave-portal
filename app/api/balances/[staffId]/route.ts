@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 // GET leave balance for specific staff
 export async function GET(
@@ -32,6 +33,6 @@ export async function GET(
       console.error('Error fetching balance:', error)
       return NextResponse.json({ error: 'Failed to fetch balance' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES, 'employee', 'EMPLOYEE', 'manager', 'deputy_director', 'SUPERVISOR', 'supervisor'] })(request)
 }
 

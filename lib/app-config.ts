@@ -6,7 +6,7 @@
 export const APP_CONFIG = {
   // Application name
   appName: 'MoFA HR Portal',
-  appNameShort: 'MoFA',
+  appNameShort: 'Ministry of Fisheries and Aquaculture (MoFA)',
   appDescription: 'MoFA Staff Management & Leave Portal',
   fullAppName: 'MoFA HR Portal',
   

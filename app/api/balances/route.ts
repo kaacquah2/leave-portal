@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isEmployee, isManager, isHR, isAdmin } from '@/lib/auth-proxy'
+import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 
 // GET all leave balances
@@ -34,7 +35,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error fetching balances:', error)
     return NextResponse.json({ error: 'Failed to fetch balances' }, { status: 500 })
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER', 'EMPLOYEE', 'AUDITOR', 'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'hr_officer', 'hr_director', 'chief_director', 'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager', 'auditor', 'internal_auditor'] })
+}, { allowedRoles: READ_ONLY_ROLES })
 
 // POST create or update leave balance
 // 
@@ -114,5 +115,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error creating/updating balance:', error)
     return NextResponse.json({ error: 'Failed to create/update balance' }, { status: 500 })
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_assistant', 'admin', 'hr_officer', 'hr_director', 'chief_director'] })
+}, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES, 'CHIEF_DIRECTOR', 'chief_director'] })
 

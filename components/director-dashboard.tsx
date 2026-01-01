@@ -53,32 +53,88 @@ export default function DirectorDashboard({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [staffId, directorate])
+    // Wait for store to be initialized (staff array exists, even if empty)
+    if (store.staff !== undefined) {
+      if (directorate) {
+        fetchDashboardData()
+      } else if (!directorate && staffId) {
+        // If directorate is not set, try to fetch it from API
+        fetchDirectorateInfo()
+      } else {
+        // No directorate and no staffId - show error state
+        setLoading(false)
+      }
+    }
+  }, [staffId, directorate, store.staff, store.leaves])
+
+  const fetchDirectorateInfo = async () => {
+    try {
+      if (!staffId) {
+        setLoading(false)
+        return
+      }
+      
+      const response = await apiRequest(`/api/staff/${staffId}`)
+      if (response.ok) {
+        const staffData = await response.json()
+        if (staffData.directorate) {
+          // Store has the data, just need to wait for next render
+          // The useEffect will trigger again when directorate prop updates
+          console.log('Directorate found:', staffData.directorate)
+        } else {
+          setLoading(false)
+        }
+      } else {
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Error fetching directorate info:', error)
+      setLoading(false)
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       
+      // If no directorate, we can't show meaningful data
+      if (!directorate) {
+        console.warn('Director dashboard: No directorate set for director')
+        setLoading(false)
+        return
+      }
+
       // Fetch pending leave requests for directorate
       const leavesResponse = await apiRequest('/api/leaves?status=pending')
+      let directorateLeaves: any[] = []
       if (leavesResponse.ok) {
         const allLeaves = await leavesResponse.json()
-        const directorateLeaves = allLeaves.filter((leave: any) => {
+        directorateLeaves = allLeaves.filter((leave: any) => {
           return leave.status === 'pending' && 
                  leave.staff?.directorate === directorate
         })
         setPendingLeaves(directorateLeaves.slice(0, 5))
       }
 
-      // Calculate directorate statistics
+      // Calculate directorate statistics from store
+      // Ensure store has data
+      if (!store.staff || store.staff.length === 0) {
+        console.warn('Director dashboard: Store staff data not loaded yet')
+        // Try to refresh the store
+        store.refreshCritical()
+        setLoading(false)
+        return
+      }
+
       const directorateStaff = store.staff.filter((s: any) => 
         s.directorate === directorate && s.active
       )
+      
       const uniqueUnits = new Set(
         directorateStaff.map((s: any) => s.unit).filter(Boolean)
       )
-      const onLeave = store.leaves.filter((l: any) => {
+      
+      const onLeave = (store.leaves || []).filter((l: any) => {
         const today = new Date()
         return l.status === 'approved' &&
                new Date(l.startDate) <= today &&
@@ -89,14 +145,14 @@ export default function DirectorDashboard({
       // Count escalations (leaves pending > 3 days)
       const threeDaysAgo = new Date()
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-      const escalations = pendingLeaves.filter((l: any) => {
-        const createdDate = new Date(l.createdAt)
-        return createdDate < threeDaysAgo
+      const escalations = directorateLeaves.filter((l: any) => {
+        const createdDate = l.createdAt ? new Date(l.createdAt) : null
+        return createdDate && createdDate < threeDaysAgo
       })
 
       setDirectorateStats({
         totalStaff: directorateStaff.length,
-        pendingApprovals: pendingLeaves.length,
+        pendingApprovals: directorateLeaves.length,
         onLeave: onLeave.length,
         units: uniqueUnits.size,
         escalationCount: escalations.length,
@@ -116,13 +172,43 @@ export default function DirectorDashboard({
     )
   }
 
+  // Show warning if no directorate is set
+  if (!directorate) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Director Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Level 4 Approval Authority
+          </p>
+        </div>
+        <Card className="border-amber-200 bg-amber-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-800">
+              <AlertTriangle className="h-5 w-5" />
+              Directorate Not Set
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-amber-700 mb-2">
+              Your staff record does not have a directorate assigned. Please contact HR to update your directorate information.
+            </p>
+            <p className="text-xs text-amber-600">
+              Once your directorate is set, you will be able to view directorate-level statistics and manage approvals.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Director Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          {directorate || 'Directorate'} - Level 4 Approval Authority
+          {directorate} - Level 4 Approval Authority
         </p>
       </div>
 

@@ -128,8 +128,8 @@ export async function canViewLeaveRequest(
       return { allowed: true }
     }
 
-    // SYS_ADMIN: Can view all
-    if (role === 'SYS_ADMIN' || role === 'admin') {
+    // SYSTEM_ADMIN: Can view all
+    if (role === 'SYSTEM_ADMIN' || role === 'SYS_ADMIN' || role === 'admin') {
       return { allowed: true }
     }
 
@@ -266,11 +266,11 @@ export async function canApproveLeaveRequest(
       }
     }
 
-    // SYS_ADMIN, SYSTEM_ADMIN, SECURITY_ADMIN: Cannot approve leaves (system management only)
+    // SYSTEM_ADMIN, SECURITY_ADMIN: Cannot approve leaves (system management only)
     // Ghana Government Compliance: System admins cannot approve leave (segregation of duties)
     if (
-      context.role === 'SYS_ADMIN' ||
       context.role === 'SYSTEM_ADMIN' ||
+      context.role === 'SYS_ADMIN' ||
       context.role === 'SECURITY_ADMIN' ||
       context.role === 'admin'
     ) {

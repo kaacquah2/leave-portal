@@ -11,11 +11,11 @@ import { prisma } from './prisma'
  * Maps various role formats to their canonical equivalents
  */
 const ROLE_EQUIVALENTS: Record<string, string[]> = {
-  // Admin roles
-  'admin': ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'],
-  'SYS_ADMIN': ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'],
-  'SYSTEM_ADMIN': ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'],
-  'SECURITY_ADMIN': ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'],
+  // Admin roles - all consolidated to SYSTEM_ADMIN (including SECURITY_ADMIN for admin checks)
+  'SYSTEM_ADMIN': ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'],
+  'SYS_ADMIN': ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'],
+  'admin': ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'],
+  'SECURITY_ADMIN': ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'],
   
   // HR roles
   'hr': ['hr', 'HR_OFFICER', 'hr_officer'],
@@ -267,7 +267,8 @@ export function hasRole(user: AuthUser, allowedRoles: string[]): boolean {
  * Helper functions for common role checks (with normalization)
  */
 export function isAdmin(user: AuthUser): boolean {
-  return hasMatchingRole(user.role, ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'])
+  // SECURITY_ADMIN is included as it has admin-level access for audit/compliance
+  return hasMatchingRole(user.role, ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'])
 }
 
 export function isHR(user: AuthUser): boolean {

@@ -12,6 +12,7 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHROfficer, isHRDirector, isChiefDirector, isAuditor, isAdmin } from '@/lib/auth-proxy'
 import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-leave-validation'
 import { createAuditLog } from '@/lib/audit-logger'
+import { HR_ROLES, AUDIT_ROLES } from '@/lib/role-utils'
 
 /**
  * POST /api/leave-policies/version
@@ -188,5 +189,5 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr', 'hr_assistant', 'hr_director', 'chief_director', 'auditor', 'internal_auditor', 'admin'] })
+}, { allowedRoles: AUDIT_ROLES })
 

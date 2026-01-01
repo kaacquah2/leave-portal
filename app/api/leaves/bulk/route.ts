@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { validateLeaveBalance, deductLeaveBalance } from '@/lib/leave-balance-utils'
+import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
 
 // POST bulk approve/reject leave requests
 export async function POST(request: NextRequest) {
@@ -174,6 +175,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 

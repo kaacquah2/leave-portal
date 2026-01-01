@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isAdmin } from '@/lib/auth-proxy'
+import { ADMIN_ROLES, VALID_USER_ROLES } from '@/lib/role-utils'
 
 export async function PATCH(
   request: NextRequest,
@@ -15,13 +16,7 @@ export async function PATCH(
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {
       // Only admin can access this route
-      const normalizedRole = user.role?.toUpperCase()
-      const isAdmin = user.role === 'admin' || 
-                     normalizedRole === 'SYS_ADMIN' || 
-                     normalizedRole === 'SYSTEM_ADMIN' || 
-                     normalizedRole === 'SECURITY_ADMIN'
-      
-      if (!isAdmin) {
+      if (!isAdmin(user)) {
         return NextResponse.json(
           { error: 'Forbidden - Admin access required' },
           { status: 403 }
@@ -34,17 +29,11 @@ export async function PATCH(
 
       // Validate role if provided
       if (role) {
-        const validRoles = [
-          'employee', 'supervisor', 'unit_head', 'division_head', 'directorate_head',
-          'regional_manager', 'hr_officer', 'hr_director', 'chief_director',
-          'internal_auditor', 'admin',
-          // Legacy roles
-          'hr', 'hr_assistant', 'manager', 'deputy_director',
-        ]
-        
-        if (!validRoles.includes(role.toLowerCase())) {
+        if (!VALID_USER_ROLES.includes(role.toLowerCase() as any) && 
+            !VALID_USER_ROLES.includes(role.toUpperCase() as any) &&
+            !VALID_USER_ROLES.includes(role as any)) {
           return NextResponse.json(
-            { error: `Invalid role. Must be one of: ${validRoles.join(', ')}` },
+            { error: `Invalid role. Must be one of the valid UserRole values.` },
             { status: 400 }
           )
         }
@@ -111,6 +100,6 @@ export async function PATCH(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'] })(request)
+  }, { allowedRoles: ADMIN_ROLES })(request)
 }
 

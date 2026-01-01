@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 // PATCH update holiday
 export async function PATCH(
@@ -26,7 +27,7 @@ export async function PATCH(
       console.error('Error updating holiday:', error)
       return NextResponse.json({ error: 'Failed to update holiday' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 
 // DELETE holiday
@@ -45,6 +46,6 @@ export async function DELETE(
       console.error('Error deleting holiday:', error)
       return NextResponse.json({ error: 'Failed to delete holiday' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 

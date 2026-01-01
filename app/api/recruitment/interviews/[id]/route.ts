@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { prisma } from '@/lib/prisma'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 // PATCH - Update interview
 export async function PATCH(
@@ -94,7 +95,7 @@ export async function PATCH(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_officer', 'hr_director', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 
 // DELETE - Delete interview
@@ -152,6 +153,6 @@ export async function DELETE(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_officer', 'hr_director', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 

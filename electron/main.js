@@ -73,8 +73,9 @@ function createWindow() {
     mainWindow.show();
     
     // Focus on window
-    // Temporarily enable DevTools for debugging (remove in production)
-    if (isDev || process.env.ENABLE_DEVTOOLS === 'true') {
+    // DevTools only enabled in development mode (never in production)
+    // Removed ENABLE_DEVTOOLS environment variable check for security
+    if (isDev) {
       mainWindow.webContents.openDevTools();
     }
   });
@@ -87,27 +88,69 @@ function createWindow() {
     }
   }, 2000); // 2 second fallback
 
-  // Load the app from remote URL (requires internet)
-  // Default Vercel URL for production builds
-  const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
-  
+  // Load the app - try local static files first (offline), then fallback to remote URL
   // Check if we have a remote API URL (Vercel deployment)
-  // Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL
+  // Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL (production only)
+  // Default Vercel URL for production builds (fallback)
+  const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app'
   const remoteApiUrl = process.env.ELECTRON_API_URL || 
                        process.env.NEXT_PUBLIC_API_URL || 
                        (isDev ? null : DEFAULT_VERCEL_URL);
   
+  if (!isDev && !remoteApiUrl) {
+    console.error('[Electron] ERROR: ELECTRON_API_URL or NEXT_PUBLIC_API_URL must be set for production builds')
+  }
+  
+  const fs = require('fs');
   let startUrl;
+  
   if (isDev) {
     // Development: always use localhost
     startUrl = 'http://localhost:3000';
     console.log('[Electron] Development mode - loading from localhost:3000');
   } else {
-    // Production: Always load from remote URL (requires internet)
+    // Production: Try local static files first (offline capability), then fallback to remote URL
+    const possibleLocalPaths = [
+      path.join(__dirname, '../out/index.html'), // Development/unpacked
+      path.join(process.resourcesPath, 'app.asar/out/index.html'), // Packed ASAR
+      path.join(process.resourcesPath, 'app/out/index.html'), // Unpacked (preferred)
+      path.join(app.getAppPath(), 'out/index.html'), // Alternative
+    ];
+    
+    let localFileFound = false;
+    let localFilePath = null;
+    
+    for (const localPath of possibleLocalPaths) {
+      try {
+        if (fs.existsSync(localPath)) {
+          localFileFound = true;
+          localFilePath = localPath;
+          console.log('[Electron] ✅ Found local static files at:', localPath);
+          break;
+        }
+      } catch (e) {
+        // Continue checking other paths
+      }
+    }
+    
+    if (localFileFound && localFilePath) {
+      // Convert to file:// URL (properly handle Windows paths)
+      // On Windows, we need to add an extra slash after file:
+      const normalizedPath = localFilePath.replace(/\\/g, '/');
+      const fileUrl = process.platform === 'win32' 
+        ? `file:///${normalizedPath}` 
+        : `file://${normalizedPath}`;
+      startUrl = fileUrl;
+      console.log('[Electron] ✅ Production mode - loading from LOCAL files (OFFLINE capable):', fileUrl);
+      console.log('[Electron] 🎉 App works OFFLINE!');
+      console.log('[Electron] 🔧 API calls will be made to:', remoteApiUrl || DEFAULT_VERCEL_URL);
+    } else {
+      // Fallback to remote URL if local files not found
     startUrl = (remoteApiUrl || DEFAULT_VERCEL_URL).replace(/\/$/, '');
-    console.log('[Electron] Production mode - loading from remote URL (requires internet):', startUrl);
+      console.log('[Electron] ⚠️  Production mode - local files not found, loading from remote URL:', startUrl);
     console.log('[Electron] ⚠️  WARNING: App requires internet connection to load');
     console.log('[Electron] 🔧 API calls will be made to:', startUrl);
+    }
   }
   
   // Add error handling with better connection status and offline fallback

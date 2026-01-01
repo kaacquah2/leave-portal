@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isAdmin } from '@/lib/auth-proxy'
 import { hashPassword } from '@/lib/auth'
 import { sendEmail, generateNewUserCredentialsEmail } from '@/lib/email'
+import { ADMIN_ROLES } from '@/lib/role-utils'
 
 // GET all users (admin only)
 export const GET = withAuth(async ({ user }: AuthContext) => {
   try {
-    // Only admin can access this route (check normalized roles)
-    const normalizedRole = user.role?.toUpperCase()
-    const isAdmin = user.role === 'admin' || 
-                   normalizedRole === 'SYS_ADMIN' || 
-                   normalizedRole === 'SYSTEM_ADMIN' || 
-                   normalizedRole === 'SECURITY_ADMIN'
-    
-    if (!isAdmin) {
+    // Only admin can access this route
+    if (!isAdmin(user)) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -59,19 +54,13 @@ export const GET = withAuth(async ({ user }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'] })
+}, { allowedRoles: ADMIN_ROLES })
 
 // POST create new user with staff member (admin only)
 export const POST = withAuth(async ({ user, request }: AuthContext) => {
   try {
-    // Only admin can access this route (check normalized roles)
-    const normalizedRole = user.role?.toUpperCase()
-    const isAdmin = user.role === 'admin' || 
-                   normalizedRole === 'SYS_ADMIN' || 
-                   normalizedRole === 'SYSTEM_ADMIN' || 
-                   normalizedRole === 'SECURITY_ADMIN'
-    
-    if (!isAdmin) {
+    // Only admin can access this route
+    if (!isAdmin(user)) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -221,7 +210,10 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     // Send email with credentials (non-blocking)
     let emailSent = false
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      if (!appUrl) {
+        throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+      }
       const loginUrl = `${appUrl}/login`
       
       const emailHtml = generateNewUserCredentialsEmail(
@@ -287,5 +279,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'] })
+}, { allowedRoles: ADMIN_ROLES })
 

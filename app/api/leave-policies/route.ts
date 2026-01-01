@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-leave-validation'
 import { createAuditLog } from '@/lib/audit-logger'
+import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 /**
  * GET all leave policies - All authenticated users can view policies
@@ -19,7 +20,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error fetching leave policies:', error)
     return NextResponse.json({ error: 'Failed to fetch leave policies' }, { status: 500 })
   }
-}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'EMPLOYEE', 'SUPERVISOR', 'DIRECTOR', 'hr_officer', 'hr_director'] })
+}, { allowedRoles: READ_ONLY_ROLES })
 
 /**
  * POST create leave policy
@@ -114,5 +115,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error creating leave policy:', error)
     return NextResponse.json({ error: 'Failed to create leave policy' }, { status: 500 })
   }
-}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })
+}, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })
 

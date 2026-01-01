@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isHRDirector, isChiefDirector, isAuditor, isAdmin } from '@/lib/auth-proxy'
 import { validateLeavePolicyAgainstStatutoryMinimums, getStatutoryMinimum } from '@/lib/statutory-leave-validation'
+import { AUDIT_ROLES } from '@/lib/role-utils'
 
 /**
  * GET /api/reports/compliance/statutory
@@ -78,5 +79,5 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'hr', 'hr_director', 'chief_director', 'auditor', 'admin'] })
+}, { allowedRoles: AUDIT_ROLES })
 

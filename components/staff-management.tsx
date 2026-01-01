@@ -49,8 +49,8 @@ export default function StaffManagement({ store, userRole, currentStaff }: Staff
   
   // HR roles can edit employees
   const canEditEmployees = hasPermission(role, 'employee:update') && 
-    (normalizedRole === 'HR_OFFICER' || normalizedRole === 'HR_DIRECTOR' || normalizedRole === 'SYS_ADMIN' || 
-     normalizedRole === 'hr' || normalizedRole === 'admin')
+    (normalizedRole === 'HR_OFFICER' || normalizedRole === 'HR_DIRECTOR' || normalizedRole === 'SYSTEM_ADMIN' || 
+     normalizedRole === 'hr' || userRole === 'admin' || userRole === 'SYS_ADMIN')
 
   const getRoleTheme = () => {
     if (normalizedRole === 'HR_OFFICER' || normalizedRole === 'HR_DIRECTOR' || normalizedRole === 'hr') {

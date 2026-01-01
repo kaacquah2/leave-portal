@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { checkSystemHealth, runHealthChecks } from '@/lib/monitoring'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 // GET system health status
 export async function GET(request: NextRequest) {
@@ -28,6 +29,6 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 

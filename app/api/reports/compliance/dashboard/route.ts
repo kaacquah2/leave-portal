@@ -7,9 +7,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isHRDirector, isChiefDirector, isAuditor } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHRDirector, isChiefDirector, isAuditor, isHROfficer, isAdmin } from '@/lib/auth-proxy'
 import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-leave-validation'
 import { COMPLIANCE_STATUS } from '@/lib/ghana-statutory-constants'
+import { AUDIT_ROLES } from '@/lib/role-utils'
 
 /**
  * GET /api/reports/compliance/dashboard
@@ -17,8 +18,8 @@ import { COMPLIANCE_STATUS } from '@/lib/ghana-statutory-constants'
  */
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
-    // Only HR Directors, Chief Director, and Auditors can view compliance dashboard
-    if (!isHRDirector(user) && !isChiefDirector(user) && !isAuditor(user)) {
+    // HR Officers, HR Directors, Chief Director, Auditors, and System Admins can view compliance dashboard
+    if (!isHROfficer(user) && !isHRDirector(user) && !isChiefDirector(user) && !isAuditor(user) && !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions to view compliance dashboard' },
         { status: 403 }
@@ -138,5 +139,5 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'hr_director', 'chief_director', 'auditor'] })
+}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYSTEM_ADMIN', 'hr_officer', 'hr_director', 'chief_director', 'auditor', 'hr', 'hr_assistant'] })
 

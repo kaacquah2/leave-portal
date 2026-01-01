@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendEmail } from '@/lib/email'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 // GET pending approvals that need reminders
 export async function GET(request: NextRequest) {
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 
 // POST send reminder notifications
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
                         <li><strong>End Date:</strong> ${new Date(leave.endDate).toLocaleDateString()}</li>
                         <li><strong>Submitted:</strong> ${new Date(leave.createdAt).toLocaleDateString()}</li>
                       </ul>
-                      <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/leaves/${leaveId}">Review Leave Request</a></p>
+                      <p><a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || '#'}/leaves/${leaveId}">Review Leave Request</a></p>
                     `,
                   })
                 } catch (emailError) {
@@ -221,5 +222,5 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }

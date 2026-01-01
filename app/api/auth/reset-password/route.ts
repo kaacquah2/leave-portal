@@ -9,8 +9,15 @@ import { prisma } from '@/lib/prisma'
 import { hashPassword, verifyPassword, verifyPasswordResetToken, markPasswordResetTokenAsUsed } from '@/lib/auth'
 import { sendEmail, generatePasswordResetSuccessEmail } from '@/lib/email'
 import { validatePasswordComplexity, isPasswordInHistory, addPasswordToHistory, setPasswordExpiry } from '@/lib/password-policy'
+import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting
+  const rateLimitResult = await rateLimit(request, RATE_LIMITS.resetPassword)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult, RATE_LIMITS.resetPassword.maxRequests)
+  }
+
   try {
     const body = await request.json()
     const { token, newPassword } = body

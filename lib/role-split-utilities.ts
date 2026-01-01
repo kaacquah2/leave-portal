@@ -55,9 +55,8 @@ export const ROLE_DEFINITIONS = {
 export function isSystemAdminRole(role: string): boolean {
   const normalizedRole = role?.toUpperCase()
   return (
-    normalizedRole === 'SYS_ADMIN' ||
     normalizedRole === 'SYSTEM_ADMIN' ||
-    normalizedRole === 'SECURITY_ADMIN' ||
+    normalizedRole === 'SYS_ADMIN' ||
     role === 'admin'
   )
 }

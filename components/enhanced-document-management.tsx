@@ -95,7 +95,7 @@ export default function EnhancedDocumentManagement({ userRole }: { userRole: str
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('active')
-  const [selectedTag, setSelectedTag] = useState<string>('')
+  const [selectedTag, setSelectedTag] = useState<string>('all')
   const [showExpired, setShowExpired] = useState(false)
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([])
   const [showBulkDialog, setShowBulkDialog] = useState(false)
@@ -121,7 +121,7 @@ export default function EnhancedDocumentManagement({ userRole }: { userRole: str
       if (selectedCategory !== 'all') params.append('category', selectedCategory)
       if (selectedType !== 'all') params.append('type', selectedType)
       if (selectedStatus !== 'all') params.append('status', selectedStatus)
-      if (selectedTag) params.append('tag', selectedTag)
+      if (selectedTag && selectedTag !== 'all') params.append('tag', selectedTag)
       if (showExpired) params.append('expired', 'true')
       if (searchTerm) params.append('search', searchTerm)
 
@@ -363,7 +363,7 @@ export default function EnhancedDocumentManagement({ userRole }: { userRole: str
                   <SelectValue placeholder="Tag" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Tags</SelectItem>
+                  <SelectItem value="all">All Tags</SelectItem>
                   {allTags.map(tag => (
                     <SelectItem key={tag} value={tag}>{tag}</SelectItem>
                   ))}

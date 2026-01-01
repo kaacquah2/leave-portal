@@ -11,6 +11,7 @@ import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { prisma } from '@/lib/prisma'
 import { unlink } from 'fs/promises'
 import { join } from 'path'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 // GET - Get single document
 export async function GET(

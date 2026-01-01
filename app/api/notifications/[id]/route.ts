@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { READ_ONLY_ROLES } from '@/lib/role-utils'
 
 // PATCH mark notification as read
 export async function PATCH(
@@ -46,7 +47,7 @@ export async function PATCH(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })(request)
+  }, { allowedRoles: READ_ONLY_ROLES })(request)
 }
 
 // DELETE notification
@@ -89,6 +90,6 @@ export async function DELETE(
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] })(request)
+  }, { allowedRoles: READ_ONLY_ROLES })(request)
 }
 

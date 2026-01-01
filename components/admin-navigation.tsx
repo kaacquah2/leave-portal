@@ -22,7 +22,7 @@ interface NavItem {
   section?: string
 }
 
-export default function AdminNavigation({ activeTab, setActiveTab, onLogout, userRole = 'admin' }: AdminNavigationProps) {
+export default function AdminNavigation({ activeTab, setActiveTab, onLogout, userRole = 'SYSTEM_ADMIN' }: AdminNavigationProps) {
   const isMobile = useIsMobile()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -31,7 +31,6 @@ export default function AdminNavigation({ activeTab, setActiveTab, onLogout, use
     { id: 'users', label: 'User Management', icon: Users, permission: 'system:users:manage' },
     { id: 'password-resets', label: 'Password Resets', icon: KeyRound, permission: 'system:users:manage' },
     { id: 'audit-logs', label: 'Audit Logs', icon: FileText, permission: 'system:audit:view' },
-    { id: '2fa', label: '2FA Setup', icon: Lock, permission: 'system:users:manage' },
     { id: 'settings', label: 'System Settings', icon: Settings, permission: 'system:config:manage' },
     { id: 'compliance', label: 'Compliance Dashboard', icon: Shield, permission: 'system:audit:view', section: 'compliance' },
     { id: 'policies', label: 'Policy Management', icon: BookOpen, permission: 'leave:policy:manage', section: 'compliance' },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendSystemAnnouncement } from '@/lib/email'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 
 // POST send system announcement
@@ -79,7 +80,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Send announcements
-      const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      if (!portalUrl) {
+        throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+      }
       const results = await sendSystemAnnouncement(
         title,
         message,
@@ -112,6 +116,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 

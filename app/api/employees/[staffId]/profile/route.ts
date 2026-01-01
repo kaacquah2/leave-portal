@@ -13,9 +13,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { logDataAccess } from '@/lib/data-access-logger'
-import { mapToMoFARole } from '@/lib/role-mapping'
 
 /**
  * GET /api/employees/[staffId]/profile
@@ -38,10 +37,8 @@ export async function GET(
 
       // Verify employee can only access their own profile
       if (user.staffId !== staffId) {
-        const normalizedRole = mapToMoFARole(user.role)
         // Only HR and admin can view other profiles
-        if (normalizedRole !== 'HR_OFFICER' && normalizedRole !== 'HR_DIRECTOR' && 
-            normalizedRole !== 'SYS_ADMIN' && user.role !== 'admin' && user.role !== 'hr') {
+        if (!isHR(user) && !isAdmin(user)) {
           return NextResponse.json(
             { error: 'Forbidden - You can only view your own profile' },
             { status: 403 }

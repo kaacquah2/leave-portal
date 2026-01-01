@@ -9,9 +9,16 @@ import {
   requirePasswordChange,
   isSeededUser
 } from '@/lib/password-policy'
+import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limit'
 
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting
+  const rateLimitResult = await rateLimit(request, RATE_LIMITS.login)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult, RATE_LIMITS.login.maxRequests)
+  }
+
   try {
     const body = await request.json()
     const { email, password } = body

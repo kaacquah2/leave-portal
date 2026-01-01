@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-leave-validation'
 import { createAuditLog } from '@/lib/audit-logger'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 /**
  * PATCH update leave policy
@@ -120,6 +121,6 @@ export async function PATCH(
       console.error('Error updating leave policy:', error)
       return NextResponse.json({ error: 'Failed to update leave policy' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 

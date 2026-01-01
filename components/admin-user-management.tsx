@@ -602,7 +602,7 @@ export default function AdminUserManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     {staffWithoutUsers.length === 0 ? (
-                      <SelectItem value="" disabled>No staff members without accounts</SelectItem>
+                      <SelectItem value="no-staff" disabled>No staff members without accounts</SelectItem>
                     ) : (
                       staffWithoutUsers.map((staff) => (
                         <SelectItem key={staff.staffId} value={staff.staffId}>

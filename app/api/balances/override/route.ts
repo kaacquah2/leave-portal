@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHROfficer, isHRDirector } from '@/lib/auth-proxy'
 import { createAuditLog } from '@/lib/audit-logger'
+import { HR_ROLES } from '@/lib/role-utils'
 
 /**
  * POST /api/balances/override
@@ -129,7 +130,7 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['HR_OFFICER', 'hr'] })
+}, { allowedRoles: ['HR_OFFICER', 'hr', 'hr_officer'] })
 
 /**
  * GET /api/balances/override
@@ -184,5 +185,5 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_director'] })
+}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_director', 'hr_officer'] })
 

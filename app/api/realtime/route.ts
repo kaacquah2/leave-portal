@@ -52,8 +52,9 @@ export async function GET(request: NextRequest) {
 
       const checkForUpdates = async () => {
         try {
-          // Check for new leave requests (for managers/HR)
-          if (user.role === 'manager' || user.role === 'deputy_director' || user.role === 'hr' || user.role === 'hr_assistant' || user.role === 'admin') {
+          // Check for new leave requests (for managers/HR/admin)
+          const { isManager, isHR, isAdmin } = await import('@/lib/auth-proxy')
+          if (isManager(user) || isHR(user) || isAdmin(user)) {
             const leaveCount = await prisma.leaveRequest.count({
               where: { status: 'pending' },
             })

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { prisma } from '@/lib/prisma'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 // GET - List interviews
 export async function GET(request: NextRequest) {
@@ -170,6 +171,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_officer', 'hr_director', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 

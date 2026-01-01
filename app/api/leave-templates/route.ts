@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin, isChiefDirector } from '@/lib/auth-proxy'
+import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 
 // GET all leave templates
@@ -43,5 +44,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     console.error('Error creating leave template:', error)
     return NextResponse.json({ error: 'Failed to create leave template' }, { status: 500 })
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'SYS_ADMIN', 'hr', 'hr_assistant', 'admin', 'hr_officer', 'hr_director', 'chief_director'] })
+}, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES, 'CHIEF_DIRECTOR', 'chief_director'] })
 

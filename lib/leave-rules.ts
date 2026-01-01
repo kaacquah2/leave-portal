@@ -21,6 +21,7 @@ export interface YearEndProcessingResult {
 
 /**
  * Calculate carry-forward for a leave type based on policy
+ * Checks for approved deferments that allow additional carry-forward
  */
 export async function calculateCarryForward(
   staffId: string,
@@ -45,12 +46,33 @@ export async function calculateCarryForward(
     }
   }
 
+  // Check for approved deferment requests for this leave type
+  const approvedDeferment = await prisma.leaveDefermentRequest.findFirst({
+    where: {
+      staffId,
+      leaveType,
+      status: 'approved',
+    },
+    orderBy: {
+      approvedAt: 'desc',
+    },
+  })
+
   let carryForwardDays = 0
   let forfeitedDays = 0
+  let maxCarryover = policy.maxCarryover || 0
+
+  // If there's an approved deferment, the deferred days can be carried forward
+  // in addition to the normal maxCarryover limit
+  if (approvedDeferment && approvedDeferment.approvedAt) {
+    // Deferred days are in addition to normal carry-forward
+    // The system flags this leave as "Deferred by Authority"
+    maxCarryover = maxCarryover + approvedDeferment.unusedDays
+  }
 
   if (policy.carryoverAllowed && currentBalance > 0) {
-    // Calculate carry-forward (up to maxCarryover)
-    carryForwardDays = Math.min(currentBalance, policy.maxCarryover || 0)
+    // Calculate carry-forward (up to maxCarryover, which may include deferred days)
+    carryForwardDays = Math.min(currentBalance, maxCarryover)
     forfeitedDays = Math.max(0, currentBalance - carryForwardDays)
   } else {
     // No carry-forward allowed, all unused leave is forfeited

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, type AuthContext } from '@/lib/auth-proxy';
 import { prisma } from '@/lib/prisma';
+import { READ_ONLY_ROLES } from '@/lib/role-utils';
 
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
@@ -253,5 +254,5 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     );
   }
-}, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director'] });
+}, { allowedRoles: READ_ONLY_ROLES });
 

@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isAdmin } from '@/lib/auth-proxy'
+import { ADMIN_ROLES } from '@/lib/role-utils'
 
-// GET audit logs (admin only)
+// Required for static export (Electron build)
+export const dynamic = 'force-static'
+
+// GET audit logs (admin only, including SECURITY_ADMIN)
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
-    // Only admin can access this route (check normalized roles)
-    const normalizedRole = user.role?.toUpperCase()
-    const isAdmin = user.role === 'admin' || 
-                   normalizedRole === 'SYS_ADMIN' || 
-                   normalizedRole === 'SYSTEM_ADMIN' || 
-                   normalizedRole === 'SECURITY_ADMIN'
-    
-    if (!isAdmin) {
+    // Only admin can access this route
+    if (!isAdmin(user)) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -72,5 +70,5 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['admin', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN'] })
+}, { allowedRoles: ADMIN_ROLES })
 

@@ -208,7 +208,7 @@ export function useDataStore(options?: {
   const userRole = options?.userRole
 
   // Check if user has permission to view audit logs
-  const canViewAuditLogs = userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'admin'
+  const canViewAuditLogs = userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'admin' || userRole === 'SYSTEM_ADMIN' || userRole === 'SYS_ADMIN'
 
   // Fetch all data from API
   const fetchAll = useCallback(async () => {

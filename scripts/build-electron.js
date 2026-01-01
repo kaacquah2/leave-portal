@@ -2,9 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-console.log('Building Electron app...');
-console.log('The Electron app will connect to a remote API server.');
-console.log('⚠️  WARNING: App requires internet connection to function.');
+console.log('Building Electron app with offline capability...');
+console.log('The Electron app will work offline using bundled static files.');
+console.log('✅ App works OFFLINE! Falls back to remote URL if needed.');
 
 // Clean dist folder to avoid rename conflicts
 const distDir = path.join(__dirname, '..', 'dist');
@@ -39,10 +39,37 @@ try {
   console.log(`Source: ${process.env.ELECTRON_API_URL ? 'ELECTRON_API_URL' : process.env.NEXT_PUBLIC_API_URL ? 'NEXT_PUBLIC_API_URL' : 'DEFAULT (Vercel)'}`);
   console.log('='.repeat(60));
   
-  // Note: We don't build static files anymore - app loads from remote URL
-  console.log('\n⚠️  App will load from remote URL:', electronApiUrl);
-  console.log('   No static files will be bundled.');
-  console.log('   Internet connection is REQUIRED.');
+  // Build static files for offline capability
+  console.log('\n📦 Building static files for offline capability...');
+  console.log('   App will load from local files first (works offline)');
+  console.log('   Falls back to remote URL if local files not found');
+  
+  // Build Next.js static export
+  try {
+    console.log('\n🔨 Running Next.js static export...');
+    // Set ELECTRON=1 environment variable for the build
+    const buildEnv = { ...process.env, ELECTRON: '1' };
+    execSync('npm run build', {
+      stdio: 'inherit',
+      cwd: path.join(__dirname, '..'),
+      env: buildEnv
+    });
+    console.log('✅ Static files built successfully');
+    
+    // Verify out folder exists
+    const outDir = path.join(__dirname, '..', 'out');
+    if (!fs.existsSync(outDir)) {
+      throw new Error('out folder not found after build');
+    }
+    if (!fs.existsSync(path.join(outDir, 'index.html'))) {
+      throw new Error('out/index.html not found after build');
+    }
+    console.log('✅ Verified static files in out/ folder');
+  } catch (error) {
+    console.error('❌ Failed to build static files:', error.message);
+    console.error('   The app will still work but will require internet connection');
+    throw error;
+  }
   
   // Always embed API URL in preload script (required for production)
   console.log(`\nEmbedding API URL in preload script: ${electronApiUrl}`);
@@ -91,9 +118,9 @@ try {
   const builderCmd = 'electron-builder --win';
   console.log(`\nUsing API URL: ${normalizedApiUrl}`);
   console.log('This URL will be used for all API calls in the built application.');
-  console.log('\n📦 Building Electron app (internet required):');
-  console.log('   ⚠️  App loads from remote URL:', normalizedApiUrl);
-  console.log('   ⚠️  Internet connection REQUIRED');
+  console.log('\n📦 Building Electron app (offline capable):');
+  console.log('   ✅ App loads from local static files (works offline)');
+  console.log('   ✅ Falls back to remote URL if local files not found');
   console.log('   ✅ API calls go to:', normalizedApiUrl);
   
   try {

@@ -107,7 +107,7 @@ export default function Page() {
 
         if (response.ok) {
           const user = await response.json()
-          const role = user.role as 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'employee' | 'admin'
+          const role = user.role as UserRole
           
           console.log('[App] Authentication successful, role:', role);
           
@@ -127,7 +127,9 @@ export default function Page() {
           }
           
           // If already on a role-specific page or staying on root, restore session
-          setUserRole(role)
+          // Map admin to SYSTEM_ADMIN for consistency
+          const mappedRole = role === 'admin' || role === 'SYS_ADMIN' ? 'SYSTEM_ADMIN' : role
+          setUserRole(mappedRole as UserRole)
           if (user.staffId) setStaffId(user.staffId)
           setStage('portal')
         } else {
@@ -185,8 +187,10 @@ export default function Page() {
     setStage('login')
   }
 
-  const handleLoginSuccess = (role: 'hr' | 'manager' | 'employee' | 'admin', id?: string) => {
-    setUserRole(role)
+  const handleLoginSuccess = (role: UserRole, id?: string) => {
+    // Map admin to SYSTEM_ADMIN for consistency
+    const mappedRole = role === 'admin' || role === 'SYS_ADMIN' ? 'SYSTEM_ADMIN' : role
+    setUserRole(mappedRole as UserRole)
     if (id) setStaffId(id)
     setStage('portal')
     

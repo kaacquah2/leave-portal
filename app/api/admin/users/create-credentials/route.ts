@@ -4,6 +4,7 @@ import { withAuth, type AuthContext, isAdmin, isHR } from '@/lib/auth-proxy'
 import { hashPassword } from '@/lib/auth'
 import { sendEmail, generateNewUserCredentialsEmail } from '@/lib/email'
 import { validatePasswordComplexity, addPasswordToHistory, setPasswordExpiry } from '@/lib/password-policy'
+import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
 
 /**
  * POST /api/admin/users/create-credentials
@@ -164,7 +165,10 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     // Send email with credentials (non-blocking)
     let emailSent = false
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      if (!appUrl) {
+        throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+      }
       const loginUrl = `${appUrl}/login`
       
       const emailHtml = generateNewUserCredentialsEmail(
@@ -233,5 +237,5 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['admin', 'SYS_ADMIN', 'HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_officer', 'hr_director'] })
+}, { allowedRoles: [...ADMIN_ROLES, ...HR_ROLES] })
 

@@ -8,8 +8,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createPasswordResetToken } from '@/lib/auth'
 import { sendEmail, generatePasswordResetEmail } from '@/lib/email'
+import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting
+  const rateLimitResult = await rateLimit(request, RATE_LIMITS.forgotPassword)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult, RATE_LIMITS.forgotPassword.maxRequests)
+  }
+
   try {
     const body = await request.json()
     const { email } = body
@@ -50,7 +57,11 @@ export async function POST(request: NextRequest) {
       })
 
       // Send reset email
-      const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/reset-password?token=${token}`
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      if (!appUrl) {
+        throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+      }
+      const resetUrl = `${appUrl}/reset-password?token=${token}`
       
       try {
         await sendEmail({

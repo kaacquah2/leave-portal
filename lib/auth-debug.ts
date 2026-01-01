@@ -1,15 +1,33 @@
 /**
  * Authentication Debug Utilities
  * 
- * These utilities help debug authentication issues in development and production.
- * Enable debug mode by setting DEBUG_AUTH=true in Vercel environment variables
- * or NEXT_PUBLIC_DEBUG_AUTH=true for client-side debugging.
+ * These utilities help debug authentication issues in development ONLY.
+ * Debug mode is automatically disabled in production for security.
+ * 
+ * ⚠️ SECURITY: This file should never expose sensitive data or be enabled in production.
  */
 
 /**
  * Check if debug mode is enabled
+ * 
+ * ⚠️ SECURITY: Debug mode is ONLY enabled in development or when explicitly
+ * enabled via environment variable. In production, this always returns false
+ * unless explicitly enabled (which should be avoided).
  */
 export function isDebugMode(): boolean {
+  // Never enable debug mode in production unless explicitly requested
+  const isProduction = process.env.NODE_ENV === 'production'
+  
+  if (isProduction) {
+    // In production, only enable if explicitly set (not recommended)
+    // This allows emergency debugging but should be disabled immediately after
+    if (typeof window !== 'undefined') {
+      return process.env.NEXT_PUBLIC_DEBUG_AUTH === 'true'
+    }
+    return process.env.DEBUG_AUTH === 'true'
+  }
+
+  // Development mode: enable by default or via environment variable
   if (typeof window !== 'undefined') {
     return process.env.NEXT_PUBLIC_DEBUG_AUTH === 'true' || 
            process.env.NODE_ENV === 'development' ||

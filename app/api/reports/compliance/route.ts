@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, hasRole } from '@/lib/auth-proxy'
+import { AUDIT_ROLES } from '@/lib/role-utils'
 
 // GET compliance reports
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
@@ -63,7 +64,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'hr_officer', 'hr_director', 'chief_director', 'auditor', 'admin', 'hr'] })
+}, { allowedRoles: AUDIT_ROLES })
 
 /**
  * Leave Utilization Report by Directorate/Unit/Region

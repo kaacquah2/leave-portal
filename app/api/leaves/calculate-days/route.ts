@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { calculateLeaveDays } from '@/lib/leave-calculation-utils'
+import { READ_ONLY_ROLES } from '@/lib/role-utils'
 
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
@@ -44,6 +45,6 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'EMPLOYEE', 'SUPERVISOR', 'DIRECTOR', 'hr_officer', 'hr_director'] })(request)
+  }, { allowedRoles: READ_ONLY_ROLES })(request)
 }
 

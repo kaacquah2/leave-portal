@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isAuditor, isHRDirector, isAdmin } from '@/lib/auth-proxy'
 import { getDataAccessLogs } from '@/lib/data-access-logger'
+import { AUDIT_ROLES } from '@/lib/role-utils'
 
 /**
  * GET /api/reports/data-access
@@ -98,5 +99,5 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ['AUDITOR', 'HR_DIRECTOR', 'SECURITY_ADMIN', 'auditor', 'hr_director'] })
+}, { allowedRoles: AUDIT_ROLES })
 

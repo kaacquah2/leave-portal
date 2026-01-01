@@ -57,10 +57,11 @@ export default function EmployeeDocuments() {
       const response = await apiRequest('/api/documents?category=personal')
       if (response.ok) {
         const data = await response.json()
-        setDocuments(data)
+        setDocuments(Array.isArray(data.data) ? data.data : [])
       }
     } catch (error) {
       console.error('Error fetching documents:', error)
+      setDocuments([]) // Ensure documents is always an array on error
     } finally {
       setLoading(false)
     }

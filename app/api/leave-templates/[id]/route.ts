@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 // PATCH update leave template
 export async function PATCH(
@@ -27,6 +28,6 @@ export async function PATCH(
       console.error('Error updating leave template:', error)
       return NextResponse.json({ error: 'Failed to update leave template' }, { status: 500 })
     }
-  }, { allowedRoles: ['hr', 'admin'] })(request)
+  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES] })(request)
 }
 

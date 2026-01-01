@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
+import { AUDIT_ROLES } from '@/lib/role-utils'
 
 // GET audit logs
 export async function GET(request: NextRequest) {
@@ -30,6 +31,6 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['hr', 'hr_assistant', 'admin', 'HR_OFFICER', 'HR_DIRECTOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN', 'hr_officer', 'hr_director'] })(request)
+  }, { allowedRoles: AUDIT_ROLES })(request)
 }
 

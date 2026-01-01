@@ -17,7 +17,7 @@ interface ManagerAssignmentProps {
 
 export default function ManagerAssignment({ store, staffId }: ManagerAssignmentProps) {
   const [selectedStaff, setSelectedStaff] = useState<string>(staffId || '')
-  const [selectedManager, setSelectedManager] = useState<string>('')
+  const [selectedManager, setSelectedManager] = useState<string>('none')
   const [currentManager, setCurrentManager] = useState<any>(null)
   const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -93,7 +93,7 @@ export default function ManagerAssignment({ store, staffId }: ManagerAssignmentP
           credentials: 'include',
           body: JSON.stringify({
             staffIds: bulkStaffIds,
-            managerId: selectedManager || null,
+            managerId: selectedManager && selectedManager !== 'none' ? selectedManager : null,
           }),
         })
 
@@ -124,7 +124,7 @@ export default function ManagerAssignment({ store, staffId }: ManagerAssignmentP
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            managerId: selectedManager || null,
+            managerId: selectedManager && selectedManager !== 'none' ? selectedManager : null,
           }),
         })
 
@@ -135,7 +135,7 @@ export default function ManagerAssignment({ store, staffId }: ManagerAssignmentP
 
         toast({
           title: 'Success',
-          description: selectedManager
+          description: selectedManager && selectedManager !== 'none'
             ? 'Manager assigned successfully'
             : 'Manager removed successfully',
         })
@@ -286,7 +286,7 @@ export default function ManagerAssignment({ store, staffId }: ManagerAssignmentP
                         <SelectValue placeholder="Select manager (or leave empty to remove)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None (Remove Manager)</SelectItem>
+                        <SelectItem value="none">None (Remove Manager)</SelectItem>
                         {managers
                           .filter(m => m.staffId !== selectedStaff)
                           .map(m => (
@@ -299,7 +299,7 @@ export default function ManagerAssignment({ store, staffId }: ManagerAssignmentP
                   </div>
 
                   <Button onClick={handleAssign} disabled={isLoading}>
-                    {isLoading ? 'Assigning...' : selectedManager ? 'Assign Manager' : 'Remove Manager'}
+                    {isLoading ? 'Assigning...' : selectedManager && selectedManager !== 'none' ? 'Assign Manager' : 'Remove Manager'}
                   </Button>
                 </div>
               )}
@@ -343,7 +343,7 @@ export default function ManagerAssignment({ store, staffId }: ManagerAssignmentP
                     <SelectValue placeholder="Select manager (or leave empty to remove)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (Remove Manager)</SelectItem>
+                    <SelectItem value="none">None (Remove Manager)</SelectItem>
                     {managers.map(m => (
                       <SelectItem key={m.id} value={m.staffId}>
                         {m.staffId} - {m.firstName} {m.lastName} ({m.position})

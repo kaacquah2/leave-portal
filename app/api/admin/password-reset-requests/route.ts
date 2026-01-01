@@ -8,17 +8,21 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
 import { prisma } from '@/lib/prisma'
 import { createPasswordResetToken } from '@/lib/auth'
 import { sendEmail, generatePasswordResetEmail } from '@/lib/email'
+
+// Required for static export (Electron build)
+export const dynamic = 'force-static'
 
 // GET - List password reset requests
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {
       // Only admin and HR roles can access
-      const allowedRoles = ['SYS_ADMIN', 'HR_OFFICER', 'HR_DIRECTOR', 'admin', 'hr', 'hr_officer', 'hr_director']
-      if (!allowedRoles.includes(user.role)) {
+      const { isAdmin, isHR } = await import('@/lib/auth-proxy')
+      if (!isAdmin(user) && !isHR(user)) {
         return NextResponse.json(
           { error: 'Forbidden - Admin/HR access required' },
           { status: 403 }
@@ -76,7 +80,7 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['SYS_ADMIN', 'HR_OFFICER', 'HR_DIRECTOR', 'admin', 'hr', 'hr_officer', 'hr_director'] })(request)
+  }, { allowedRoles: [...ADMIN_ROLES, ...HR_ROLES] })(request)
 }
 
 // POST - Create password reset request (admin-initiated)
@@ -134,7 +138,11 @@ export async function POST(request: NextRequest) {
       // If auto-approved, generate token and send email
       if (autoApprove) {
         const token = await createPasswordResetToken(targetUser.id)
-        const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/reset-password?token=${token}`
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+        if (!appUrl) {
+          throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+        }
+        const resetUrl = `${appUrl}/reset-password?token=${token}`
 
         await prisma.passwordResetRequest.update({
           where: { id: resetRequest.id },
@@ -185,7 +193,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['SYS_ADMIN', 'HR_OFFICER', 'HR_DIRECTOR', 'admin', 'hr', 'hr_officer', 'hr_director'] })(request)
+  }, { allowedRoles: [...ADMIN_ROLES, ...HR_ROLES] })(request)
 }
 
 // PATCH - Update password reset request (approve/reject)
@@ -235,7 +243,11 @@ export async function PATCH(request: NextRequest) {
       if (action === 'approve') {
         // Generate reset token
         const token = await createPasswordResetToken(resetRequest.userId)
-        const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/reset-password?token=${token}`
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+        if (!appUrl) {
+          throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+        }
+        const resetUrl = `${appUrl}/reset-password?token=${token}`
 
         // Update request
         await prisma.passwordResetRequest.update({
@@ -322,6 +334,6 @@ export async function PATCH(request: NextRequest) {
         { status: 500 }
       )
     }
-  }, { allowedRoles: ['SYS_ADMIN', 'HR_OFFICER', 'HR_DIRECTOR', 'admin', 'hr', 'hr_officer', 'hr_director'] })(request)
+  }, { allowedRoles: [...ADMIN_ROLES, ...HR_ROLES] })(request)
 }
 
