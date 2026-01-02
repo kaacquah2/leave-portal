@@ -27,17 +27,22 @@ const nextConfig = {
   // This ensures CSP is present before scripts load, preventing race conditions
   // 
   // CSP Configuration Notes:
+  // - 'unsafe-inline' for script-src is required for:
+  //   * Next.js hydration scripts that are injected inline
+  //   * Next.js chunk loading scripts (__next_f.push, etc.)
+  //   * Next.js runtime initialization scripts
+  // - 'unsafe-inline' for style-src is required for:
+  //   * Inline style attributes used by component libraries
+  //   * Dynamic style injection from React components
   // - 'unsafe-inline' for style-src-elem is required for:
   //   * Tailwind CSS utility classes that may be dynamically generated
   //   * Third-party component libraries (Radix UI, etc.) that inject styles
   //   * Next.js runtime style injection
-  // - style-src does NOT allow 'unsafe-inline' to prevent XSS via style attributes
-  //   This blocks inline style="" attributes while allowing <style> tags via style-src-elem
   // - For maximum security, implement nonce-based CSP in middleware:
   //   1. Generate nonce in middleware.ts
   //   2. Pass nonce via request headers or context
   //   3. Replace 'unsafe-inline' with 'nonce-{value}' in CSP
-  //   4. Add nonce to all <style> tags in components
+  //   4. Add nonce to all <script> and <style> tags in components
   async headers() {
     return [
       {
@@ -47,11 +52,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value:
               "default-src 'self' app:; " +
-              "script-src 'self' app:; " +
-              // style-src: NO 'unsafe-inline' to prevent XSS via style attributes
-              "style-src 'self' app:; " +
-              // style-src-elem: Allow 'unsafe-inline' for <style> tags (required for Tailwind/Next.js)
-              // TODO: Replace with nonce-based approach for better security
+              // Allow inline scripts for Next.js hydration and chunk loading
+              "script-src 'self' app: 'unsafe-inline'; " +
+              // Allow inline styles for component libraries and dynamic styling
+              "style-src 'self' app: 'unsafe-inline'; " +
+              // Allow inline <style> tags (required for Tailwind/Next.js)
               "style-src-elem 'self' app: 'unsafe-inline'; " +
               "img-src 'self' app: data: https:; " +
               "font-src 'self' app: data: https:; " +

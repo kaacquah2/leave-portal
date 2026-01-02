@@ -17,8 +17,46 @@ const { getPendingConflicts, markConflictResolved, autoResolveConflicts } = requ
 const { createOfflineApproval, getPendingOfflineApprovals, canApproveOffline } = require('./offline-approvals');
 const { getIncrementalSyncStats } = require('./incremental-sync');
 
-// Import repositories (will be compiled from TypeScript)
-// For now, using direct SQL queries - repositories will be added when TypeScript is compiled
+// Import compiled repositories
+// These are compiled from TypeScript during build process
+let EmployeeRepository, LeaveRequestRepository, LeaveBalanceRepository, AuditLogRepository;
+try {
+  // Try to require compiled repositories
+  // In production (ASAR): repositories are unpacked to app.asar.unpacked/electron/repositories-compiled
+  // In development: repositories-compiled should be in electron/ folder
+  const path = require('path');
+  const fs = require('fs');
+  
+  // Check multiple possible paths
+  const possiblePaths = [
+    path.join(__dirname, 'repositories-compiled'), // Development
+    path.join(process.resourcesPath, 'electron', 'repositories-compiled'), // Production (unpacked)
+    path.join(__dirname, '..', 'electron', 'repositories-compiled'), // Alternative
+  ];
+  
+  let repositoriesPath = null;
+  for (const testPath of possiblePaths) {
+    if (fs.existsSync(testPath)) {
+      repositoriesPath = testPath;
+      break;
+    }
+  }
+  
+  if (repositoriesPath) {
+    EmployeeRepository = require(path.join(repositoriesPath, 'employee-repository.js'));
+    LeaveRequestRepository = require(path.join(repositoriesPath, 'leave-request-repository.js'));
+    LeaveBalanceRepository = require(path.join(repositoriesPath, 'leave-balance-repository.js'));
+    AuditLogRepository = require(path.join(repositoriesPath, 'audit-log-repository.js'));
+    console.log('[IPC] Compiled repositories loaded successfully');
+  } else {
+    throw new Error('Repositories path not found');
+  }
+} catch (error) {
+  // Fallback: repositories not compiled yet, will use direct SQL
+  console.warn(`[IPC] Compiled repositories not found (${error.message}), using direct SQL fallback`);
+  console.warn('[IPC] This is normal in development if repositories are not compiled yet');
+}
+
 const Database = require('better-sqlite3');
 
 /**

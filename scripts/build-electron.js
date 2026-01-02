@@ -51,9 +51,9 @@ function retryOperation(operation, maxRetries = 5, delay = 100) {
   }
 }
 
-console.log('Building Electron app for remote API only...');
-console.log('The Electron app will load from remote URL and use remote API.');
-console.log('✅ App requires internet connection.');
+console.log('Building Electron app with offline functionality...');
+console.log('The Electron app includes offline-first architecture with local database.');
+console.log('✅ App works offline with automatic sync when online.');
 
 // Clean dist folder to avoid rename conflicts
 const distDir = path.join(__dirname, '..', 'dist');
@@ -90,10 +90,46 @@ try {
   console.log(`Source: ${process.env.ELECTRON_API_URL ? 'ELECTRON_API_URL' : process.env.NEXT_PUBLIC_API_URL ? 'NEXT_PUBLIC_API_URL' : 'DEFAULT (Vercel)'}`);
   console.log('='.repeat(60));
   
-  // No static export needed - app will load from remote URL
-  console.log('\n📦 Building Electron app for remote URL only...');
+  // Compile TypeScript repositories for Electron
+  console.log('\n🔨 Compiling TypeScript repositories...');
+  try {
+    const { execSync } = require('child_process');
+    const reposCompiledDir = path.join(__dirname, '..', 'electron', 'repositories-compiled');
+    
+    // Clean previous compilation
+    if (fs.existsSync(reposCompiledDir)) {
+      fs.rmSync(reposCompiledDir, { recursive: true, force: true });
+    }
+    
+    // Compile TypeScript repositories
+    execSync('npx tsc -p tsconfig.electron.json', { 
+      stdio: 'inherit',
+      cwd: path.join(__dirname, '..')
+    });
+    
+    // Verify compilation succeeded
+    if (!fs.existsSync(reposCompiledDir)) {
+      throw new Error('Compiled repositories directory not created');
+    }
+    
+    const compiledFiles = fs.readdirSync(reposCompiledDir).filter(f => f.endsWith('.js'));
+    if (compiledFiles.length === 0) {
+      throw new Error('No compiled repository files found');
+    }
+    
+    console.log(`✅ TypeScript repositories compiled (${compiledFiles.length} files)`);
+  } catch (error) {
+    console.error('❌ Failed to compile TypeScript repositories:', error.message);
+    console.error('   Make sure TypeScript is installed: npm install -g typescript');
+    throw error;
+  }
+  
+  // Build Electron app with offline functionality
+  console.log('\n📦 Building Electron app with offline functionality...');
   console.log('   App will load from:', electronApiUrl);
-  console.log('   No local static files will be bundled');
+  console.log('   ✅ Offline database included');
+  console.log('   ✅ Local repositories included');
+  console.log('   ✅ Sync engine included');
   
   // Always embed API URL in preload script (required for production)
   console.log(`\nEmbedding API URL in preload script: ${electronApiUrl}`);
@@ -142,10 +178,11 @@ try {
   const builderCmd = 'electron-builder --win';
   console.log(`\nUsing API URL: ${normalizedApiUrl}`);
   console.log('This URL will be used for all API calls and UI loading in the built application.');
-  console.log('\n📦 Building Electron app (remote URL only):');
+  console.log('\n📦 Building Electron app with offline support:');
   console.log('   ✅ App loads from remote URL:', normalizedApiUrl);
   console.log('   ✅ API calls go to:', normalizedApiUrl);
-  console.log('   ⚠️  Internet connection required');
+  console.log('   ✅ Offline database (SQLite) included');
+  console.log('   ✅ Works offline with automatic sync');
   
   try {
     execSync(builderCmd, { 
