@@ -10,7 +10,9 @@ export default defineConfig({
   },
   datasource: {
     // Use DIRECT_URL for migrations, DATABASE_URL for application
-    // Use process.env directly to avoid throwing error if DIRECT_URL is missing
-    url: process.env.DIRECT_URL || env("DATABASE_URL"),
+    // Use process.env directly to avoid throwing error if variables are missing
+    // Prisma Client generation doesn't require a real connection, but needs a valid URL format
+    // The dummy URL below is only used if both env vars are missing (shouldn't happen in normal usage)
+    url: process.env.DIRECT_URL || process.env.DATABASE_URL || "postgresql://user:password@localhost:5432/dbname",
   },
 });

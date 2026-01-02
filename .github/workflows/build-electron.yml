@@ -65,6 +65,7 @@ jobs:
         continue-on-error: true # Prisma may not be needed for build
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.DIRECT_URL }}
 
       - name: Build Next.js app
         run: npm run build:electron
@@ -135,6 +136,7 @@ jobs:
         continue-on-error: true
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.DIRECT_URL }}
 
       - name: Build Next.js app
         run: npm run build:electron
@@ -187,6 +189,7 @@ jobs:
         continue-on-error: true
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.DIRECT_URL }}
 
       - name: Build Next.js app
         run: npm run build:electron
