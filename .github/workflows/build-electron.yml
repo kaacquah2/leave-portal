@@ -71,6 +71,8 @@ jobs:
         run: npm run build:electron
         env:
           ELECTRON: '1'
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.DIRECT_URL }}
 
       - name: Compile TypeScript repositories
         run: npm run build:electron:repos
@@ -142,6 +144,8 @@ jobs:
         run: npm run build:electron
         env:
           ELECTRON: '1'
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.DIRECT_URL }}
 
       - name: Compile TypeScript repositories
         run: npm run build:electron:repos
@@ -195,6 +199,8 @@ jobs:
         run: npm run build:electron
         env:
           ELECTRON: '1'
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || secrets.DIRECT_URL }}
 
       - name: Compile TypeScript repositories
         run: npm run build:electron:repos
