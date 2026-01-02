@@ -21,6 +21,13 @@ export default function Landing({ onSignIn }: LandingProps) {
               fill
               className="object-contain"
               priority
+              unoptimized
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (target.src && !target.src.includes('./mofa-logo.png')) {
+                  target.src = './mofa-logo.png';
+                }
+              }}
             />
           </div>
           <h1 className="text-xl font-bold text-primary-foreground">{APP_CONFIG.appNameShort}</h1>

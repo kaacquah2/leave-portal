@@ -49,6 +49,54 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeListener(channel, callback);
   },
   
+  // Database IPC handlers for offline-first functionality
+  // These enable queuing operations when offline and syncing when online
+  db: {
+    // Add item to sync queue (for offline operations)
+    addToSyncQueue: (tableName, operation, recordId, payload) => 
+      ipcRenderer.invoke('db-add-to-sync-queue', tableName, operation, recordId, payload),
+    
+    // Get sync queue items
+    getSyncQueue: (limit = 50) => 
+      ipcRenderer.invoke('db-get-sync-queue', limit),
+    
+    // Remove item from sync queue
+    removeFromSyncQueue: (id) => 
+      ipcRenderer.invoke('db-remove-from-sync-queue', id),
+    
+    // Increment retry count for sync queue item
+    incrementSyncQueueRetry: (id, error) => 
+      ipcRenderer.invoke('db-increment-sync-queue-retry', id, error),
+    
+    // Get last sync time
+    getLastSyncTime: () => 
+      ipcRenderer.invoke('db-get-last-sync-time'),
+    
+    // Set last sync time
+    setLastSyncTime: (timestamp) => 
+      ipcRenderer.invoke('db-set-last-sync-time', timestamp),
+    
+    // Mark record as synced
+    markSynced: (tableName, recordId) => 
+      ipcRenderer.invoke('db-mark-synced', tableName, recordId),
+    
+    // Upsert record (insert or update)
+    upsertRecord: (tableName, record) => 
+      ipcRenderer.invoke('db-upsert-record', tableName, record),
+    
+    // Get record by ID
+    getRecord: (tableName, recordId) => 
+      ipcRenderer.invoke('db-get-record', tableName, recordId),
+    
+    // Get all records from table
+    getAllRecords: (tableName, limit = 1000) => 
+      ipcRenderer.invoke('db-get-all-records', tableName, limit),
+    
+    // Delete record
+    deleteRecord: (tableName, recordId) => 
+      ipcRenderer.invoke('db-delete-record', tableName, recordId),
+  },
+  
   // Check if running in Electron
   isElectron: true,
 });

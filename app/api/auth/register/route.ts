@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, createToken, createSession } from '@/lib/auth'
+import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight requests
+  const preflightResponse = handleCorsPreflight(request)
+  if (preflightResponse) {
+    return preflightResponse
+  }
   try {
     const body = await request.json()
     const { email, password, role, staffId } = body
 
     if (!email || !password) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Check if user already exists
@@ -21,10 +28,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingUser) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'User with this email already exists' },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // If staffId is provided, verify it exists
@@ -34,10 +42,11 @@ export async function POST(request: NextRequest) {
       })
 
       if (!staff) {
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'Staff member not found' },
           { status: 400 }
         )
+        return addCorsHeaders(response, request)
       }
 
       // Check if staff already has a user account
@@ -46,10 +55,11 @@ export async function POST(request: NextRequest) {
       })
 
       if (existingStaffUser) {
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'Staff member already has an account' },
           { status: 400 }
         )
+        return addCorsHeaders(response, request)
       }
     }
 
@@ -128,13 +138,14 @@ export async function POST(request: NextRequest) {
       // This ensures it works on vercel.app subdomains
     })
 
-    return response
+    return addCorsHeaders(response, request)
   } catch (error) {
     console.error('Registration error:', error)
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Failed to register user' },
       { status: 500 }
     )
+    return addCorsHeaders(response, request)
   }
 }
 

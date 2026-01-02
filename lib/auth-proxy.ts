@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTokenFromRequest, getUserFromToken, type AuthUser } from './auth'
+import { addCorsHeaders, handleCorsPreflight } from './cors'
 
 // Re-export AuthUser for use in other modules
 export type { AuthUser }
@@ -121,12 +122,19 @@ export function withAuth<T = any>(
   options: AuthOptions = {}
 ): (request: NextRequest) => Promise<NextResponse<T> | NextResponse<{ error: string }>> {
   return async (request: NextRequest) => {
+    // Handle CORS preflight requests
+    const preflightResponse = handleCorsPreflight(request)
+    if (preflightResponse) {
+      return preflightResponse
+    }
+    
     // Allow public routes (no auth required)
     if (options.public) {
       // For public routes, we still need to provide a user object structure
       // but it won't be validated
       const mockUser = { id: '', email: '', role: 'guest', staffId: null } as AuthUser
-      return handler({ user: mockUser, request })
+      const response = await handler({ user: mockUser, request })
+      return addCorsHeaders(response, request)
     }
 
     // Check authentication
@@ -148,10 +156,11 @@ export function withAuth<T = any>(
         })
         console.log('[Auth Debug] To enable detailed logging, set DEBUG_AUTH=true in Vercel environment variables')
       }
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Unauthorized - No authentication token found. Please log in first.' },
         { status: 401 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Verify token
@@ -167,19 +176,21 @@ export function withAuth<T = any>(
         })
         console.log('[Auth Debug] Possible causes: token expired, session expired, or invalid token')
       }
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Invalid or expired token. Please log in again.' },
         { status: 401 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Check if account is locked
     const locked = await isAccountLocked(user.id)
     if (locked) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Account is locked due to too many failed login attempts. Please try again later.' },
         { status: 403 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Check session timeout
@@ -192,10 +203,11 @@ export function withAuth<T = any>(
       if (expired) {
         // Delete expired session
         await prisma.session.delete({ where: { id: session.id } })
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'Session expired. Please login again.' },
           { status: 401 }
         )
+        return addCorsHeaders(response, request)
       }
 
       // Update last activity
@@ -214,15 +226,17 @@ export function withAuth<T = any>(
             path: request.nextUrl.pathname,
           })
         }
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'Forbidden' },
           { status: 403 }
         )
+        return addCorsHeaders(response, request)
       }
     }
 
     // Call the handler with authenticated context
-    return handler({ user, request })
+    const response = await handler({ user, request })
+    return addCorsHeaders(response, request)
   }
 }
 
@@ -235,21 +249,23 @@ export async function getAuthenticatedUser(
 ): Promise<{ user: AuthUser } | { error: NextResponse }> {
   const token = getTokenFromRequest(request)
   if (!token) {
+    const response = NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
     return {
-      error: NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      error: addCorsHeaders(response, request)
     }
   }
 
   const user = await getUserFromToken(token)
   if (!user) {
+    const response = NextResponse.json(
+      { error: 'Invalid or expired token' },
+      { status: 401 }
+    )
     return {
-      error: NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401 }
-      )
+      error: addCorsHeaders(response, request)
     }
   }
 

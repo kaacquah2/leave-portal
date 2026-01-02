@@ -11,7 +11,7 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
 import { prisma } from '@/lib/prisma'
 import { createPasswordResetToken } from '@/lib/auth'
-import { sendEmail, generatePasswordResetEmail } from '@/lib/email'
+import { sendEmail, generatePasswordResetEmail, getAppUrl } from '@/lib/email'
 
 // GET - List password reset requests
 export async function GET(request: NextRequest) {
@@ -135,10 +135,7 @@ export async function POST(request: NextRequest) {
       // If auto-approved, generate token and send email
       if (autoApprove) {
         const token = await createPasswordResetToken(targetUser.id)
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-        if (!appUrl) {
-          throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
-        }
+        const appUrl = getAppUrl()
         const resetUrl = `${appUrl}/reset-password?token=${token}`
 
         await prisma.passwordResetRequest.update({
@@ -240,10 +237,7 @@ export async function PATCH(request: NextRequest) {
       if (action === 'approve') {
         // Generate reset token
         const token = await createPasswordResetToken(resetRequest.userId)
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-        if (!appUrl) {
-          throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
-        }
+        const appUrl = getAppUrl()
         const resetUrl = `${appUrl}/reset-password?token=${token}`
 
         // Update request

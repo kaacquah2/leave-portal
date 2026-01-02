@@ -15,6 +15,7 @@ import { prisma } from '@/lib/prisma'
 import { type UserRole, hasPermission } from '@/lib/permissions'
 import { mapToMoFARole } from '@/lib/role-mapping'
 import type { AuthUser } from '@/lib/auth-proxy'
+import { canApproveLeave } from '@/lib/compliance-utils'
 
 export interface RBACContext {
   user: AuthUser
@@ -268,16 +269,11 @@ export async function canApproveLeaveRequest(
 
     // SYSTEM_ADMIN, SECURITY_ADMIN: Cannot approve leaves (system management only)
     // Ghana Government Compliance: System admins cannot approve leave (segregation of duties)
-    if (
-      context.role === 'SYSTEM_ADMIN' ||
-      context.role === 'SYS_ADMIN' ||
-      context.role === 'SECURITY_ADMIN' ||
-      context.role === 'admin'
-    ) {
+    if (!canApproveLeave(context.role)) {
       return {
         allowed: false,
         reason: 'System administrators cannot approve leave requests (segregation of duties)',
-        errorCode: 'ROLE_NOT_AUTHORIZED',
+        errorCode: 'SEGREGATION_OF_DUTIES_VIOLATION',
       }
     }
 

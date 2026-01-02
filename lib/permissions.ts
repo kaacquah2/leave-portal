@@ -276,6 +276,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 
   // 11. SYSTEM_ADMIN - System Administrator (Consolidated from SYS_ADMIN, SYSTEM_ADMIN, and admin)
+  // Ghana Government Compliance: Cannot approve leave or edit staff records (segregation of duties)
   SYSTEM_ADMIN: [
     'system:config:manage',
     'system:users:manage',
@@ -284,13 +285,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'system:audit:view',
     'system:backup:manage',
     'system:org:manage',
-    'employee:view:all',
-    'employee:create',
-    'employee:update',
-    'employee:delete',
-    'leave:view:all',
-    'leave:approve:all',
-    'leave:policy:manage',
+    'employee:view:all', // View only, cannot edit (segregation of duties)
+    'employee:create', // Can create for system setup only
+    // Note: employee:update and employee:delete removed for compliance - only HR can edit/delete
+    'leave:view:all', // View only, cannot approve (segregation of duties)
+    // Note: leave:approve:all removed - system admins cannot approve leave
+    'leave:policy:manage', // Can manage policies for system configuration
     'performance:view:all',
     'performance:review:all',
     'attendance:view:all',

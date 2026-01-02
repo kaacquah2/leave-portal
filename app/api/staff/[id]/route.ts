@@ -117,14 +117,28 @@ export async function PATCH(
     try {
     const normalizedRole = mapToMoFARole(user.role)
     
-    // Only HR roles, HR Director, and SYS_ADMIN can update staff
-    // Check using helper functions for normalized role matching
-    const { isHR, isAdmin } = await import('@/lib/auth-proxy')
+    // Ghana Government Compliance: Only HR roles can update staff records
+    // SYSTEM_ADMIN and SECURITY_ADMIN cannot edit staff (segregation of duties)
+    const { isHR } = await import('@/lib/auth-proxy')
+    
+    // Explicitly exclude SYSTEM_ADMIN and SECURITY_ADMIN for compliance
     if (
-      !hasPermission(normalizedRole, 'employee:update') &&
-      !isHR(user) &&
-      !isAdmin(user)
+      normalizedRole === 'SYSTEM_ADMIN' ||
+      normalizedRole === 'SYS_ADMIN' ||
+      normalizedRole === 'SECURITY_ADMIN' ||
+      normalizedRole === 'admin'
     ) {
+      return NextResponse.json(
+        { 
+          error: 'Forbidden - System administrators cannot edit staff records (segregation of duties compliance)',
+          errorCode: 'SEGREGATION_OF_DUTIES_VIOLATION'
+        },
+        { status: 403 }
+      )
+    }
+    
+    // Only HR roles can update staff
+    if (!hasPermission(normalizedRole, 'employee:update') && !isHR(user)) {
       return NextResponse.json(
         { error: 'Forbidden - Only HR roles can update staff members' },
         { status: 403 }

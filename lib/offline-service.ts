@@ -100,7 +100,13 @@ export class OfflineService {
     try {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.db?.getSyncQueue) {
-        return await electronAPI.db.getSyncQueue(limit);
+        const result = await electronAPI.db.getSyncQueue(limit);
+        // IPC handler returns { success: true, items: [...] } or { success: false, error: ..., items: [] }
+        if (result && typeof result === 'object' && 'items' in result) {
+          return Array.isArray(result.items) ? result.items : [];
+        }
+        // Fallback: if result is already an array, return it
+        return Array.isArray(result) ? result : [];
       }
     } catch (error) {
       console.error('[OfflineService] Error getting sync queue:', error);

@@ -10,13 +10,21 @@ import {
   isSeededUser
 } from '@/lib/password-policy'
 import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limit'
+import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight requests
+  const preflightResponse = handleCorsPreflight(request)
+  if (preflightResponse) {
+    return preflightResponse
+  }
+  
   // Apply rate limiting
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.login)
   if (!rateLimitResult.allowed) {
-    return createRateLimitResponse(rateLimitResult, RATE_LIMITS.login.maxRequests)
+    const response = createRateLimitResponse(rateLimitResult, RATE_LIMITS.login.maxRequests)
+    return addCorsHeaders(response, request)
   }
 
   try {
@@ -24,10 +32,11 @@ export async function POST(request: NextRequest) {
     const { email, password } = body
 
     if (!email || !password) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Find user by email
@@ -38,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       console.error(`Login failed: User not found for email: ${email}`)
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Invalid email or password',
           errorCode: 'USER_NOT_FOUND',
@@ -51,11 +60,12 @@ export async function POST(request: NextRequest) {
         },
         { status: 401 }
       )
+      return addCorsHeaders(response, request)
     }
 
     if (!user.active) {
       console.error(`Login failed: User is inactive for email: ${email}`)
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Your account is inactive',
           errorCode: 'ACCOUNT_INACTIVE',
@@ -68,6 +78,7 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Check if staff member is terminated (if user has associated staff)
@@ -83,7 +94,7 @@ export async function POST(request: NextRequest) {
         const message = statusMessages[(user.staff as any).employmentStatus] || 'Your account is not active'
         console.error(`Login failed: Staff member status is ${(user.staff as any).employmentStatus} for email: ${email}`)
         
-        return NextResponse.json(
+        const response = NextResponse.json(
           { 
             error: message,
             errorCode: 'STAFF_NOT_ACTIVE',
@@ -96,11 +107,12 @@ export async function POST(request: NextRequest) {
           },
           { status: 403 }
         )
+        return addCorsHeaders(response, request)
       }
       
       if (!user.staff.active) {
         console.error(`Login failed: Staff member is inactive for email: ${email}`)
-        return NextResponse.json(
+        const response = NextResponse.json(
           { 
             error: 'Your staff account is inactive',
             errorCode: 'STAFF_INACTIVE',
@@ -112,6 +124,7 @@ export async function POST(request: NextRequest) {
           },
           { status: 403 }
         )
+        return addCorsHeaders(response, request)
       }
     }
 
@@ -123,7 +136,7 @@ export async function POST(request: NextRequest) {
         select: { lockedUntil: true },
       })
       
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Your account has been locked due to multiple failed login attempts',
           errorCode: 'ACCOUNT_LOCKED',
@@ -136,6 +149,7 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Verify password
@@ -146,7 +160,7 @@ export async function POST(request: NextRequest) {
       // Handle failed login attempt (may lock account)
       const lockResult = await handleFailedLoginAttempt(user.id)
       
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Invalid email or password',
           errorCode: 'INVALID_PASSWORD',
@@ -162,6 +176,7 @@ export async function POST(request: NextRequest) {
         },
         { status: 401 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Reset failed login attempts on successful login
@@ -170,7 +185,7 @@ export async function POST(request: NextRequest) {
     // Ghana Government Compliance: Check if password has expired
     const passwordExpired = await isPasswordExpired(user.id)
     if (passwordExpired) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Your password has expired and must be changed',
           errorCode: 'PASSWORD_EXPIRED',
@@ -183,13 +198,14 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Ghana Government Compliance: Force password change on first login
     // Exception: Seeded users (test/demo accounts) are exempt from this requirement
     if (!user.passwordChangedAt && !isSeededUser(user.email)) {
       await requirePasswordChange(user.id)
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'You must change your password on first login',
           errorCode: 'PASSWORD_CHANGE_REQUIRED',
@@ -202,6 +218,7 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Create token
@@ -270,13 +287,14 @@ export async function POST(request: NextRequest) {
       // This ensures it works on vercel.app subdomains
     })
 
-    return response
+    return addCorsHeaders(response, request)
   } catch (error) {
     console.error('Login error:', error)
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Failed to login' },
       { status: 500 }
     )
+    return addCorsHeaders(response, request)
   }
 }
 

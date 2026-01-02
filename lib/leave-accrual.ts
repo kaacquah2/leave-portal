@@ -410,6 +410,132 @@ export async function processLeaveAccrual(options: AccrualOptions = {}): Promise
 }
 
 /**
+ * Calculate initial leave balances for a new staff member based on join date
+ * This calculates what they should have accrued from their join date to now
+ */
+export async function calculateInitialLeaveBalances(staffId: string): Promise<{
+  success: boolean
+  balancesUpdated: number
+  errors: Array<{ leaveType: string; error: string }>
+}> {
+  const errors: Array<{ leaveType: string; error: string }> = []
+  let balancesUpdated = 0
+  
+  try {
+    // Get staff member with balance
+    const staff = await prisma.staffMember.findUnique({
+      where: { staffId },
+      include: { leaveBalance: true },
+    })
+    
+    if (!staff) {
+      return {
+        success: false,
+        balancesUpdated: 0,
+        errors: [{ leaveType: 'all', error: 'Staff member not found' }],
+      }
+    }
+    
+    if (!staff.leaveBalance) {
+      return {
+        success: false,
+        balancesUpdated: 0,
+        errors: [{ leaveType: 'all', error: 'Leave balance not found' }],
+      }
+    }
+    
+    // Get active leave policies
+    const policies = await prisma.leavePolicy.findMany({
+      where: { active: true },
+    })
+    
+    const joinDate = new Date(staff.joinDate)
+    const now = new Date()
+    const monthsSinceJoin = Math.max(0, 
+      (now.getFullYear() - joinDate.getFullYear()) * 12 + 
+      (now.getMonth() - joinDate.getMonth())
+    )
+    
+    // Calculate accrual for each policy
+    const balanceUpdates: Record<string, number> = {}
+    
+    for (const policy of policies) {
+      try {
+        const balanceField = getBalanceFieldName(policy.leaveType)
+        let daysToAccrue = 0
+        
+        if (policy.accrualFrequency === 'monthly') {
+          // For monthly accrual, calculate total months worked
+          // Include current month if they joined before today
+          const totalMonths = monthsSinceJoin + (joinDate.getDate() <= now.getDate() ? 1 : 0)
+          daysToAccrue = policy.accrualRate * totalMonths
+          
+          // If joined in current month, calculate pro-rata
+          if (monthsSinceJoin === 0) {
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+            if (joinDate >= monthStart) {
+              const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+              const daysWorked = Math.max(1, Math.ceil((now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+              const proRataFactor = daysWorked / daysInMonth
+              daysToAccrue = policy.accrualRate * proRataFactor
+            }
+          }
+        } else if (policy.accrualFrequency === 'annual') {
+          // For annual accrual, calculate pro-rata based on months worked in the year
+          const yearStart = new Date(now.getFullYear(), 0, 1)
+          if (joinDate >= yearStart) {
+            const monthsWorked = Math.max(1, monthsSinceJoin + 1)
+            const proRataFactor = monthsWorked / 12
+            daysToAccrue = policy.accrualRate * 12 * proRataFactor
+          } else {
+            // Joined in previous year, get full annual amount
+            daysToAccrue = policy.accrualRate * 12
+          }
+        } else if (policy.accrualFrequency === 'quarterly') {
+          // For quarterly, calculate based on quarters worked
+          const quartersSinceJoin = Math.floor(monthsSinceJoin / 3)
+          daysToAccrue = policy.accrualRate * 3 * (quartersSinceJoin + 1)
+        }
+        
+        // Round to 2 decimal places
+        daysToAccrue = Math.round(daysToAccrue * 100) / 100
+        
+        if (daysToAccrue > 0) {
+          balanceUpdates[balanceField] = daysToAccrue
+          balancesUpdated++
+        }
+      } catch (error: any) {
+        errors.push({
+          leaveType: policy.leaveType,
+          error: error.message || 'Unknown error',
+        })
+      }
+    }
+    
+    // Update leave balance with calculated amounts
+    if (Object.keys(balanceUpdates).length > 0) {
+      await prisma.leaveBalance.update({
+        where: { staffId },
+        data: balanceUpdates,
+      })
+    }
+    
+    return {
+      success: errors.length === 0,
+      balancesUpdated,
+      errors,
+    }
+  } catch (error: any) {
+    console.error('Error calculating initial leave balances:', error)
+    return {
+      success: false,
+      balancesUpdated,
+      errors: [{ leaveType: 'all', error: error.message || 'Unknown error' }],
+    }
+  }
+}
+
+/**
  * Process expiration for all staff members
  */
 export async function processLeaveExpiration(accrualDate?: Date): Promise<{

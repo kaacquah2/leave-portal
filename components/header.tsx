@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { LogOut, Shield, Users, UserCheck } from 'lucide-react'
 import { APP_CONFIG } from '@/lib/app-config'
 import { useIsMobile } from '@/components/ui/use-mobile'
+import NavigationControls from '@/components/navigation-controls'
 
 import type { UserRole } from '@/lib/permissions'
 
@@ -79,6 +80,14 @@ export default function Header({ onLogout, userRole }: HeaderProps) {
                 fill
                 className="object-contain"
                 priority
+                unoptimized
+                onError={(e) => {
+                  // Fallback: try relative path if absolute path fails
+                  const target = e.target as HTMLImageElement;
+                  if (target.src && !target.src.includes('./mofa-logo.png')) {
+                    target.src = './mofa-logo.png';
+                  }
+                }}
               />
             </div>
             <div className="min-w-0">
@@ -88,10 +97,13 @@ export default function Header({ onLogout, userRole }: HeaderProps) {
           </div>
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
             {!isMobile && (
-              <div className="text-right text-sm hidden md:block">
-                <p className="font-semibold">{config.label}</p>
-                <p className="opacity-75 text-xs">Role-based Access</p>
-              </div>
+              <>
+                <NavigationControls className="text-white/90 hover:text-white" />
+                <div className="text-right text-sm hidden md:block">
+                  <p className="font-semibold">{config.label}</p>
+                  <p className="opacity-75 text-xs">Role-based Access</p>
+                </div>
+              </>
             )}
             {onLogout && (
               <Button

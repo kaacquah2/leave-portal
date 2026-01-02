@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/auth'
 import { sendEmail, generateNewUserCredentialsEmail } from '@/lib/email'
 import { validatePasswordComplexity, addPasswordToHistory, setPasswordExpiry } from '@/lib/password-policy'
 import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
+import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
 
 /**
  * POST /api/admin/users/create-credentials
@@ -32,8 +33,27 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
 
     // Validate required fields
     if (!staffId || !email || !password || !role) {
+      const missingFields = []
+      if (!staffId) missingFields.push('staffId')
+      if (!email) missingFields.push('email')
+      if (!password) missingFields.push('password')
+      if (!role) missingFields.push('role')
+      
       return NextResponse.json(
-        { error: 'Missing required fields: staffId, email, password, role' },
+        { 
+          error: 'Missing required fields',
+          missingFields,
+          message: `The following required fields are missing: ${missingFields.join(', ')}`
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
         { status: 400 }
       )
     }
@@ -161,6 +181,13 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     // Ghana Government Compliance: Add password to history and set expiry
     await addPasswordToHistory(result.user.id, passwordHash)
     await setPasswordExpiry(result.user.id)
+
+    // Calculate initial leave balances based on join date (non-blocking)
+    // This ensures staff members have correct leave balances from their join date
+    calculateInitialLeaveBalances(result.staff.staffId).catch((error) => {
+      console.error('Failed to calculate initial leave balances:', error)
+      // Don't fail the request if balance calculation fails
+    })
 
     // Send email with credentials (non-blocking)
     let emailSent = false

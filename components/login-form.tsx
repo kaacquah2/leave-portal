@@ -145,6 +145,13 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
                 fill
                 className="object-contain"
                 priority
+                unoptimized
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src && !target.src.includes('./mofa-logo.png')) {
+                    target.src = './mofa-logo.png';
+                  }
+                }}
               />
             </div>
           </div>

@@ -20,8 +20,17 @@ function fixPathsInContent(content, filePath) {
   });
   
   // Fix webpack publicPath references: __webpack_require__.p + "/_next/static/..."
-  // This is how webpack loads chunks dynamically
+  // Since we set __webpack_require__.p to "./", we need to ensure paths are relative
+  // __webpack_require__.p + "/_next/static/..." -> __webpack_require__.p + "./_next/static/..."
+  // But if __webpack_require__.p is already "./", then we just need "./_next/static/..."
   content = content.replace(/__webpack_require__\.p\s*\+\s*["']\/(_next\/static\/[^"']+)["']/g, (match, path) => {
+    modified = true;
+    return `__webpack_require__.p + "./${path}"`;
+  });
+  
+  // Fix cases where publicPath might be concatenated with absolute paths
+  // __webpack_require__.p + "/_next/" -> __webpack_require__.p + "./_next/"
+  content = content.replace(/__webpack_require__\.p\s*\+\s*["']\/(_next\/[^"']*)["']/g, (match, path) => {
     modified = true;
     return `__webpack_require__.p + "./${path}"`;
   });
@@ -75,11 +84,52 @@ function fixPathsInContent(content, filePath) {
     return match;
   });
   
-  // Fix webpack publicPath assignment to use relative path
-  // __webpack_require__.p = "/_next/static/..." -> __webpack_require__.p = "./_next/static/..."
-  content = content.replace(/__webpack_require__\.p\s*=\s*["']\/(_next\/static\/[^"']+)["']/g, (match, path) => {
+  // Fix webpack publicPath assignment to use relative path "./"
+  // This is critical - webpack publicPath must be "./" for file:// protocol
+  // __webpack_require__.p = "/_next/static/..." -> __webpack_require__.p = "./"
+  // __webpack_require__.p = "/_next/" -> __webpack_require__.p = "./"
+  // __webpack_require__.p = "./_next/" -> __webpack_require__.p = "./" (fix double _next issue)
+  // __webpack_require__.p = "/" -> __webpack_require__.p = "./"
+  content = content.replace(/__webpack_require__\.p\s*=\s*["']\/[^"']*["']/g, (match) => {
     modified = true;
-    return `__webpack_require__.p = "./${path}"`;
+    return `__webpack_require__.p = "./"`;
+  });
+  
+  // Fix webpack publicPath that might be set to "./_next/" (causes double _next)
+  content = content.replace(/__webpack_require__\.p\s*=\s*["']\.\/_next\/[^"']*["']/g, (match) => {
+    modified = true;
+    return `__webpack_require__.p = "./"`;
+  });
+  
+  // Fix webpack publicPath with template literals or other patterns
+  // __webpack_require__.p = `/_next/static/...` -> __webpack_require__.p = "./"
+  content = content.replace(/__webpack_require__\.p\s*=\s*`\/[^`]*`/g, (match) => {
+    modified = true;
+    return `__webpack_require__.p = "./"`;
+  });
+  
+  // Fix webpack publicPath with template literals that include _next
+  content = content.replace(/__webpack_require__\.p\s*=\s*`\.\/_next\/[^`]*`/g, (match) => {
+    modified = true;
+    return `__webpack_require__.p = "./"`;
+  });
+  
+  // Fix webpack publicPath initialization patterns
+  // var __webpack_public_path__ = "/_next/static/..." -> var __webpack_public_path__ = "./"
+  content = content.replace(/(var|let|const)\s+__webpack_public_path__\s*=\s*["']\/[^"']*["']/g, (match) => {
+    modified = true;
+    return match.replace(/["']\/[^"']*["']/, '"./"');
+  });
+  
+  // Fix webpack publicPath that might be set via assignment without quotes (rare but possible)
+  // __webpack_require__.p = "/_next/static/" -> __webpack_require__.p = "./"
+  // This handles cases where the path might be in a variable or expression
+  content = content.replace(/__webpack_require__\.p\s*=\s*\/[^;,\s\)\]]+/g, (match) => {
+    if (!match.includes('"./"') && !match.includes("'./'") && !match.includes('./')) {
+      modified = true;
+      return `__webpack_require__.p = "./"`;
+    }
+    return match;
   });
   
   // Fix Next.js 16 inline script data: "433","./static/chunks/..." -> "433","./_next/static/chunks/..."
@@ -103,6 +153,14 @@ function fixPathsInContent(content, filePath) {
     }
     return match;
   });
+  
+  // Fix Next.js chunk loading patterns that might have double _next
+  // Pattern: "number","./_next/_next/static/..." -> "number","./_next/static/..."
+  content = content.replace(/(["'])(\d+)(["'],\s*["'])\.\/_next\/_next\//g, '$1$2$3./_next/');
+  
+  // Fix Next.js chunk loading with absolute paths that have double _next
+  // Pattern: "number","/_next/_next/static/..." -> "number","./_next/static/..."
+  content = content.replace(/(["'])(\d+)(["'],\s*["'])\/_next\/_next\//g, '$1$2$3./_next/');
   
   // Fix paths in JSON-like structures within strings: "./static/chunks/..." -> "./_next/static/chunks/..."
   // This catches any remaining "./static/..." patterns that are missing _next
@@ -173,6 +231,70 @@ function fixPathsInContent(content, filePath) {
   
   content = content.replace(/<base\s+href=["']\/["']/g, '<base href="./"');
   
+  // Fix double _next paths that might occur: "./_next/_next/static/..." -> "./_next/static/..."
+  // This can happen if webpack publicPath is set incorrectly or paths are concatenated incorrectly
+  // Fix in all contexts: strings, template literals, and code
+  content = content.replace(/\.\/_next\/_next\//g, './_next/');
+  content = content.replace(/(["'])\/_next\/_next\//g, '$1./_next/');
+  content = content.replace(/`\/_next\/_next\//g, '`./_next/');
+  content = content.replace(/`\.\/_next\/_next\//g, '`./_next/');
+  content = content.replace(/__webpack_require__\.p\s*\+\s*["']\.\/_next\/_next\//g, '__webpack_require__.p + "./_next/');
+  content = content.replace(/__webpack_require__\.p\s*\+\s*["']\/_next\/_next\//g, '__webpack_require__.p + "./_next/');
+  
+  // Fix cases where __webpack_require__.p (which should be "./") is concatenated with "/_next/static/"
+  // This creates "./" + "/_next/static/" = "./_next/static/" which is correct, but if publicPath is wrong it becomes "/_next/" + "/_next/static/"
+  // We need to ensure that when concatenating, we don't add extra slashes
+  // Pattern: __webpack_require__.p + "/_next/static/" where p might be "/_next/" or "./_next/"
+  // Since we set p to "./", this should be fine, but catch any remaining issues
+  content = content.replace(/__webpack_require__\.p\s*\+\s*["']\/_next\//g, (match) => {
+    // If publicPath is already "./", this becomes "./" + "/_next/" = "./_next/" which is correct
+    // But if there's a double slash issue, fix it
+    modified = true;
+    return '__webpack_require__.p + "./_next/';
+  });
+  
+  // Fix webpack chunk loading function patterns
+  // Handle cases like: (__webpack_require__.p || "/_next/static/") + chunkId
+  // Should become: (__webpack_require__.p || "./") + "./_next/static/" + chunkId
+  // But since we set __webpack_require__.p to "./", we can simplify
+  content = content.replace(/\(__webpack_require__\.p\s*\|\|\s*["']\/[^"']*["']\)/g, '__webpack_require__.p');
+  
+  // Fix webpack chunk loading: function(e) { return __webpack_require__.p + "/_next/static/" + e }
+  // Should become: function(e) { return __webpack_require__.p + "./_next/static/" + e }
+  content = content.replace(/__webpack_require__\.p\s*\+\s*["']\/(_next\/static\/[^"']+)["']\s*\+\s*/g, '__webpack_require__.p + "./$1" + ');
+  
+  // Fix chunk loading where chunkId already includes "_next/static/" and publicPath is concatenated
+  // Pattern: __webpack_require__.p + chunkId where chunkId = "_next/static/chunks/..."
+  // If publicPath is "./_next/" or "/_next/", this creates double _next
+  // Since we set publicPath to "./", we need to ensure chunkId doesn't start with "/_next/" or "./_next/"
+  // This is handled by the earlier patterns, but add a catch-all for any remaining cases
+  content = content.replace(/__webpack_require__\.p\s*\+\s*["'](\.\/)?_next\/_next\//g, '__webpack_require__.p + "./_next/');
+  
+  // Fix any remaining absolute paths that start with /_next/ (should be relative)
+  // This catches any patterns we might have missed
+  content = content.replace(/(["'])\/(_next\/[^"']+)(["'])/g, (match, quote1, path, quote2) => {
+    // Only fix if it's not already relative and not a URL
+    if (!path.startsWith('./') && !path.startsWith('../') && !path.startsWith('http') && !path.includes('://')) {
+      modified = true;
+      return `${quote1}./${path}${quote2}`;
+    }
+    return match;
+  });
+  
+  // Final pass: Fix any remaining double _next patterns in all contexts
+  // This is a catch-all to ensure we don't miss any edge cases
+  // Pattern: any occurrence of _next/_next should become _next
+  content = content.replace(/_next\/_next\//g, '_next/');
+  
+  // Fix file:// protocol paths that might have double _next
+  // Pattern: file:///C:/_next/_next/... should become file:///C:/_next/...
+  // But actually, this shouldn't be in the content itself, it's a runtime resolution issue
+  // However, if there are any references to file:// in the code, fix them
+  content = content.replace(/file:\/\/\/[^:]+:\/_next\/_next\//g, (match) => {
+    modified = true;
+    return match.replace('/_next/_next/', '/_next/');
+  });
+
   return { content, modified };
 }
 
@@ -228,36 +350,63 @@ function fixPathsInDirectory(dir, relativePath = '') {
 function fixElectronPaths(outDir) {
   console.log('Fixing paths for Electron file:// protocol...');
   
-  const indexHtmlPath = path.join(outDir, 'index.html');
+  // Fix all HTML files in the out directory
+  console.log('Fixing paths in HTML files...');
+  const files = fs.readdirSync(outDir);
+  const htmlFiles = files.filter(file => file.endsWith('.html'));
   
-  if (!fs.existsSync(indexHtmlPath)) {
-    console.warn('⚠️  index.html not found, skipping path fixes');
+  if (htmlFiles.length === 0) {
+    console.warn('⚠️  No HTML files found, skipping path fixes');
     return;
   }
   
-  // Fix HTML file
-  let html = fs.readFileSync(indexHtmlPath, 'utf-8');
-  let htmlModified = false;
-  
-  const { content: fixedHtml, modified: htmlWasModified } = fixPathsInContent(html, indexHtmlPath);
-  htmlModified = htmlWasModified;
-  
-  // Ensure there's a base tag for file:// protocol
-  if (!fixedHtml.includes('<base')) {
-    const htmlWithBase = fixedHtml.replace(/<head>/, '<head>\n  <base href="./">');
-    if (htmlWithBase !== fixedHtml) {
+  let htmlFixedCount = 0;
+  for (const htmlFile of htmlFiles) {
+    const htmlPath = path.join(outDir, htmlFile);
+    try {
+      let html = fs.readFileSync(htmlPath, 'utf-8');
+      let htmlModified = false;
+      
+      const { content: fixedHtml, modified: htmlWasModified } = fixPathsInContent(html, htmlPath);
+      htmlModified = htmlWasModified;
+      
+      // Ensure there's a base tag for file:// protocol
+      // Base tag must be the first element in <head> for proper path resolution
+      let htmlWithBase = fixedHtml;
+      
+      // Remove any existing base tags first
+      htmlWithBase = htmlWithBase.replace(/<base[^>]*>/gi, '');
+      
+      // Add base tag as the first element in <head>
+      if (htmlWithBase.includes('<head>')) {
+        htmlWithBase = htmlWithBase.replace(/<head>/i, '<head>\n  <base href="./">');
+        if (htmlWithBase !== fixedHtml) {
+          htmlModified = true;
+        }
+      } else if (htmlWithBase.includes('<head ')) {
+        // Handle <head> with attributes
+        htmlWithBase = htmlWithBase.replace(/<head([^>]*)>/i, '<head$1>\n  <base href="./">');
+        if (htmlWithBase !== fixedHtml) {
+          htmlModified = true;
+        }
+      }
+      
       html = htmlWithBase;
-      htmlModified = true;
-    } else {
-      html = fixedHtml;
+      
+      if (htmlModified) {
+        fs.writeFileSync(htmlPath, html, 'utf-8');
+        console.log(`  ✅ Fixed paths in ${htmlFile}`);
+        htmlFixedCount++;
+      }
+    } catch (error) {
+      console.warn(`  ⚠️  Could not process ${htmlFile}: ${error.message}`);
     }
-  } else {
-    html = fixedHtml;
   }
   
-  if (htmlModified) {
-    fs.writeFileSync(indexHtmlPath, html, 'utf-8');
-    console.log('✅ Fixed paths in index.html');
+  if (htmlFixedCount > 0) {
+    console.log(`✅ Fixed paths in ${htmlFixedCount} HTML file(s)`);
+  } else {
+    console.log('ℹ️  No HTML files needed path fixes');
   }
   
   // Fix paths in all JavaScript files in _next/static directory

@@ -210,16 +210,115 @@ export function useDataStore(options?: {
   // Check if user has permission to view audit logs
   const canViewAuditLogs = userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'admin' || userRole === 'SYSTEM_ADMIN' || userRole === 'SYS_ADMIN'
 
-  // Fetch all data from API
+  // Helper function to read from local database
+  const readFromLocalDB = useCallback(async (tableName: string): Promise<any[]> => {
+    if (!offlineService.isOfflineModeAvailable() || typeof window === 'undefined') {
+      return []
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI
+      if (electronAPI?.db?.getAllRecords) {
+        const result = await electronAPI.db.getAllRecords(tableName, 10000)
+        if (result && typeof result === 'object' && 'records' in result) {
+          return Array.isArray(result.records) ? result.records : []
+        }
+        return Array.isArray(result) ? result : []
+      }
+    } catch (error) {
+      console.warn(`[DataStore] Error reading ${tableName} from local DB:`, error)
+    }
+    return []
+  }, [])
+
+  // Helper function to store data in local database
+  const storeInLocalDB = useCallback(async (tableName: string, records: any[]): Promise<void> => {
+    if (!offlineService.isOfflineModeAvailable() || typeof window === 'undefined' || !offlineService.isOnline()) {
+      return
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI
+      if (electronAPI?.db?.upsertRecord) {
+        // Store each record in local database
+        for (const record of records) {
+          try {
+            await electronAPI.db.upsertRecord(tableName, record)
+          } catch (error) {
+            console.warn(`[DataStore] Error storing ${tableName} record in local DB:`, error)
+          }
+        }
+        console.log(`[DataStore] Stored ${records.length} ${tableName} records in local database`)
+      }
+    } catch (error) {
+      console.warn(`[DataStore] Error storing ${tableName} in local DB:`, error)
+    }
+  }, [])
+
+  // Fetch all data from API or local database
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
+      const isOnline = offlineService.isOnline()
+      const isElectron = offlineService.isOfflineModeAvailable() && typeof window !== 'undefined' && !!(window as any).electronAPI
+      
       // Log API base URL for debugging (especially in Electron)
       if (typeof window !== 'undefined') {
         const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || API_BASE_URL || 'relative';
-        console.log('[DataStore] Fetching data from API. Base URL:', apiBaseUrl);
+        console.log('[DataStore] Fetching data. Online:', isOnline, 'Electron:', isElectron, 'Base URL:', apiBaseUrl);
+      }
+
+      // If offline and in Electron, read from local database
+      if (!isOnline && isElectron) {
+        console.log('[DataStore] Offline mode: Reading from local database')
+        
+        try {
+          const [localStaff, localLeaves, localBalances, localPolicies, localHolidays, localTemplates] = await Promise.all([
+            readFromLocalDB('StaffMember'),
+            readFromLocalDB('LeaveRequest'),
+            readFromLocalDB('LeaveBalance'),
+            readFromLocalDB('LeavePolicy'),
+            readFromLocalDB('Holiday'),
+            readFromLocalDB('LeaveRequestTemplate'),
+          ])
+
+          if (localStaff.length > 0) {
+            setStaff(transformDates(localStaff) as StaffMember[])
+          }
+          if (localLeaves.length > 0) {
+            setLeaves(transformDates(localLeaves) as LeaveRequest[])
+          }
+          if (localBalances.length > 0) {
+            setBalances(transformDates(localBalances) as LeaveBalance[])
+          }
+          if (localPolicies.length > 0) {
+            setLeavePolicies(transformDates(localPolicies) as LeavePolicy[])
+          }
+          if (localHolidays.length > 0) {
+            setHolidays(transformDates(localHolidays) as Holiday[])
+          }
+          if (localTemplates.length > 0) {
+            setLeaveTemplates(transformDates(localTemplates) as LeaveRequestTemplate[])
+          }
+
+          console.log('[DataStore] Loaded data from local database:', {
+            staff: localStaff.length,
+            leaves: localLeaves.length,
+            balances: localBalances.length,
+            policies: localPolicies.length,
+            holidays: localHolidays.length,
+            templates: localTemplates.length,
+          })
+        } catch (error) {
+          console.error('[DataStore] Error reading from local database:', error)
+          setError('Failed to load offline data. Please check your connection.')
+        } finally {
+          setLoading(false)
+          setInitialized(true)
+        }
+        return
       }
       
       // Build request array conditionally based on user permissions
@@ -361,14 +460,19 @@ export function useDataStore(options?: {
         setError(errorMessage);
       }
 
+      // Process and store data
       if (staffRes.ok && 'json' in staffRes) {
         const data = transformDates(await staffRes.json())
         setStaff(prev => applySelectiveUpdate(prev, data))
+        // Store in local database for offline use
+        await storeInLocalDB('StaffMember', data)
       }
       if (leavesRes.ok && 'json' in leavesRes) {
         const data = transformDates(await leavesRes.json())
         // Use selective update to minimize re-renders
         setLeaves(prev => applySelectiveUpdate(prev, data))
+        // Store in local database for offline use
+        await storeInLocalDB('LeaveRequest', data)
       }
       if (balancesRes.ok && 'json' in balancesRes) {
         const data = transformDates(await balancesRes.json()) as LeaveBalance[]
@@ -405,6 +509,8 @@ export function useDataStore(options?: {
           
           return updated
         })
+        // Store in local database for offline use
+        await storeInLocalDB('LeaveBalance', data)
       }
       if (payslipsRes.ok && 'json' in payslipsRes) {
         const data = transformDates(await payslipsRes.json())
@@ -417,14 +523,20 @@ export function useDataStore(options?: {
       if (policiesRes.ok && 'json' in policiesRes) {
         const data = transformDates(await policiesRes.json())
         setLeavePolicies(prev => applySelectiveUpdate(prev, data))
+        // Store in local database for offline use
+        await storeInLocalDB('LeavePolicy', data)
       }
       if (holidaysRes.ok && 'json' in holidaysRes) {
         const data = transformDates(await holidaysRes.json())
         setHolidays(prev => applySelectiveUpdate(prev, data))
+        // Store in local database for offline use
+        await storeInLocalDB('Holiday', data)
       }
       if (templatesRes.ok && 'json' in templatesRes) {
         const data = transformDates(await templatesRes.json())
         setLeaveTemplates(prev => applySelectiveUpdate(prev, data))
+        // Store in local database for offline use
+        await storeInLocalDB('LeaveRequestTemplate', data)
       }
       if (auditRes.ok && 'json' in auditRes) {
         const data = transformDates(await auditRes.json())
@@ -444,10 +556,60 @@ export function useDataStore(options?: {
       setLoading(false)
       setInitialized(true)
     }
-  }, [canViewAuditLogs])
+  }, [canViewAuditLogs, readFromLocalDB, storeInLocalDB])
 
   // Fetch critical data only (for polling)
   const fetchCritical = useCallback(async () => {
+    const isOnline = offlineService.isOnline()
+    const isElectron = offlineService.isOfflineModeAvailable() && typeof window !== 'undefined' && !!(window as any).electronAPI
+
+    // If offline and in Electron, read from local database
+    if (!isOnline && isElectron) {
+      try {
+        const [localLeaves, localBalances] = await Promise.all([
+          readFromLocalDB('LeaveRequest'),
+          readFromLocalDB('LeaveBalance'),
+        ])
+
+        if (localLeaves.length > 0) {
+          setLeaves(prev => applySelectiveUpdate(prev, transformDates(localLeaves) as LeaveRequest[]))
+        }
+        if (localBalances.length > 0) {
+          const data = transformDates(localBalances) as LeaveBalance[]
+          setBalances(prev => {
+            const prevMap = new Map<string, LeaveBalance>()
+            prev.forEach(b => prevMap.set(b.staffId, b))
+            
+            const updated: LeaveBalance[] = []
+            const processedStaffIds = new Set<string>()
+            
+            prev.forEach(item => {
+              processedStaffIds.add(item.staffId)
+              const updatedItem = data.find(d => d.staffId === item.staffId)
+              if (updatedItem) {
+                if (JSON.stringify(item) !== JSON.stringify(updatedItem)) {
+                  updated.push(updatedItem)
+                } else {
+                  updated.push(item)
+                }
+              }
+            })
+            
+            data.forEach(item => {
+              if (!processedStaffIds.has(item.staffId)) {
+                updated.push(item)
+              }
+            })
+            
+            return updated
+          })
+        }
+      } catch (error) {
+        console.error('[DataStore] Error reading critical data from local database:', error)
+      }
+      return
+    }
+
     try {
       const [leavesRes, balancesRes] = await Promise.all([
         apiRequest('/api/leaves').catch(() => ({ ok: false } as Response)),
@@ -489,16 +651,151 @@ export function useDataStore(options?: {
           
           return updated
         })
+        // Store in local database for offline use
+        await storeInLocalDB('LeaveBalance', data)
       }
     } catch (error) {
       console.error('Error fetching critical data:', error)
     }
+  }, [readFromLocalDB, storeInLocalDB])
+
+  // Check if this is first run (database is empty)
+  const isFirstRun = useCallback(async (): Promise<boolean> => {
+    if (!offlineService.isOfflineModeAvailable() || typeof window === 'undefined') {
+      return false
+    }
+
+    try {
+      const electronAPI = (window as any).electronAPI
+      if (electronAPI?.db?.getAllRecords) {
+        // Check if we have any data in key tables
+        const [staffCount, leavesCount] = await Promise.all([
+          electronAPI.db.getAllRecords('StaffMember', 1).then((result: any) => {
+            if (result && typeof result === 'object' && 'records' in result) {
+              return Array.isArray(result.records) ? result.records.length : 0
+            }
+            return Array.isArray(result) ? result.length : 0
+          }).catch(() => 0),
+          electronAPI.db.getAllRecords('LeaveRequest', 1).then((result: any) => {
+            if (result && typeof result === 'object' && 'records' in result) {
+              return Array.isArray(result.records) ? result.records.length : 0
+            }
+            return Array.isArray(result) ? result.length : 0
+          }).catch(() => 0),
+        ])
+        
+        // If both are empty, it's first run
+        return staffCount === 0 && leavesCount === 0
+      }
+    } catch (error) {
+      console.warn('[DataStore] Error checking first run:', error)
+    }
+    return false
   }, [])
 
-  // Initialize from API
+  // Initial data sync: Pull ALL data from server on first run, or changes since last sync
+  const performInitialSync = useCallback(async () => {
+    if (!offlineService.isOnline() || !offlineService.isOfflineModeAvailable()) {
+      return
+    }
+
+    try {
+      const firstRun = await isFirstRun()
+      
+      if (firstRun) {
+        console.log('[DataStore] First run detected - pulling ALL data from server...')
+        
+        // On first run, fetch all data from API endpoints and store in local database
+        // This ensures the database is populated before going offline
+        try {
+          const [staffRes, leavesRes, balancesRes, policiesRes, holidaysRes, templatesRes] = await Promise.all([
+            apiRequest('/api/staff').catch(() => ({ ok: false } as Response)),
+            apiRequest('/api/leaves').catch(() => ({ ok: false } as Response)),
+            apiRequest('/api/balances').catch(() => ({ ok: false } as Response)),
+            apiRequest('/api/leave-policies').catch(() => ({ ok: false } as Response)),
+            apiRequest('/api/holidays').catch(() => ({ ok: false } as Response)),
+            apiRequest('/api/leave-templates').catch(() => ({ ok: false } as Response)),
+          ])
+
+          // Store all fetched data in local database
+          if (staffRes.ok && 'json' in staffRes) {
+            const data = transformDates(await staffRes.json())
+            await storeInLocalDB('StaffMember', data)
+            console.log(`[DataStore] Stored ${data.length} staff members in local database`)
+          }
+          
+          if (leavesRes.ok && 'json' in leavesRes) {
+            const data = transformDates(await leavesRes.json())
+            await storeInLocalDB('LeaveRequest', data)
+            console.log(`[DataStore] Stored ${data.length} leave requests in local database`)
+          }
+          
+          if (balancesRes.ok && 'json' in balancesRes) {
+            const data = transformDates(await balancesRes.json())
+            await storeInLocalDB('LeaveBalance', data)
+            console.log(`[DataStore] Stored ${data.length} leave balances in local database`)
+          }
+          
+          if (policiesRes.ok && 'json' in policiesRes) {
+            const data = transformDates(await policiesRes.json())
+            await storeInLocalDB('LeavePolicy', data)
+            console.log(`[DataStore] Stored ${data.length} leave policies in local database`)
+          }
+          
+          if (holidaysRes.ok && 'json' in holidaysRes) {
+            const data = transformDates(await holidaysRes.json())
+            await storeInLocalDB('Holiday', data)
+            console.log(`[DataStore] Stored ${data.length} holidays in local database`)
+          }
+          
+          if (templatesRes.ok && 'json' in templatesRes) {
+            const data = transformDates(await templatesRes.json())
+            await storeInLocalDB('LeaveRequestTemplate', data)
+            console.log(`[DataStore] Stored ${data.length} leave templates in local database`)
+          }
+
+          // Set last sync time to now
+          await offlineService.setLastSyncTime(new Date().toISOString())
+          console.log('[DataStore] First run sync completed - database populated')
+        } catch (error) {
+          console.error('[DataStore] Error during first run sync:', error)
+        }
+      } else {
+        // Not first run - pull only changes since last sync
+        console.log('[DataStore] Performing incremental sync...')
+        const pullResult = await offlineService.pullChanges()
+        
+        if (pullResult.success && pullResult.changes.length > 0) {
+          console.log(`[DataStore] Pulled ${pullResult.changes.length} changes from server`)
+          
+          // Process and store changes in local database
+          const electronAPI = (window as any).electronAPI
+          if (electronAPI?.db?.upsertRecord) {
+            for (const change of pullResult.changes) {
+              try {
+                await electronAPI.db.upsertRecord(change.table, change.payload)
+              } catch (error) {
+                console.warn(`[DataStore] Error storing ${change.table} record during sync:`, error)
+              }
+            }
+            console.log('[DataStore] Incremental sync completed')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[DataStore] Error during initial sync:', error)
+    }
+  }, [isFirstRun, storeInLocalDB])
+
+  // Initialize from API or local database
   useEffect(() => {
-    fetchAll()
-  }, [fetchAll])
+    fetchAll().then(() => {
+      // After initial fetch, perform sync if online
+      if (offlineService.isOnline()) {
+        performInitialSync()
+      }
+    })
+  }, [fetchAll, performInitialSync])
 
   // Set up automatic polling for critical data
   useEffect(() => {

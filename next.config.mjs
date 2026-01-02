@@ -9,6 +9,8 @@ const nextConfig = {
   // Explicitly set the workspace root to silence lockfile warning
   outputFileTracingRoot: __dirname,
   // Export static files for Electron builds (offline capability)
+  // Note: Static export disables API routes and middleware, which is expected for Electron.
+  // API routes are handled by the remote Vercel server, not locally in Electron.
   output: process.env.ELECTRON === '1' ? 'export' : undefined,
   typescript: {
     // Removed ignoreBuildErrors to ensure type safety in production

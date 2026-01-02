@@ -4,6 +4,8 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { mapToMoFARole } from '@/lib/role-mapping'
 import { hasPermission } from '@/lib/permissions'
 import { MOFA_UNITS, getUnitConfig, getDirectorateForUnit } from '@/lib/mofa-unit-mapping'
+import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
+import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
 
 // GET all staff members
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
@@ -126,26 +128,61 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     // Normalize role to MoFA role code
     const normalizedRole = mapToMoFARole(user.role)
     
-    // Only HR roles, HR Director, and SYS_ADMIN can create staff
-    // Check using helper functions for normalized role matching
-    const { isHR, isAdmin } = await import('@/lib/auth-proxy')
-    if (
-      !hasPermission(normalizedRole, 'employee:create') &&
-      !isHR(user) &&
-      !isAdmin(user)
-    ) {
+    // Ghana Government Compliance: Only HR roles can create staff
+    // SYSTEM_ADMIN can create for system setup, but cannot edit/delete (segregation of duties)
+    const { isHR } = await import('@/lib/auth-proxy')
+    
+    // Allow SYSTEM_ADMIN to create staff for system setup only
+    const canCreate = hasPermission(normalizedRole, 'employee:create') || 
+                      isHR(user) ||
+                      normalizedRole === 'SYSTEM_ADMIN' ||
+                      normalizedRole === 'SYS_ADMIN'
+    
+    if (!canCreate) {
       return NextResponse.json(
-        { error: 'Forbidden - Only HR roles can create staff members' },
+        { error: 'Forbidden - Only HR roles and system administrators can create staff members' },
         { status: 403 }
       )
     }
 
     const body = await request.json()
     
-    // Validate required fields
-    if (!body.staffId || !body.firstName || !body.lastName || !body.email) {
+    // Validate required fields per MoFAD requirements
+    const requiredFields = {
+      staffId: body.staffId,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+      phone: body.phone,
+      department: body.department,
+      position: body.position,
+      grade: body.grade,
+      level: body.level,
+      unit: body.unit,
+      dutyStation: body.dutyStation,
+      joinDate: body.joinDate,
+    }
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value || (typeof value === 'string' && value.trim() === ''))
+      .map(([key]) => key)
+
+    if (missingFields.length > 0) {
       return NextResponse.json(
-        { error: 'Missing required fields: staffId, firstName, lastName, email' },
+        { 
+          error: 'Missing required fields',
+          missingFields,
+          message: `The following required fields are missing: ${missingFields.join(', ')}`
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(body.email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
         { status: 400 }
       )
     }
@@ -180,7 +217,11 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       
       if (!unitConfig) {
         return NextResponse.json(
-          { error: `Unit "${body.unit}" is not a valid MoFA unit. Please select from the approved units.` },
+          { 
+            error: `Unit "${body.unit}" is not a valid MoFAD unit`,
+            message: 'Please select from the approved 18 MoFAD units',
+            validUnits: MOFA_UNITS.map(u => u.unit)
+          },
           { status: 400 }
         )
       }
@@ -190,7 +231,10 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         // Unit belongs to a directorate
         if (body.directorate && body.directorate !== unitConfig.directorate) {
           return NextResponse.json(
-            { error: `Unit "${body.unit}" belongs to "${unitConfig.directorate}", not "${body.directorate}". Please correct the directorate.` },
+            { 
+              error: `Unit-directorate mismatch`,
+              message: `Unit "${body.unit}" belongs to "${unitConfig.directorate}", not "${body.directorate}". Please correct the directorate.`
+            },
             { status: 400 }
           )
         }
@@ -202,10 +246,96 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         // Unit reports to Chief Director (no directorate)
         if (body.directorate) {
           return NextResponse.json(
-            { error: `Unit "${body.unit}" reports directly to Chief Director. Please leave the directorate field empty.` },
+            { 
+              error: `Unit reports to Chief Director`,
+              message: `Unit "${body.unit}" reports directly to Chief Director. Please leave the directorate field empty.`
+            },
             { status: 400 }
           )
         }
+      }
+    }
+
+    // Validate duty station (must be one of the approved values)
+    const validDutyStations = ['HQ', 'Region', 'District', 'Agency']
+    if (body.dutyStation && !validDutyStations.includes(body.dutyStation)) {
+      return NextResponse.json(
+        { 
+          error: `Invalid duty station`,
+          message: `Duty station must be one of: ${validDutyStations.join(', ')}`,
+          validDutyStations
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate government grade format (SSS, PSS, DSS, USS, MSS, JSS 1-6)
+    if (body.grade) {
+      const gradeRegex = /^(SSS|PSS|DSS|USS|MSS|JSS)\s*[1-6]$/i
+      if (!gradeRegex.test(body.grade.trim())) {
+        return NextResponse.json(
+          { 
+            error: 'Invalid grade format',
+            message: 'Grade must be in format: SSS/PSS/DSS/USS/MSS/JSS followed by 1-6 (e.g., PSS 4, SSS 2)',
+            validFormat: 'SSS/PSS/DSS/USS/MSS/JSS 1-6'
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate level (1-12)
+    if (body.level) {
+      const levelNum = parseInt(body.level)
+      if (isNaN(levelNum) || levelNum < 1 || levelNum > 12) {
+        return NextResponse.json(
+          { 
+            error: 'Invalid level',
+            message: 'Level must be a number between 1 and 12',
+            validRange: '1-12'
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate rank if provided (optional but should be valid)
+    const validRanks = [
+      'Chief Director',
+      'Deputy Chief Director',
+      'Director',
+      'Deputy Director',
+      'Principal Officer',
+      'Senior Officer',
+      'Officer',
+      'Assistant Officer',
+      'Senior Staff',
+      'Staff',
+      'Junior Staff'
+    ]
+    if (body.rank && !validRanks.includes(body.rank)) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid rank',
+          message: 'Rank must be one of the approved government ranks',
+          validRanks
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate step if provided (1-15)
+    if (body.step) {
+      const stepNum = parseInt(body.step)
+      if (isNaN(stepNum) || stepNum < 1 || stepNum > 15) {
+        return NextResponse.json(
+          { 
+            error: 'Invalid step',
+            message: 'Step must be a number between 1 and 15',
+            validRange: '1-15'
+          },
+          { status: 400 }
+        )
       }
     }
     
@@ -252,10 +382,18 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       // Prevent self-assignment
       if (body.immediateSupervisorId === body.staffId) {
         return NextResponse.json(
-          { error: 'Staff member cannot be their own supervisor' },
+          { error: 'Cannot assign self as supervisor' },
           { status: 400 }
         )
       }
+    }
+
+    // Validate manager self-assignment
+    if (body.managerId && body.managerId === body.staffId) {
+      return NextResponse.json(
+        { error: 'Cannot assign self as manager' },
+        { status: 400 }
+      )
     }
 
     // Create staff member and initial leave balance in transaction
@@ -265,19 +403,19 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         staffId: body.staffId,
         firstName: body.firstName,
         lastName: body.lastName,
-        email: body.email,
-        phone: body.phone || '',
-        department: body.department || '',
-        position: body.position || '',
-        grade: body.grade || '',
-        level: body.level || '',
+        email: body.email.toLowerCase(),
+        phone: body.phone,
+        department: body.department,
+        position: body.position,
+        grade: body.grade.trim(),
+        level: body.level.toString(),
         rank: body.rank || null,
-        step: body.step || null,
+        step: body.step ? parseInt(body.step) : null,
         directorate: body.directorate || null,
         division: body.division || null,
-        unit: body.unit || null,
-        dutyStation: body.dutyStation || 'HQ',
-        photoUrl: body.photoUrl,
+        unit: body.unit,
+        dutyStation: body.dutyStation,
+        photoUrl: body.photoUrl || null,
         active: body.active ?? true,
         employmentStatus: body.employmentStatus || 'active',
         joinDate: body.joinDate ? new Date(body.joinDate) : new Date(),
@@ -325,6 +463,13 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       })
       
       return staff
+    })
+    
+    // Calculate initial leave balances based on join date (non-blocking)
+    // This ensures new staff members have correct leave balances from their join date
+    calculateInitialLeaveBalances(result.staffId).catch((error) => {
+      console.error('Failed to calculate initial leave balances:', error)
+      // Don't fail the request if balance calculation fails
     })
     
     return NextResponse.json(result, { status: 201 })

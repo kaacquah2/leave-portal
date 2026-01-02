@@ -3,6 +3,38 @@
  * Handles sending emails via SMTP
  */
 
+/**
+ * Get the application URL for email links
+ * Handles Vercel deployment and local development
+ */
+export function getAppUrl(): string {
+  // Priority 1: Use NEXT_PUBLIC_APP_URL if set and not localhost
+  const publicAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (publicAppUrl && !publicAppUrl.includes('localhost') && !publicAppUrl.includes('127.0.0.1')) {
+    return publicAppUrl
+  }
+
+  // Priority 2: Use VERCEL_URL (automatically set by Vercel)
+  // VERCEL_URL doesn't include protocol, so we need to add https://
+  const vercelUrl = process.env.VERCEL_URL
+  if (vercelUrl) {
+    // VERCEL_URL format: your-app.vercel.app (no protocol)
+    // Add https:// if not already present
+    if (vercelUrl.startsWith('http://') || vercelUrl.startsWith('https://')) {
+      return vercelUrl
+    }
+    return `https://${vercelUrl}`
+  }
+
+  // Priority 3: Fallback to NEXT_PUBLIC_APP_URL even if localhost (for development)
+  if (publicAppUrl) {
+    return publicAppUrl
+  }
+
+  // Last resort: throw error
+  throw new Error('NEXT_PUBLIC_APP_URL or VERCEL_URL must be set in environment variables')
+}
+
 interface EmailConfig {
   host: string
   port: number

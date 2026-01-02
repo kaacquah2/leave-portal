@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
+import { MOFA_UNITS, getUnitConfig } from '@/lib/mofa-unit-mapping'
 
 // POST bulk upload staff from CSV/Excel file
 export async function POST(request: NextRequest) {
@@ -80,8 +81,8 @@ export async function POST(request: NextRequest) {
         const rowNumber = i + 2 // +2 because row 1 is header, and arrays are 0-indexed
 
         try {
-          // Validate required fields
-          const requiredFields = ['staffId', 'firstName', 'lastName', 'email', 'department', 'position', 'grade', 'level', 'joinDate']
+          // Validate required fields per MoFAD requirements
+          const requiredFields = ['staffId', 'firstName', 'lastName', 'email', 'phone', 'department', 'position', 'grade', 'level', 'unit', 'dutyStation', 'joinDate']
           const missingFields = requiredFields.filter(field => !row[field] || row[field].toString().trim() === '')
 
           if (missingFields.length > 0) {
@@ -92,6 +93,100 @@ export async function POST(request: NextRequest) {
               error: `Missing required fields: ${missingFields.join(', ')}`,
             })
             continue
+          }
+
+          // Validate email format
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+          if (!emailRegex.test(row.email)) {
+            results.failed++
+            results.errors.push({
+              row: rowNumber,
+              staffId: row.staffId,
+              error: 'Invalid email format',
+            })
+            continue
+          }
+
+          // Validate MoFAD unit
+          if (row.unit) {
+            const unitConfig = getUnitConfig(row.unit)
+            if (!unitConfig) {
+              results.failed++
+              results.errors.push({
+                row: rowNumber,
+                staffId: row.staffId,
+                error: `Unit "${row.unit}" is not a valid MoFAD unit`,
+              })
+              continue
+            }
+          }
+
+          // Validate duty station
+          const validDutyStations = ['HQ', 'Region', 'District', 'Agency']
+          if (row.dutyStation && !validDutyStations.includes(row.dutyStation)) {
+            results.failed++
+            results.errors.push({
+              row: rowNumber,
+              staffId: row.staffId,
+              error: `Invalid duty station: ${row.dutyStation}. Must be one of: ${validDutyStations.join(', ')}`,
+            })
+            continue
+          }
+
+          // Validate grade format
+          if (row.grade) {
+            const gradeRegex = /^(SSS|PSS|DSS|USS|MSS|JSS)\s*[1-6]$/i
+            if (!gradeRegex.test(row.grade.trim())) {
+              results.failed++
+              results.errors.push({
+                row: rowNumber,
+                staffId: row.staffId,
+                error: `Invalid grade format: ${row.grade}. Must be SSS/PSS/DSS/USS/MSS/JSS 1-6`,
+              })
+              continue
+            }
+          }
+
+          // Validate level (1-12)
+          const levelNum = parseInt(row.level)
+          if (isNaN(levelNum) || levelNum < 1 || levelNum > 12) {
+            results.failed++
+            results.errors.push({
+              row: rowNumber,
+              staffId: row.staffId,
+              error: `Invalid level: ${row.level}. Must be between 1 and 12`,
+            })
+            continue
+          }
+
+          // Validate rank if provided
+          if (row.rank) {
+            const validRanks = [
+              'Chief Director', 'Deputy Chief Director', 'Director', 'Deputy Director',
+              'Principal Officer', 'Senior Officer', 'Officer', 'Assistant Officer',
+              'Senior Staff', 'Staff', 'Junior Staff'
+            ]
+            if (!validRanks.includes(row.rank)) {
+              results.warnings.push({
+                row: rowNumber,
+                staffId: row.staffId,
+                warning: `Invalid rank: ${row.rank}. Using null instead.`,
+              })
+              row.rank = null
+            }
+          }
+
+          // Validate step if provided (1-15)
+          if (row.step) {
+            const stepNum = parseInt(row.step)
+            if (isNaN(stepNum) || stepNum < 1 || stepNum > 15) {
+              results.warnings.push({
+                row: rowNumber,
+                staffId: row.staffId,
+                warning: `Invalid step: ${row.step}. Must be between 1 and 15. Using null instead.`,
+              })
+              row.step = null
+            }
           }
 
           // Check if staff already exists
