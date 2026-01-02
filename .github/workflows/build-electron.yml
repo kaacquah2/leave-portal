@@ -1,0 +1,232 @@
+name: Build Electron App
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'electron/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/build-electron.js'
+      - '.github/workflows/build-electron.yml'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'electron/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/build-electron.js'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+    inputs:
+      api_url:
+        description: 'API URL for Electron app (optional)'
+        required: false
+        default: 'https://hr-leave-portal.vercel.app'
+      platform:
+        description: 'Platform to build (win/mac/linux/all)'
+        required: false
+        default: 'win'
+  release:
+    types: [created] # Build on new releases
+
+env:
+  ELECTRON_API_URL: ${{ github.event.inputs.api_url || 'https://hr-leave-portal.vercel.app' }}
+  ELECTRON_DEFAULT_API_URL: ${{ secrets.ELECTRON_DEFAULT_API_URL || 'https://hr-leave-portal.vercel.app' }}
+
+jobs:
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest # Has Visual Studio Build Tools pre-installed
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      (github.event.inputs.platform == 'win' || github.event.inputs.platform == 'all') ||
+      github.event_name == 'release' ||
+      (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip build]'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+        continue-on-error: true # Prisma may not be needed for build
+
+      - name: Build Next.js app
+        run: npm run build:electron
+        env:
+          ELECTRON: '1'
+
+      - name: Compile TypeScript repositories
+        run: npm run build:electron:repos
+
+      - name: Rebuild native modules for Electron
+        run: npm run electron:rebuild
+        continue-on-error: true # electron-builder will also try to rebuild
+
+      - name: Build Electron app (Windows)
+        run: npm run electron:build:win
+        env:
+          ELECTRON_API_URL: ${{ env.ELECTRON_API_URL }}
+          ELECTRON_DEFAULT_API_URL: ${{ env.ELECTRON_DEFAULT_API_URL }}
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*.exe
+          retention-days: 30
+
+      - name: Upload Windows Unpacked
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-unpacked
+          path: dist/win-unpacked/**
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-windows
+          path: |
+            dist/builder-debug.yml
+            dist/builder-effective-config.yaml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build-macos:
+    name: Build macOS App
+    runs-on: macos-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      (github.event.inputs.platform == 'mac' || github.event.inputs.platform == 'all') ||
+      github.event_name == 'release'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+        continue-on-error: true
+
+      - name: Build Next.js app
+        run: npm run build:electron
+        env:
+          ELECTRON: '1'
+
+      - name: Compile TypeScript repositories
+        run: npm run build:electron:repos
+
+      - name: Rebuild native modules for Electron
+        run: npm run electron:rebuild
+        continue-on-error: true
+
+      - name: Build Electron app (macOS)
+        run: npm run electron:build:mac
+        env:
+          ELECTRON_API_URL: ${{ env.ELECTRON_API_URL }}
+          ELECTRON_DEFAULT_API_URL: ${{ env.ELECTRON_DEFAULT_API_URL }}
+
+      - name: Upload macOS App
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: dist/*.dmg
+          retention-days: 30
+
+  build-linux:
+    name: Build Linux App
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      (github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all') ||
+      github.event_name == 'release'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+        continue-on-error: true
+
+      - name: Build Next.js app
+        run: npm run build:electron
+        env:
+          ELECTRON: '1'
+
+      - name: Compile TypeScript repositories
+        run: npm run build:electron:repos
+
+      - name: Rebuild native modules for Electron
+        run: npm run electron:rebuild
+        continue-on-error: true
+
+      - name: Build Electron app (Linux)
+        run: npm run electron:build:linux
+        env:
+          ELECTRON_API_URL: ${{ env.ELECTRON_API_URL }}
+          ELECTRON_DEFAULT_API_URL: ${{ env.ELECTRON_DEFAULT_API_URL }}
+
+      - name: Upload Linux App
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-app
+          path: dist/*.{AppImage,deb}
+          retention-days: 30
+
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-windows]
+    if: github.event_name == 'release'
+    
+    steps:
+      - name: Download Windows Installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
