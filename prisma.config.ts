@@ -10,6 +10,7 @@ export default defineConfig({
   },
   datasource: {
     // Use DIRECT_URL for migrations, DATABASE_URL for application
-    url: env("DIRECT_URL") || env("DATABASE_URL"),
+    // Use process.env directly to avoid throwing error if DIRECT_URL is missing
+    url: process.env.DIRECT_URL || env("DATABASE_URL"),
   },
 });
