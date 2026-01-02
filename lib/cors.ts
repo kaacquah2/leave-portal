@@ -32,25 +32,39 @@ export function addCorsHeaders<T = any>(
   
   if (isAllowed) {
     // Set CORS headers
-    // For 'null' origin (Electron app:///file://), return 'null' explicitly
+    // For 'null' origin (Electron app:///file://), we need special handling
+    // The CORS spec doesn't allow returning 'null' as Access-Control-Allow-Origin
+    // For null origins, we return '*' but cannot use credentials
     // For same-origin (no origin header), return the request origin from URL
-    let corsOrigin = origin
-    if (!origin) {
+    let corsOrigin: string
+    let allowCredentials = false
+    
+    if (origin === 'null') {
+      // For null origins (file:// protocol), use '*' but don't allow credentials
+      // This is a limitation of CORS - null origins can't use credentials
+      corsOrigin = '*'
+      allowCredentials = false
+    } else if (!origin) {
       // Same-origin request - try to get origin from request URL
       try {
         const url = new URL(request.url)
         corsOrigin = url.origin
+        allowCredentials = true
       } catch {
         corsOrigin = '*'
+        allowCredentials = false
       }
+    } else {
+      // Specific origin - allow it and enable credentials
+      corsOrigin = origin
+      allowCredentials = true
     }
     
-    response.headers.set('Access-Control-Allow-Origin', corsOrigin || '*')
+    response.headers.set('Access-Control-Allow-Origin', corsOrigin)
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cookie')
-    // Set credentials - works with specific origins (including 'null')
-    // Note: '*' cannot be used with credentials, but 'null' can
-    if (corsOrigin && corsOrigin !== '*') {
+    // Set credentials only for non-null, non-wildcard origins
+    if (allowCredentials && corsOrigin !== '*') {
       response.headers.set('Access-Control-Allow-Credentials', 'true')
     }
     response.headers.set('Access-Control-Max-Age', '86400') // 24 hours
