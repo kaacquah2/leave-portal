@@ -20,8 +20,19 @@ const apiUrl = process.env.ELECTRON_API_URL ||
                process.env.NEXT_PUBLIC_API_URL || 
                (isDev ? '' : DEFAULT_VERCEL_URL);
 
-// Normalize API URL (remove trailing slash)
-const normalizedApiUrl = apiUrl ? apiUrl.replace(/\/$/, '') : '';
+// Normalize API URL (ensure protocol, remove trailing slash)
+let normalizedApiUrl = apiUrl ? apiUrl.trim() : '';
+if (normalizedApiUrl && normalizedApiUrl !== '') {
+  // Ensure protocol is present
+  if (!normalizedApiUrl.startsWith('http://') && !normalizedApiUrl.startsWith('https://')) {
+    // Default to https:// for production URLs
+    normalizedApiUrl = `https://${normalizedApiUrl}`;
+  }
+  // Remove trailing slash
+  normalizedApiUrl = normalizedApiUrl.replace(/\/$/, '');
+} else {
+  normalizedApiUrl = '';
+}
 
 // Expose protected methods that allow the renderer process
 // to use Electron APIs without exposing the entire object

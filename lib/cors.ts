@@ -11,6 +11,7 @@ export function addCorsHeaders<T = any>(
   request: NextRequest
 ): NextResponse<T> | NextResponse<{ error: string }> {
   const origin = request.headers.get('origin')
+  const referer = request.headers.get('referer')
   
   // Always set CORS headers to allow cross-origin requests
   // This is especially important for Electron apps using file:// protocol (null origin)
@@ -19,12 +20,40 @@ export function addCorsHeaders<T = any>(
   let corsOrigin: string
   let allowCredentials = false
   
+  // Check for null origin (Electron file:// or app:// protocol)
+  // The browser sends the string 'null' as the origin for these protocols
   if (origin === 'null' || origin === null) {
-    // For null origins (file:// protocol), use '*' but don't allow credentials
-    // This is a limitation of CORS - null origins can't use credentials
-    // However, '*' won't work with credentials, so we need to handle this carefully
-    corsOrigin = '*'
-    allowCredentials = false
+    // For null origins (file:// or app:// protocol from Electron), we need to use
+    // the request URL's origin instead of '*' to allow credentials.
+    // This is required because CORS spec doesn't allow '*' with credentials.
+    // Since the request is already coming to our server, it's safe to allow our own origin.
+    try {
+      const url = new URL(request.url)
+      corsOrigin = url.origin
+      allowCredentials = true
+      
+      // Log for debugging in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[CORS] Null origin detected, using request URL origin:', corsOrigin)
+      }
+    } catch {
+      // Fallback: try to get origin from Referer header if available
+      if (referer) {
+        try {
+          const refererUrl = new URL(referer)
+          corsOrigin = refererUrl.origin
+          allowCredentials = true
+        } catch {
+          // Fallback to wildcard if URL parsing fails (but credentials won't work)
+          corsOrigin = '*'
+          allowCredentials = false
+        }
+      } else {
+        // Fallback to wildcard if URL parsing fails (but credentials won't work)
+        corsOrigin = '*'
+        allowCredentials = false
+      }
+    }
   } else if (!origin) {
     // No origin header - same-origin request
     // Try to get origin from request URL

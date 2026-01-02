@@ -72,7 +72,16 @@ export default function Page() {
         // If we're loading from HTTPS in Electron, the API URL should be the same origin
         let apiUrl: string;
         if (apiBaseUrl && apiBaseUrl.trim() !== '') {
-          apiUrl = `${apiBaseUrl}/api/auth/me`;
+          // Ensure the API URL has a protocol
+          let normalizedApiUrl = apiBaseUrl.trim();
+          if (!normalizedApiUrl.startsWith('http://') && !normalizedApiUrl.startsWith('https://')) {
+            // Add https:// if no protocol is specified
+            normalizedApiUrl = `https://${normalizedApiUrl}`;
+            console.log('[App] Added https:// protocol to API URL:', normalizedApiUrl);
+          }
+          // Remove trailing slash if present
+          normalizedApiUrl = normalizedApiUrl.replace(/\/$/, '');
+          apiUrl = `${normalizedApiUrl}/api/auth/me`;
         } else if (isElectron && window.location.protocol === 'https:') {
           // In Electron loading from remote, use current origin
           apiUrl = `${window.location.origin}/api/auth/me`;
@@ -168,11 +177,64 @@ export default function Page() {
           return;
         }
         
-        // Log other errors
+        // Log other errors with detailed diagnostics
         console.error('[App] Auth check failed:', error);
         
-        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-          console.error('[App] Network error - check internet connection');
+        // Provide more specific error information
+        const errorMessage = error.message || error.toString() || 'Unknown error';
+        const isElectron = typeof window !== 'undefined' && ((window as any).electronAPI || (window as any).__ELECTRON_API_URL__ !== undefined);
+        const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || '';
+        
+        // Reconstruct the API URL for error logging (same logic as in try block)
+        let attemptedUrl: string;
+        if (apiBaseUrl && apiBaseUrl.trim() !== '') {
+          let normalizedApiUrl = apiBaseUrl.trim();
+          if (!normalizedApiUrl.startsWith('http://') && !normalizedApiUrl.startsWith('https://')) {
+            normalizedApiUrl = `https://${normalizedApiUrl}`;
+          }
+          normalizedApiUrl = normalizedApiUrl.replace(/\/$/, '');
+          attemptedUrl = `${normalizedApiUrl}/api/auth/me`;
+        } else if (isElectron && window.location.protocol === 'https:') {
+          attemptedUrl = `${window.location.origin}/api/auth/me`;
+        } else {
+          attemptedUrl = '/api/auth/me';
+        }
+        
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          console.error('[App] Network/CORS error detected');
+          console.error('[App] Error details:', {
+            message: errorMessage,
+            name: error.name,
+            isElectron,
+            apiBaseUrl: apiBaseUrl || 'using relative URL',
+            currentOrigin: window.location.origin,
+            protocol: window.location.protocol,
+            attemptedUrl: attemptedUrl,
+          });
+          
+          // Check if it might be a CORS issue
+          if (isElectron && (window.location.protocol === 'file:' || window.location.protocol === 'app:')) {
+            console.warn('[App] ⚠️  Possible CORS issue: Electron app with file:// or app:// protocol');
+            console.warn('[App] 💡 Make sure CORS headers are properly configured on the server');
+            console.warn('[App] 💡 The server should allow the API origin with credentials');
+          } else if (apiBaseUrl && apiBaseUrl !== window.location.origin) {
+            console.warn('[App] ⚠️  Cross-origin request detected');
+            console.warn('[App] 💡 Make sure CORS is properly configured for:', apiBaseUrl);
+          }
+          
+          // Check if it might be a network connectivity issue
+          if (!navigator.onLine) {
+            console.error('[App] ❌ Browser reports offline - no internet connection');
+          } else {
+            console.warn('[App] ⚠️  Browser reports online, but request failed');
+            console.warn('[App] 💡 Possible causes:');
+            console.warn('[App]    - Server is unreachable or down');
+            console.warn('[App]    - CORS configuration issue');
+            console.warn('[App]    - SSL/TLS certificate problem');
+            console.warn('[App]    - Firewall or network restrictions');
+          }
+        } else {
+          console.error('[App] Unexpected error:', errorMessage);
         }
         
         // Show landing page after error handling

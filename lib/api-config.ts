@@ -14,14 +14,29 @@ function getApiBaseUrl(): string {
     const electronApiUrl = (window as any).__ELECTRON_API_URL__ || 
                          ((window as any).electronAPI?.apiUrl);
     if (electronApiUrl && electronApiUrl.trim() !== '') {
-      // Normalize: remove trailing slash
-      return electronApiUrl.replace(/\/$/, '');
+      let normalized = electronApiUrl.trim();
+      // Ensure protocol is present
+      if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+        // Default to https:// for production URLs
+        normalized = `https://${normalized}`;
+      }
+      // Remove trailing slash
+      normalized = normalized.replace(/\/$/, '');
+      return normalized;
     }
     
     // Priority 2: Check environment variable (set at build time)
     const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (envApiUrl && envApiUrl.trim() !== '') {
-      return envApiUrl.replace(/\/$/, '');
+      let normalized = envApiUrl.trim();
+      // Ensure protocol is present
+      if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+        // Default to https:// for production URLs
+        normalized = `https://${normalized}`;
+      }
+      // Remove trailing slash
+      normalized = normalized.replace(/\/$/, '');
+      return normalized;
     }
     
     // Priority 3: If in Electron but no API URL, check if we're loading from remote
