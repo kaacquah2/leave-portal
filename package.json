@@ -30,6 +30,7 @@
     "electron:build:vercel:win": "cross-env ELECTRON_API_URL=${ELECTRON_API_URL} npm_config_build_from_source=false electron-builder --win",
     "electron:build:vercel:mac": "cross-env ELECTRON_API_URL=${ELECTRON_API_URL} npm_config_build_from_source=false electron-builder --mac",
     "electron:build:vercel:linux": "cross-env ELECTRON_API_URL=${ELECTRON_API_URL} npm_config_build_from_source=false electron-builder --linux",
+    "electron:rebuild": "@electron/rebuild -f -w better-sqlite3",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:fix": "tsx scripts/fix-migration-lock.ts",
@@ -126,7 +127,8 @@
     "web-push": "^3.6.7",
     "ws": "^8.18.3",
     "exceljs": "^4.4.0",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "electron-updater": "^6.1.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
@@ -137,9 +139,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
+    "cross-env": "^7.0.3",
     "dotenv": "^17.2.3",
     "electron": "^39.2.7",
-    "electron-updater": "^6.1.7",
+    "@electron/rebuild": "^3.6.0",
     "postcss": "^8.5",
     "prisma": "^7.0.0",
     "sharp": "^0.34.5",
@@ -167,6 +170,7 @@
       "node_modules/electron-is-dev/**/*",
       "node_modules/better-sqlite3/**/*",
       "node_modules/uuid/**/*",
+      "node_modules/electron-updater/**/*",
       "!.next/**/*",
       "!.electron-builderignore",
       "!electron/repositories/**/*.ts"
@@ -181,8 +185,9 @@
       "node_modules/uuid/**/*",
       "electron/splash.html"
     ],
-    "npmRebuild": false,
-    "nodeGypRebuild": false,
+    "npmRebuild": true,
+    "nodeGypRebuild": true,
+    "buildDependenciesFromSource": false,
     "forceCodeSigning": false,
     "win": {
       "target": [
