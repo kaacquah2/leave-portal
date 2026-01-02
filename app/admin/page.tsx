@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, Suspense } from 'react'
+import { Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminPortal from '@/components/admin-portal'
-import { getCurrentUser, logout } from '@/lib/auth-client'
+import { useAuth } from '@/hooks/use-auth'
+import { AuthLoadingSkeleton } from '@/components/loading-skeletons'
 
 function AdminPortalWrapper({ onLogout }: { onLogout: () => void }) {
   return <AdminPortal onLogout={onLogout} />
@@ -11,32 +12,25 @@ function AdminPortalWrapper({ onLogout }: { onLogout: () => void }) {
 
 export default function AdminPage() {
   const router = useRouter()
+  const { user, loading, isAuthenticated, logout, hasRole } = useAuth()
 
-  useEffect(() => {
-    // Check authentication via API
-    const checkAuth = async () => {
-      const user = await getCurrentUser()
-      
-      if (!user || user.role !== 'admin') {
-        router.push('/')
-        return
-      }
-    }
+  // Redirect if not authenticated or not admin
+  if (!loading && (!isAuthenticated || !hasRole(['admin', 'SYSTEM_ADMIN', 'SYS_ADMIN']))) {
+    router.push('/')
+    return null
+  }
 
-    checkAuth()
-  }, [router])
+  if (loading) {
+    return <AuthLoadingSkeleton />
+  }
 
-  const handleLogout = async () => {
-    await logout()
+  if (!isAuthenticated || !hasRole(['admin', 'SYSTEM_ADMIN', 'SYS_ADMIN'])) {
+    return null
   }
 
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-purple-50/50 via-background to-purple-50/30 flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    }>
-      <AdminPortalWrapper onLogout={handleLogout} />
+    <Suspense fallback={<AuthLoadingSkeleton />}>
+      <AdminPortalWrapper onLogout={logout} />
     </Suspense>
   )
 }

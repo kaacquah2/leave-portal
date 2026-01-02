@@ -1,0 +1,73 @@
+/**
+ * Notification Queue Processing Job API Endpoint
+ * 
+ * Can be called manually or via external cron service
+ * 
+ * Setup with external cron:
+ * - URL: https://your-domain.com/api/cron/notification-queue
+ * - Method: GET
+ * - Schedule: Every 5 minutes (e.g., 0-59/5 * * * *)
+ * - Headers: Authorization: Bearer YOUR_CRON_SECRET
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { processNotificationQueue, getQueueStatistics } from '@/lib/notification-queue'
+import { getServerSession, authOptions } from '@/lib/auth'
+
+export async function GET(request: NextRequest) {
+  try {
+    // Verify authorization - either via cron secret or admin session
+    const authHeader = request.headers.get('authorization')
+    const hasCronSecret = process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
+    
+    // If no cron secret provided, check if user is admin
+    if (!hasCronSecret) {
+      const session = await getServerSession(authOptions, request)
+      if (!session?.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      
+      // Check if user is admin/HR
+      const { prisma } = await import('@/lib/prisma')
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+      })
+      
+      const role = user?.role.toUpperCase() || ''
+      if (!['HR_DIRECTOR', 'HR_OFFICER', 'SYSTEM_ADMIN', 'SYS_ADMIN'].includes(role)) {
+        return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 })
+      }
+    }
+
+    const startTime = Date.now()
+    await processNotificationQueue()
+    const duration = Date.now() - startTime
+    
+    // Get queue statistics
+    const stats = await getQueueStatistics()
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'Notification queue job completed successfully',
+      duration: `${duration}ms`,
+      queueStats: stats,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error: any) {
+    console.error('[Cron] Error in notification queue job:', error)
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      },
+      { status: 500 }
+    )
+  }
+}
+
+// Also support POST for external cron services that prefer POST
+export async function POST(request: NextRequest) {
+  return GET(request)
+}
+

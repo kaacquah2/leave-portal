@@ -102,13 +102,9 @@ export default function EmployeeDocuments() {
       uploadFormData.append('category', formData.category)
       uploadFormData.append('description', formData.description)
 
-      const { API_BASE_URL } = await import('@/lib/api-config')
-      const uploadUrl = API_BASE_URL 
-        ? `${API_BASE_URL}/api/documents/upload`
-        : '/api/documents/upload'
-      const response = await fetch(uploadUrl, {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest('/api/documents/upload', {
         method: 'POST',
-        credentials: 'include',
         body: uploadFormData,
       })
 

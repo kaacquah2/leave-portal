@@ -5,6 +5,30 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "functions": {
+    "app/api/cron/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/leaves/bulk/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/staff/bulk-upload/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/staff/bulk-assign-manager/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/reports/export/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/reports/**/*.ts": {
+      "maxDuration": 60
+    },
+    "app/api/compliance/report/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/documents/upload/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/**/*.ts": {
       "maxDuration": 30
     }

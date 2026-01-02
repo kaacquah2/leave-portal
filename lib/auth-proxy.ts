@@ -4,90 +4,102 @@ import { addCorsHeaders, handleCorsPreflight } from './cors'
 
 // Re-export AuthUser for use in other modules
 export type { AuthUser }
+
+// Re-export CORS functions for use in other modules
+export { addCorsHeaders, handleCorsPreflight }
 import { isSessionExpired, updateSessionActivity, isAccountLocked } from './security'
 import { prisma } from './prisma'
 
 /**
- * Role mapping for backward compatibility and normalization
- * Maps various role formats to their canonical equivalents
+ * Type alias for API responses to reduce repetition
  */
-const ROLE_EQUIVALENTS: Record<string, string[]> = {
+export type ApiResponse<T = any> = NextResponse<T> | NextResponse<{ error: string }>
+
+/**
+ * Role mapping for backward compatibility and normalization
+ * All keys are normalized to lowercase for consistent lookups
+ * Maps various role formats to their canonical equivalent sets
+ */
+const ROLE_EQUIVALENTS: Record<string, Set<string>> = {
   // Admin roles - all consolidated to SYSTEM_ADMIN (including SECURITY_ADMIN for admin checks)
-  'SYSTEM_ADMIN': ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'],
-  'SYS_ADMIN': ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'],
-  'admin': ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'],
-  'SECURITY_ADMIN': ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'],
+  'system_admin': new Set(['system_admin', 'sys_admin', 'admin', 'security_admin']),
+  'sys_admin': new Set(['system_admin', 'sys_admin', 'admin', 'security_admin']),
+  'admin': new Set(['system_admin', 'sys_admin', 'admin', 'security_admin']),
+  'security_admin': new Set(['system_admin', 'sys_admin', 'admin', 'security_admin']),
   
   // HR roles
-  'hr': ['hr', 'HR_OFFICER', 'hr_officer'],
-  'hr_assistant': ['hr_assistant', 'HR_OFFICER', 'hr', 'hr_officer'],
-  'HR_OFFICER': ['hr', 'HR_OFFICER', 'hr_officer', 'hr_assistant'],
-  'hr_officer': ['hr', 'HR_OFFICER', 'hr_officer', 'hr_assistant'],
-  'hr_director': ['hr_director', 'HR_DIRECTOR'],
-  'HR_DIRECTOR': ['hr_director', 'HR_DIRECTOR'],
+  'hr': new Set(['hr', 'hr_officer', 'hr_assistant']),
+  'hr_assistant': new Set(['hr', 'hr_officer', 'hr_assistant']),
+  'hr_officer': new Set(['hr', 'hr_officer', 'hr_assistant']),
+  'hr_director': new Set(['hr_director']),
   
   // Employee roles
-  'employee': ['employee', 'EMPLOYEE'],
-  'EMPLOYEE': ['employee', 'EMPLOYEE'],
+  'employee': new Set(['employee']),
   
   // Manager/Supervisor roles
-  'manager': ['manager', 'SUPERVISOR', 'supervisor'],
-  'supervisor': ['manager', 'SUPERVISOR', 'supervisor'],
-  'SUPERVISOR': ['manager', 'SUPERVISOR', 'supervisor'],
+  'manager': new Set(['manager', 'supervisor']),
+  'supervisor': new Set(['manager', 'supervisor']),
   
   // Director roles
-  'deputy_director': ['deputy_director', 'DIRECTOR', 'director', 'directorate_head'],
-  'director': ['deputy_director', 'DIRECTOR', 'director', 'directorate_head'],
-  'DIRECTOR': ['deputy_director', 'DIRECTOR', 'director', 'directorate_head'],
-  'directorate_head': ['deputy_director', 'DIRECTOR', 'director', 'directorate_head'],
+  'deputy_director': new Set(['deputy_director', 'director', 'directorate_head']),
+  'director': new Set(['deputy_director', 'director', 'directorate_head']),
+  'directorate_head': new Set(['deputy_director', 'director', 'directorate_head']),
+  
+  // Auditor roles
+  'auditor': new Set(['auditor', 'internal_auditor']),
+  'internal_auditor': new Set(['auditor', 'internal_auditor']),
+  
+  // Chief Director
+  'chief_director': new Set(['chief_director']),
 }
 
 /**
- * Get all equivalent roles for a given role
+ * Get all equivalent roles for a given role (normalized to lowercase)
+ * Uses Set for O(1) lookups and precomputed equivalents
  */
-function getRoleEquivalents(role: string): string[] {
+function getRoleEquivalents(role: string): Set<string> {
   const normalized = role.toLowerCase()
-  const upper = role.toUpperCase()
   
-  // Check direct mapping
-  if (ROLE_EQUIVALENTS[role]) {
-    return ROLE_EQUIVALENTS[role]
-  }
+  // Direct lookup in normalized map
   if (ROLE_EQUIVALENTS[normalized]) {
     return ROLE_EQUIVALENTS[normalized]
   }
-  if (ROLE_EQUIVALENTS[upper]) {
-    return ROLE_EQUIVALENTS[upper]
-  }
   
-  // Return the role itself and normalized versions
-  return [role, normalized, upper]
+  // Fallback: return set with normalized role only
+  return new Set([normalized])
 }
 
 /**
  * Check if user role matches any of the allowed roles (with normalization)
+ * Optimized with Set operations for O(1) lookups instead of nested loops
  */
 function hasMatchingRole(userRole: string, allowedRoles: string[]): boolean {
-  // Direct match
-  if (allowedRoles.includes(userRole)) {
-    return true
-  }
+  if (allowedRoles.length === 0) return false
   
-  // Get equivalents for user role
+  // Normalize user role to lowercase
+  const normalizedUserRole = userRole.toLowerCase()
+  
+  // Get equivalent set for user role
   const userEquivalents = getRoleEquivalents(userRole)
   
-  // Check if any allowed role matches any user equivalent
+  // Check each allowed role
   for (const allowedRole of allowedRoles) {
-    const allowedEquivalents = getRoleEquivalents(allowedRole)
+    const normalizedAllowedRole = allowedRole.toLowerCase()
     
-    // Check for intersection
-    if (userEquivalents.some(eq => allowedEquivalents.includes(eq))) {
+    // Direct case-insensitive match
+    if (normalizedUserRole === normalizedAllowedRole) {
       return true
     }
     
-    // Also check case-insensitive match
-    if (userRole.toLowerCase() === allowedRole.toLowerCase()) {
-      return true
+    // Get equivalent set for allowed role
+    const allowedEquivalents = getRoleEquivalents(allowedRole)
+    
+    // Check for intersection between user and allowed equivalents
+    // Using Set intersection for O(n) instead of nested loops O(n*m)
+    for (const userEq of userEquivalents) {
+      if (allowedEquivalents.has(userEq)) {
+        return true
+      }
     }
   }
   
@@ -99,7 +111,7 @@ export interface AuthContext {
   request: NextRequest
 }
 
-export type AuthHandler<T = any> = (context: AuthContext) => Promise<NextResponse<T> | NextResponse<{ error: string }>>
+export type AuthHandler<T = any> = (context: AuthContext) => Promise<ApiResponse<T>>
 
 export interface AuthOptions {
   /**
@@ -120,21 +132,21 @@ export interface AuthOptions {
 export function withAuth<T = any>(
   handler: AuthHandler<T>,
   options: AuthOptions = {}
-): (request: NextRequest) => Promise<NextResponse<T> | NextResponse<{ error: string }>> {
-  return async (request: NextRequest): Promise<NextResponse<T> | NextResponse<{ error: string }>> => {
+): (request: NextRequest) => Promise<ApiResponse<T>> {
+  return async (request: NextRequest): Promise<ApiResponse<T>> => {
     // Handle CORS preflight requests
     const preflightResponse = handleCorsPreflight(request)
     if (preflightResponse) {
-      return preflightResponse as NextResponse<T> | NextResponse<{ error: string }>
+      return preflightResponse as ApiResponse<T>
     }
     
     // Allow public routes (no auth required)
     if (options.public) {
       // For public routes, we still need to provide a user object structure
       // but it won't be validated
-      const mockUser = { id: '', email: '', role: 'guest', staffId: null } as AuthUser
+      const mockUser = { id: '', email: '', role: 'public', staffId: null } as AuthUser
       const response = await handler({ user: mockUser, request })
-      return addCorsHeaders(response, request) as NextResponse<T> | NextResponse<{ error: string }>
+      return addCorsHeaders(response, request) as ApiResponse<T>
     }
 
     // Check authentication
@@ -236,7 +248,7 @@ export function withAuth<T = any>(
 
     // Call the handler with authenticated context
     const response = await handler({ user, request })
-    return addCorsHeaders(response, request) as NextResponse<T> | NextResponse<{ error: string }>
+    return addCorsHeaders(response, request) as ApiResponse<T>
   }
 }
 

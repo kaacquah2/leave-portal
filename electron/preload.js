@@ -1,129 +1,210 @@
+/**
+ * Electron Preload Script
+ * 
+ * Safely exposes Electron APIs to the renderer process via contextBridge.
+ * This script runs in an isolated context with access to both Node.js APIs
+ * and the renderer's DOM APIs.
+ * 
+ * @version 1.0.0
+ * @see https://www.electronjs.org/docs/latest/tutorial/context-isolation
+ */
+
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Default Vercel URL for production builds
-const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
+// API version for compatibility checking
+const API_VERSION = '1.0.0';
 
-// Get API URL from environment variable (set at build time or runtime)
-// Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL (production only)
-// This allows the Electron app to point to a remote API server
-// Detect dev mode without requiring electron-is-dev (which may not be available in production)
-let isDev = false;
+// Get API URL from main process via IPC (consistent with main process)
+// This ensures the same API URL resolution logic is used
+let normalizedApiUrl = '';
+
+// Try to get API URL synchronously first (for immediate access)
 try {
-  // Try to require electron-is-dev (works in development)
-  isDev = require('electron-is-dev');
+  // Use synchronous IPC call for initial setup
+  normalizedApiUrl = ipcRenderer.sendSync('get-api-url-sync') || '';
 } catch (e) {
-  // In production, electron-is-dev may not be available
-  // Fall back to NODE_ENV check
-  isDev = process.env.NODE_ENV === 'development';
-}
-const apiUrl = process.env.ELECTRON_API_URL || 
-               process.env.NEXT_PUBLIC_API_URL || 
-               (isDev ? '' : DEFAULT_VERCEL_URL);
-
-// Normalize API URL (ensure protocol, remove trailing slash)
-let normalizedApiUrl = apiUrl ? apiUrl.trim() : '';
-if (normalizedApiUrl && normalizedApiUrl !== '') {
-  // Ensure protocol is present
-  if (!normalizedApiUrl.startsWith('http://') && !normalizedApiUrl.startsWith('https://')) {
-    // Default to https:// for production URLs
-    normalizedApiUrl = `https://${normalizedApiUrl}`;
-  }
-  // Remove trailing slash
-  normalizedApiUrl = normalizedApiUrl.replace(/\/$/, '');
-} else {
-  normalizedApiUrl = '';
+  // Fallback to async if sync fails
+  console.warn('[Preload] Could not get API URL synchronously, will use async');
 }
 
-// Expose protected methods that allow the renderer process
-// to use Electron APIs without exposing the entire object
+/**
+ * Electron API exposed to renderer process
+ * 
+ * All methods are safely exposed via contextBridge to prevent exposing
+ * Node.js APIs directly to the renderer process.
+ * 
+ * @typedef {Object} ElectronAPI
+ * @property {string} platform - Platform information (win32, darwin, linux)
+ * @property {Object} versions - Electron and Node.js version information
+ * @property {string|null} apiUrl - API URL for remote server connection
+ * @property {Function} getVersion - Get the application version
+ * @property {Function} sendMessage - Send a message to the main process
+ * @property {Function} onMessage - Listen for messages from the main process
+ * @property {Function} removeListener - Remove an event listener
+ * @property {boolean} isElectron - Always true when ElectronAPI is available
+ * @property {string} apiVersion - API version for compatibility checking
+ */
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Platform information
+  /**
+   * Platform information
+   * @type {string}
+   * @readonly
+   */
   platform: process.platform,
+  
+  /**
+   * Electron and Node.js version information
+   * @type {Object}
+   * @readonly
+   */
   versions: process.versions,
   
-  // API URL for remote server connection
+  /**
+   * API URL for remote server connection
+   * 
+   * This is the base URL that the Electron app uses to connect to the
+   * remote Next.js API server. In development, this may be null (using localhost).
+   * 
+   * @type {string|null}
+   * @readonly
+   */
   apiUrl: normalizedApiUrl || null,
   
-  // Example: Get app version
+  /**
+   * API version for compatibility checking
+   * @type {string}
+   * @readonly
+   */
+  apiVersion: API_VERSION,
+  
+  /**
+   * Get the application version
+   * 
+   * @returns {Promise<string>} Promise that resolves to the application version string
+   * @example
+   * ```javascript
+   * const version = await window.electronAPI.getVersion();
+   * console.log('Version:', version);
+   * ```
+   */
   getVersion: () => ipcRenderer.invoke('get-version'),
   
-  // Example: Send message to main process
+  /**
+   * Send a message to the main process
+   * 
+   * @param {string} message - The message to send
+   * @returns {Promise<Object>} Promise that resolves to a response object
+   * @example
+   * ```javascript
+   * const response = await window.electronAPI.sendMessage('Hello from renderer!');
+   * console.log('Response:', response);
+   * ```
+   */
   sendMessage: (message) => ipcRenderer.invoke('send-message', message),
   
-  // Example: Listen for messages from main process
+  /**
+   * Listen for messages from the main process
+   * 
+   * @param {Function} callback - Function to call when a message is received
+   * @example
+   * ```javascript
+   * window.electronAPI.onMessage((...args) => {
+   *   console.log('Message from main:', args);
+   * });
+   * ```
+   */
   onMessage: (callback) => {
     ipcRenderer.on('message', (event, ...args) => callback(...args));
   },
   
-  // Remove listener
+  /**
+   * Remove an event listener
+   * 
+   * @param {string} channel - The IPC channel name
+   * @param {Function} callback - The callback function to remove
+   * @example
+   * ```javascript
+   * const handler = (data) => console.log(data);
+   * window.electronAPI.onMessage(handler);
+   * // Later...
+   * window.electronAPI.removeListener('message', handler);
+   * ```
+   */
   removeListener: (channel, callback) => {
     ipcRenderer.removeListener(channel, callback);
   },
   
-  // Database IPC handlers for offline-first functionality
-  // These enable queuing operations when offline and syncing when online
-  db: {
-    // Add item to sync queue (for offline operations)
-    addToSyncQueue: (tableName, operation, recordId, payload) => 
-      ipcRenderer.invoke('db-add-to-sync-queue', tableName, operation, recordId, payload),
-    
-    // Get sync queue items
-    getSyncQueue: (limit = 50) => 
-      ipcRenderer.invoke('db-get-sync-queue', limit),
-    
-    // Remove item from sync queue
-    removeFromSyncQueue: (id) => 
-      ipcRenderer.invoke('db-remove-from-sync-queue', id),
-    
-    // Increment retry count for sync queue item
-    incrementSyncQueueRetry: (id, error) => 
-      ipcRenderer.invoke('db-increment-sync-queue-retry', id, error),
-    
-    // Get last sync time
-    getLastSyncTime: () => 
-      ipcRenderer.invoke('db-get-last-sync-time'),
-    
-    // Set last sync time
-    setLastSyncTime: (timestamp) => 
-      ipcRenderer.invoke('db-set-last-sync-time', timestamp),
-    
-    // Mark record as synced
-    markSynced: (tableName, recordId) => 
-      ipcRenderer.invoke('db-mark-synced', tableName, recordId),
-    
-    // Upsert record (insert or update)
-    upsertRecord: (tableName, record) => 
-      ipcRenderer.invoke('db-upsert-record', tableName, record),
-    
-    // Get record by ID
-    getRecord: (tableName, recordId) => 
-      ipcRenderer.invoke('db-get-record', tableName, recordId),
-    
-    // Get all records from table
-    getAllRecords: (tableName, limit = 1000) => 
-      ipcRenderer.invoke('db-get-all-records', tableName, limit),
-    
-    // Delete record
-    deleteRecord: (tableName, recordId) => 
-      ipcRenderer.invoke('db-delete-record', tableName, recordId),
-  },
-  
-  // Check if running in Electron
+  /**
+   * Check if running in Electron
+   * 
+   * This is always true when the ElectronAPI is available.
+   * 
+   * @type {boolean}
+   * @readonly
+   */
   isElectron: true,
+
+  /**
+   * Repository operations (offline-first)
+   * All data access goes through IPC - NO direct network access
+   */
+  repository: {
+    // Sync operations
+    getSyncStatus: () => ipcRenderer.invoke('repo:sync:status'),
+    triggerSync: () => ipcRenderer.invoke('repo:sync:trigger'),
+    getPendingCount: () => ipcRenderer.invoke('repo:sync:pendingCount'),
+    getBackgroundSyncStatus: () => ipcRenderer.invoke('repo:sync:backgroundStatus'),
+    getIncrementalSyncStats: () => ipcRenderer.invoke('repo:sync:incrementalStats'),
+
+    // Conflict resolution
+    conflicts: {
+      getPending: () => ipcRenderer.invoke('repo:conflicts:getPending'),
+      resolve: (tableName, recordId, useServer) => ipcRenderer.invoke('repo:conflicts:resolve', tableName, recordId, useServer),
+    },
+
+    // Offline approvals
+    approvals: {
+      create: (leaveRequestId, approverId, approverName, approverRole, action, level, comments) => 
+        ipcRenderer.invoke('repo:approvals:create', leaveRequestId, approverId, approverName, approverRole, action, level, comments),
+      getPending: (approverId) => ipcRenderer.invoke('repo:approvals:getPending', approverId),
+      canApprove: (role) => ipcRenderer.invoke('repo:approvals:canApprove', role),
+    },
+
+    // Employee operations (read-only offline)
+    employees: {
+      findAll: (filters) => ipcRenderer.invoke('repo:employees:findAll', filters),
+      findByStaffId: (staffId) => ipcRenderer.invoke('repo:employees:findByStaffId', staffId),
+    },
+
+    // Leave request operations (read + write offline)
+    leaveRequests: {
+      findAll: (filters) => ipcRenderer.invoke('repo:leaveRequests:findAll', filters),
+      create: (data) => ipcRenderer.invoke('repo:leaveRequests:create', data),
+    },
+
+    // Leave balance operations (read-only offline, server-authoritative)
+    leaveBalances: {
+      findByStaffId: (staffId) => ipcRenderer.invoke('repo:leaveBalances:findByStaffId', staffId),
+    },
+  },
 });
 
-// Always expose API URL directly on window for easier access
-// This is safe because we control the value
-// In production, this will always have a value (either from env or default Vercel URL)
-if (normalizedApiUrl) {
-  contextBridge.exposeInMainWorld('__ELECTRON_API_URL__', normalizedApiUrl);
-  console.log('[Preload] Electron API URL configured:', normalizedApiUrl);
-} else {
-  console.log('[Preload] Development mode - using relative URLs (localhost)');
-  // Still expose empty string so the app knows it's in Electron
-  contextBridge.exposeInMainWorld('__ELECTRON_API_URL__', '');
-}
+// Expose API URL (will be updated async if needed)
+contextBridge.exposeInMainWorld('__ELECTRON_API_URL__', normalizedApiUrl);
+
+// Get API URL asynchronously as fallback
+ipcRenderer.invoke('get-api-url').then((url) => {
+  if (url && url !== normalizedApiUrl) {
+    normalizedApiUrl = url;
+    // Update the exposed value (if possible)
+    // Note: contextBridge values are immutable, but the app can use the IPC call
+  }
+});
 
 // Log that preload script has loaded
 console.log('[Preload] Electron preload script loaded');
-console.log('[Preload] Environment:', isDev ? 'development' : 'production');
+if (normalizedApiUrl) {
+  console.log('[Preload] API URL configured:', normalizedApiUrl);
+} else {
+  console.log('[Preload] Development mode - using relative URLs (localhost)');
+}

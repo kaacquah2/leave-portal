@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle, XCircle, Clock, AlertCircle, User, Calendar, FileText } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
+import { useOffline } from '@/hooks/use-offline'
+import { PermissionTooltip } from './offline-indicator'
 
 interface LeaveRequest {
   id: string
@@ -33,6 +35,7 @@ export default function ManagerLeaveApproval() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('pending')
   const { toast } = useToast()
+  const { isOnline } = useOffline()
 
   useEffect(() => {
     fetchLeaves()
@@ -219,23 +222,35 @@ export default function ManagerLeaveApproval() {
 
         {showActions && leave.status === 'pending' && (
           <div className="pt-4 border-t flex gap-2">
-            <Button
-              size="sm"
-              className="flex-1 bg-green-600 hover:bg-green-700"
-              onClick={() => handleApprove(leave.id, 'approved')}
+            <PermissionTooltip
+              hasPermission={isOnline}
+              reason="Approval requires online connection"
             >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Approve
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              className="flex-1"
-              onClick={() => handleApprove(leave.id, 'rejected')}
+              <Button
+                size="sm"
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={() => handleApprove(leave.id, 'approved')}
+                disabled={!isOnline}
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Approve
+              </Button>
+            </PermissionTooltip>
+            <PermissionTooltip
+              hasPermission={isOnline}
+              reason="Rejection requires online connection"
             >
-              <XCircle className="w-4 h-4 mr-2" />
-              Reject
-            </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="flex-1"
+                onClick={() => handleApprove(leave.id, 'rejected')}
+                disabled={!isOnline}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Reject
+              </Button>
+            </PermissionTooltip>
           </div>
         )}
 

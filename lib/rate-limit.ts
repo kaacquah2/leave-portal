@@ -27,8 +27,8 @@ setInterval(() => {
 }, 5 * 60 * 1000)
 
 export interface RateLimitConfig {
-  maxRequests: number // Maximum requests allowed
-  windowMs: number // Time window in milliseconds
+  readonly maxRequests: number // Maximum requests allowed
+  readonly windowMs: number // Time window in milliseconds
 }
 
 export interface RateLimitResult {

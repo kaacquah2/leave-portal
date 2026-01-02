@@ -68,6 +68,17 @@ export default function EmployeePortal({ staffId, userRole, onLogout }: Employee
     router.push(`?${params.toString()}`, { scroll: false })
   }
 
+  // Initialize token refresh
+  useEffect(() => {
+    const { startTokenRefresh } = require('@/lib/token-refresh')
+    startTokenRefresh()
+
+    return () => {
+      const { stopTokenRefresh } = require('@/lib/token-refresh')
+      stopTokenRefresh()
+    }
+  }, [])
+
   // Listen for real-time events
   useEffect(() => {
     const handleBalanceUpdate = () => {

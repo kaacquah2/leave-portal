@@ -254,6 +254,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Check if client is using Bearer tokens (Electron/mobile) or cookies (web)
+    // If Authorization header is present, client is using Bearer tokens and needs token in response
+    const usesBearerToken = request.headers.get('authorization')?.startsWith('Bearer ') ||
+                           request.headers.get('x-request-token') === 'true'
+    
     const response = NextResponse.json({
       success: true,
       user: {
@@ -268,7 +273,9 @@ export async function POST(request: NextRequest) {
           department: user.staff.department,
         } : null,
       },
-      // Token is set in httpOnly cookie, not returned in response
+      // Return token for Bearer token clients (Electron/mobile)
+      // Web clients use httpOnly cookies and can ignore this
+      ...(usesBearerToken ? { token } : {}),
     })
 
     // Set cookie

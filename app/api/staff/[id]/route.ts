@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { mapToMoFARole } from '@/lib/role-mapping'
 import { hasPermission } from '@/lib/permissions'
+import { createStaffHistoryEntry } from '@/lib/staff-versioning'
 
 // Force static export configuration (required for static export mode)
 // Generate static params for dynamic route
@@ -156,6 +157,33 @@ export async function PATCH(
       return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
     }
     
+    // Track fields that need history entries
+    const fieldsToTrack = [
+      'grade', 'rank', 'position', 'step', 'department', 'directorate', 'unit'
+    ]
+    
+    // Create history entries for tracked fields
+    for (const field of fieldsToTrack) {
+      if (body[field] !== undefined && body[field] !== existing[field as keyof typeof existing]) {
+        const oldValue = existing[field as keyof typeof existing]?.toString() || null
+        const newValue = body[field]?.toString() || ''
+        
+        try {
+          await createStaffHistoryEntry(
+            existing.staffId,
+            field,
+            oldValue,
+            newValue,
+            user.id,
+            body.changeReason || `Updated ${field}`
+          )
+        } catch (error) {
+          console.error(`[StaffUpdate] Error creating history for ${field}:`, error)
+          // Don't fail update if history creation fails
+        }
+      }
+    }
+
     // Update staff member
     const updated = await prisma.staffMember.update({
       where: { id },

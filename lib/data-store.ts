@@ -2,7 +2,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { applySelectiveUpdate, updateItemInArray, addItemToArray, removeItemFromArray } from './update-diff'
 import { apiRequest, API_BASE_URL } from './api-config'
-import { offlineService } from './offline-service'
 
 export interface StaffMember {
   id: string
@@ -210,201 +209,113 @@ export function useDataStore(options?: {
   // Check if user has permission to view audit logs
   const canViewAuditLogs = userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'admin' || userRole === 'SYSTEM_ADMIN' || userRole === 'SYS_ADMIN'
 
-  // Helper function to read from local database
-  const readFromLocalDB = useCallback(async (tableName: string): Promise<any[]> => {
-    if (!offlineService.isOfflineModeAvailable() || typeof window === 'undefined') {
-      return []
-    }
 
-    try {
-      const electronAPI = (window as any).electronAPI
-      if (electronAPI?.db?.getAllRecords) {
-        const result = await electronAPI.db.getAllRecords(tableName, 10000)
-        if (result && typeof result === 'object' && 'records' in result) {
-          return Array.isArray(result.records) ? result.records : []
-        }
-        return Array.isArray(result) ? result : []
-      }
-    } catch (error) {
-      console.warn(`[DataStore] Error reading ${tableName} from local DB:`, error)
-    }
-    return []
-  }, [])
-
-  // Helper function to store data in local database
-  const storeInLocalDB = useCallback(async (tableName: string, records: any[]): Promise<void> => {
-    if (!offlineService.isOfflineModeAvailable() || typeof window === 'undefined' || !offlineService.isOnline()) {
-      return
-    }
-
-    try {
-      const electronAPI = (window as any).electronAPI
-      if (electronAPI?.db?.upsertRecord) {
-        // Store each record in local database
-        for (const record of records) {
-          try {
-            await electronAPI.db.upsertRecord(tableName, record)
-          } catch (error) {
-            console.warn(`[DataStore] Error storing ${tableName} record in local DB:`, error)
-          }
-        }
-        console.log(`[DataStore] Stored ${records.length} ${tableName} records in local database`)
-      }
-    } catch (error) {
-      console.warn(`[DataStore] Error storing ${tableName} in local DB:`, error)
-    }
-  }, [])
-
-  // Fetch all data from API or local database
+  // Fetch all data from API
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
-      const isOnline = offlineService.isOnline()
-      const isElectron = offlineService.isOfflineModeAvailable() && typeof window !== 'undefined' && !!(window as any).electronAPI
+      const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI
       
       // Log API base URL for debugging (especially in Electron)
       if (typeof window !== 'undefined') {
         const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || API_BASE_URL || 'relative';
-        console.log('[DataStore] Fetching data. Online:', isOnline, 'Electron:', isElectron, 'Base URL:', apiBaseUrl);
+        console.log('[DataStore] Fetching data from API. Electron:', isElectron, 'Base URL:', apiBaseUrl);
       }
 
-      // If offline and in Electron, read from local database
-      if (!isOnline && isElectron) {
-        console.log('[DataStore] Offline mode: Reading from local database')
-        
+      // Start API requests
+      // Don't check navigator.onLine - always try both
+      const onlinePromise = (async () => {
         try {
-          const [localStaff, localLeaves, localBalances, localPolicies, localHolidays, localTemplates] = await Promise.all([
-            readFromLocalDB('StaffMember'),
-            readFromLocalDB('LeaveRequest'),
-            readFromLocalDB('LeaveBalance'),
-            readFromLocalDB('LeavePolicy'),
-            readFromLocalDB('Holiday'),
-            readFromLocalDB('LeaveRequestTemplate'),
-          ])
+          // Build request array conditionally based on user permissions
+          const requests: Promise<any>[] = [
+            apiRequest('/api/staff').catch((err) => {
+              console.warn('[DataStore] Online API: Error fetching staff:', err);
+              return { ok: false, error: err } as any;
+            }),
+            apiRequest('/api/leaves').catch((err) => {
+              console.warn('[DataStore] Online API: Error fetching leaves:', err);
+              return { ok: false, error: err } as any;
+            }),
+            apiRequest('/api/balances').catch((err) => {
+              console.warn('[DataStore] Online API: Error fetching balances:', err);
+              return { ok: false, error: err } as any;
+            }),
+            // Optional endpoints - handle 404s and 403s silently
+            apiRequest('/api/payslips').then(res => {
+              if (res.status === 404 || res.status === 403) {
+                return { ok: false, status: res.status } as any;
+              }
+              if (!res.ok) {
+                console.warn('[DataStore] Online API: Error fetching payslips:', res.status, res.statusText);
+              }
+              return res;
+            }).catch((err) => {
+              if (err instanceof Response && (err.status === 404 || err.status === 403)) {
+                return { ok: false, status: err.status } as any;
+              }
+              console.warn('[DataStore] Online API: Error fetching payslips:', err);
+              return { ok: false, error: err } as any;
+            }),
+            apiRequest('/api/performance-reviews').then(res => {
+              if (res.status === 404 || res.status === 403) {
+                return { ok: false, status: res.status } as any;
+              }
+              if (!res.ok) {
+                console.warn('[DataStore] Online API: Error fetching reviews:', res.status, res.statusText);
+              }
+              return res;
+            }).catch((err) => {
+              if (err instanceof Response && (err.status === 404 || err.status === 403)) {
+                return { ok: false, status: err.status } as any;
+              }
+              console.warn('[DataStore] Online API: Error fetching reviews:', err);
+              return { ok: false, error: err } as any;
+            }),
+            apiRequest('/api/leave-policies').catch((err) => {
+              console.warn('[DataStore] Online API: Error fetching policies:', err);
+              return { ok: false, error: err } as any;
+            }),
+            apiRequest('/api/holidays').catch((err) => {
+              console.warn('[DataStore] Online API: Error fetching holidays:', err);
+              return { ok: false, error: err } as any;
+            }),
+            apiRequest('/api/leave-templates').catch((err) => {
+              console.warn('[DataStore] Online API: Error fetching templates:', err);
+              return { ok: false, error: err } as any;
+            }),
+          ]
 
-          if (localStaff.length > 0) {
-            setStaff(transformDates(localStaff) as StaffMember[])
-          }
-          if (localLeaves.length > 0) {
-            setLeaves(transformDates(localLeaves) as LeaveRequest[])
-          }
-          if (localBalances.length > 0) {
-            setBalances(transformDates(localBalances) as LeaveBalance[])
-          }
-          if (localPolicies.length > 0) {
-            setLeavePolicies(transformDates(localPolicies) as LeavePolicy[])
-          }
-          if (localHolidays.length > 0) {
-            setHolidays(transformDates(localHolidays) as Holiday[])
-          }
-          if (localTemplates.length > 0) {
-            setLeaveTemplates(transformDates(localTemplates) as LeaveRequestTemplate[])
+          // Only fetch audit logs if user has permission
+          if (canViewAuditLogs) {
+            requests.push(
+              apiRequest('/api/audit-logs?limit=100').then(res => {
+                if (!res.ok) {
+                  console.warn('[DataStore] Online API: Error fetching audit logs:', res.status, res.statusText);
+                }
+                return res;
+              }).catch((err) => {
+                console.warn('[DataStore] Online API: Error fetching audit logs:', err);
+                return { ok: false, error: err } as any;
+              })
+            )
+          } else {
+            requests.push(Promise.resolve({ ok: false, status: 403 } as any))
           }
 
-          console.log('[DataStore] Loaded data from local database:', {
-            staff: localStaff.length,
-            leaves: localLeaves.length,
-            balances: localBalances.length,
-            policies: localPolicies.length,
-            holidays: localHolidays.length,
-            templates: localTemplates.length,
-          })
+          return await Promise.all(requests);
         } catch (error) {
-          console.error('[DataStore] Error reading from local database:', error)
-          setError('Failed to load offline data. Please check your connection.')
-        } finally {
-          setLoading(false)
-          setInitialized(true)
+          console.warn('[DataStore] Online API: Error in parallel requests:', error);
+          return null;
         }
-        return
-      }
+      })();
+
+      // Wait for online results
+      const onlineResults = await onlinePromise;
       
-      // Build request array conditionally based on user permissions
-      const requests: Promise<any>[] = [
-        apiRequest('/api/staff').catch((err) => {
-          console.error('[DataStore] Error fetching staff:', err);
-          return { ok: false, error: err } as any;
-        }),
-        apiRequest('/api/leaves').catch((err) => {
-          console.error('[DataStore] Error fetching leaves:', err);
-          return { ok: false, error: err } as any;
-        }),
-        apiRequest('/api/balances').catch((err) => {
-          console.error('[DataStore] Error fetching balances:', err);
-          return { ok: false, error: err } as any;
-        }),
-        // Optional endpoints - handle 404s and 403s silently (endpoints may not exist or user may not have permission)
-        apiRequest('/api/payslips').then(res => {
-          // Silently handle 404s (endpoint doesn't exist) and 403s (permission denied) for optional endpoints
-          if (res.status === 404 || res.status === 403) {
-            return { ok: false, status: res.status } as any;
-          }
-          // Only log other errors (not 404/403)
-          if (!res.ok) {
-            console.warn('[DataStore] Error fetching payslips:', res.status, res.statusText);
-          }
-          return res;
-        }).catch((err) => {
-          // Only log non-expected errors
-          if (err instanceof Response && (err.status === 404 || err.status === 403)) {
-            return { ok: false, status: err.status } as any;
-          }
-          console.warn('[DataStore] Error fetching payslips:', err);
-          return { ok: false, error: err } as any;
-        }),
-        apiRequest('/api/performance-reviews').then(res => {
-          // Silently handle 404s (endpoint doesn't exist) and 403s (permission denied) for optional endpoints
-          if (res.status === 404 || res.status === 403) {
-            return { ok: false, status: res.status } as any;
-          }
-          // Only log other errors (not 404/403)
-          if (!res.ok) {
-            console.warn('[DataStore] Error fetching reviews:', res.status, res.statusText);
-          }
-          return res;
-        }).catch((err) => {
-          // Only log non-expected errors
-          if (err instanceof Response && (err.status === 404 || err.status === 403)) {
-            return { ok: false, status: err.status } as any;
-          }
-          console.warn('[DataStore] Error fetching reviews:', err);
-          return { ok: false, error: err } as any;
-        }),
-        apiRequest('/api/leave-policies').catch((err) => {
-          console.error('[DataStore] Error fetching policies:', err);
-          return { ok: false, error: err } as any;
-        }),
-        apiRequest('/api/holidays').catch((err) => {
-          console.error('[DataStore] Error fetching holidays:', err);
-          return { ok: false, error: err } as any;
-        }),
-        apiRequest('/api/leave-templates').catch((err) => {
-          console.error('[DataStore] Error fetching templates:', err);
-          return { ok: false, error: err } as any;
-        }),
-      ]
-
-      // Only fetch audit logs if user has permission
-      if (canViewAuditLogs) {
-        requests.push(
-          apiRequest('/api/audit-logs?limit=100').then(res => {
-            if (!res.ok) {
-              console.warn('[DataStore] Error fetching audit logs:', res.status, res.statusText);
-            }
-            return res;
-          }).catch((err) => {
-            console.warn('[DataStore] Error fetching audit logs:', err);
-            return { ok: false, error: err } as any;
-          })
-        )
-      } else {
-        // For users without permission, add a resolved promise that returns a failed response
-        requests.push(Promise.resolve({ ok: false, status: 403 } as any))
-      }
-
-      const [staffRes, leavesRes, balancesRes, payslipsRes, reviewsRes, policiesRes, holidaysRes, templatesRes, auditRes] = await Promise.all(requests)
+      // Process online results first (they take precedence)
+      const [staffRes, leavesRes, balancesRes, payslipsRes, reviewsRes, policiesRes, holidaysRes, templatesRes, auditRes] = onlineResults || []
       
       // Check for critical errors with improved error message extraction
       const criticalErrors: string[] = [];
@@ -454,53 +365,39 @@ export function useDataStore(options?: {
         criticalErrors.push(`Balances: ${errorMsg}`);
       }
       
-      if (criticalErrors.length > 0) {
-        const errorMessage = `Failed to load critical data: ${criticalErrors.join(', ')}`;
-        console.error('[DataStore]', errorMessage);
-        setError(errorMessage);
-      }
 
-      // Process and store data
-      if (staffRes.ok && 'json' in staffRes) {
+      // Process online data
+      if (staffRes?.ok && 'json' in staffRes) {
         const data = transformDates(await staffRes.json())
         setStaff(prev => applySelectiveUpdate(prev, data))
-        // Store in local database for offline use
-        await storeInLocalDB('StaffMember', data)
       }
-      if (leavesRes.ok && 'json' in leavesRes) {
+      
+      if (leavesRes?.ok && 'json' in leavesRes) {
         const data = transformDates(await leavesRes.json())
-        // Use selective update to minimize re-renders
         setLeaves(prev => applySelectiveUpdate(prev, data))
-        // Store in local database for offline use
-        await storeInLocalDB('LeaveRequest', data)
       }
-      if (balancesRes.ok && 'json' in balancesRes) {
+      
+      if (balancesRes?.ok && 'json' in balancesRes) {
         const data = transformDates(await balancesRes.json()) as LeaveBalance[]
-        // Use selective update to minimize re-renders
-        // For LeaveBalance, use staffId as the key since id is optional
         setBalances(prev => {
-          // Create a map for efficient lookup by staffId
           const prevMap = new Map<string, LeaveBalance>()
           prev.forEach(b => prevMap.set(b.staffId, b))
           
           const updated: LeaveBalance[] = []
           const processedStaffIds = new Set<string>()
           
-          // Process existing items
           prev.forEach(item => {
             processedStaffIds.add(item.staffId)
             const updatedItem = data.find(d => d.staffId === item.staffId)
             if (updatedItem) {
-              // Check if changed (simple comparison)
               if (JSON.stringify(item) !== JSON.stringify(updatedItem)) {
                 updated.push(updatedItem)
               } else {
-                updated.push(item) // Keep original reference
+                updated.push(item)
               }
             }
           })
           
-          // Add new items
           data.forEach(item => {
             if (!processedStaffIds.has(item.staffId)) {
               updated.push(item)
@@ -509,44 +406,49 @@ export function useDataStore(options?: {
           
           return updated
         })
-        // Store in local database for offline use
-        await storeInLocalDB('LeaveBalance', data)
       }
-      if (payslipsRes.ok && 'json' in payslipsRes) {
+      
+      if (payslipsRes?.ok && 'json' in payslipsRes) {
         const data = transformDates(await payslipsRes.json())
         setPayslips(prev => applySelectiveUpdate(prev, data))
       }
-      if (reviewsRes.ok && 'json' in reviewsRes) {
+      if (reviewsRes?.ok && 'json' in reviewsRes) {
         const data = transformDates(await reviewsRes.json())
         setPerformanceReviews(prev => applySelectiveUpdate(prev, data))
       }
-      if (policiesRes.ok && 'json' in policiesRes) {
+      
+      if (policiesRes?.ok && 'json' in policiesRes) {
         const data = transformDates(await policiesRes.json())
         setLeavePolicies(prev => applySelectiveUpdate(prev, data))
-        // Store in local database for offline use
-        await storeInLocalDB('LeavePolicy', data)
       }
-      if (holidaysRes.ok && 'json' in holidaysRes) {
+      
+      if (holidaysRes?.ok && 'json' in holidaysRes) {
         const data = transformDates(await holidaysRes.json())
         setHolidays(prev => applySelectiveUpdate(prev, data))
-        // Store in local database for offline use
-        await storeInLocalDB('Holiday', data)
       }
-      if (templatesRes.ok && 'json' in templatesRes) {
+      
+      if (templatesRes?.ok && 'json' in templatesRes) {
         const data = transformDates(await templatesRes.json())
         setLeaveTemplates(prev => applySelectiveUpdate(prev, data))
-        // Store in local database for offline use
-        await storeInLocalDB('LeaveRequestTemplate', data)
       }
-      if (auditRes.ok && 'json' in auditRes) {
+      
+      if (auditRes?.ok && 'json' in auditRes) {
         const data = transformDates(await auditRes.json())
-        // Audit logs are append-only, so prepend new ones
         setAuditLogs(prev => {
           const newLogs = data.filter((newLog: AuditLog) => 
             !prev.some(existing => existing.id === newLog.id)
           )
-          return [...newLogs, ...prev].slice(0, 100) // Keep last 100
+          return [...newLogs, ...prev].slice(0, 100)
         })
+      }
+      
+      // Show errors if API requests failed
+      if (criticalErrors.length > 0) {
+        const errorMessage = `Failed to load critical data: ${criticalErrors.join(', ')}`;
+        console.error('[DataStore]', errorMessage);
+        setError(errorMessage);
+      } else if (criticalErrors.length > 0) {
+        console.warn('[DataStore] API requests failed:', criticalErrors);
       }
     } catch (error) {
       console.error('[DataStore] Error fetching data:', error)
@@ -556,59 +458,10 @@ export function useDataStore(options?: {
       setLoading(false)
       setInitialized(true)
     }
-  }, [canViewAuditLogs, readFromLocalDB, storeInLocalDB])
+  }, [canViewAuditLogs])
 
   // Fetch critical data only (for polling)
   const fetchCritical = useCallback(async () => {
-    const isOnline = offlineService.isOnline()
-    const isElectron = offlineService.isOfflineModeAvailable() && typeof window !== 'undefined' && !!(window as any).electronAPI
-
-    // If offline and in Electron, read from local database
-    if (!isOnline && isElectron) {
-      try {
-        const [localLeaves, localBalances] = await Promise.all([
-          readFromLocalDB('LeaveRequest'),
-          readFromLocalDB('LeaveBalance'),
-        ])
-
-        if (localLeaves.length > 0) {
-          setLeaves(prev => applySelectiveUpdate(prev, transformDates(localLeaves) as LeaveRequest[]))
-        }
-        if (localBalances.length > 0) {
-          const data = transformDates(localBalances) as LeaveBalance[]
-          setBalances(prev => {
-            const prevMap = new Map<string, LeaveBalance>()
-            prev.forEach(b => prevMap.set(b.staffId, b))
-            
-            const updated: LeaveBalance[] = []
-            const processedStaffIds = new Set<string>()
-            
-            prev.forEach(item => {
-              processedStaffIds.add(item.staffId)
-              const updatedItem = data.find(d => d.staffId === item.staffId)
-              if (updatedItem) {
-                if (JSON.stringify(item) !== JSON.stringify(updatedItem)) {
-                  updated.push(updatedItem)
-                } else {
-                  updated.push(item)
-                }
-              }
-            })
-            
-            data.forEach(item => {
-              if (!processedStaffIds.has(item.staffId)) {
-                updated.push(item)
-              }
-            })
-            
-            return updated
-          })
-        }
-      } catch (error) {
-        console.error('[DataStore] Error reading critical data from local database:', error)
-      }
-      return
-    }
 
     try {
       const [leavesRes, balancesRes] = await Promise.all([
@@ -651,151 +504,16 @@ export function useDataStore(options?: {
           
           return updated
         })
-        // Store in local database for offline use
-        await storeInLocalDB('LeaveBalance', data)
       }
     } catch (error) {
       console.error('Error fetching critical data:', error)
     }
-  }, [readFromLocalDB, storeInLocalDB])
-
-  // Check if this is first run (database is empty)
-  const isFirstRun = useCallback(async (): Promise<boolean> => {
-    if (!offlineService.isOfflineModeAvailable() || typeof window === 'undefined') {
-      return false
-    }
-
-    try {
-      const electronAPI = (window as any).electronAPI
-      if (electronAPI?.db?.getAllRecords) {
-        // Check if we have any data in key tables
-        const [staffCount, leavesCount] = await Promise.all([
-          electronAPI.db.getAllRecords('StaffMember', 1).then((result: any) => {
-            if (result && typeof result === 'object' && 'records' in result) {
-              return Array.isArray(result.records) ? result.records.length : 0
-            }
-            return Array.isArray(result) ? result.length : 0
-          }).catch(() => 0),
-          electronAPI.db.getAllRecords('LeaveRequest', 1).then((result: any) => {
-            if (result && typeof result === 'object' && 'records' in result) {
-              return Array.isArray(result.records) ? result.records.length : 0
-            }
-            return Array.isArray(result) ? result.length : 0
-          }).catch(() => 0),
-        ])
-        
-        // If both are empty, it's first run
-        return staffCount === 0 && leavesCount === 0
-      }
-    } catch (error) {
-      console.warn('[DataStore] Error checking first run:', error)
-    }
-    return false
   }, [])
 
-  // Initial data sync: Pull ALL data from server on first run, or changes since last sync
-  const performInitialSync = useCallback(async () => {
-    if (!offlineService.isOnline() || !offlineService.isOfflineModeAvailable()) {
-      return
-    }
-
-    try {
-      const firstRun = await isFirstRun()
-      
-      if (firstRun) {
-        console.log('[DataStore] First run detected - pulling ALL data from server...')
-        
-        // On first run, fetch all data from API endpoints and store in local database
-        // This ensures the database is populated before going offline
-        try {
-          const [staffRes, leavesRes, balancesRes, policiesRes, holidaysRes, templatesRes] = await Promise.all([
-            apiRequest('/api/staff').catch(() => ({ ok: false } as Response)),
-            apiRequest('/api/leaves').catch(() => ({ ok: false } as Response)),
-            apiRequest('/api/balances').catch(() => ({ ok: false } as Response)),
-            apiRequest('/api/leave-policies').catch(() => ({ ok: false } as Response)),
-            apiRequest('/api/holidays').catch(() => ({ ok: false } as Response)),
-            apiRequest('/api/leave-templates').catch(() => ({ ok: false } as Response)),
-          ])
-
-          // Store all fetched data in local database
-          if (staffRes.ok && 'json' in staffRes) {
-            const data = transformDates(await staffRes.json())
-            await storeInLocalDB('StaffMember', data)
-            console.log(`[DataStore] Stored ${data.length} staff members in local database`)
-          }
-          
-          if (leavesRes.ok && 'json' in leavesRes) {
-            const data = transformDates(await leavesRes.json())
-            await storeInLocalDB('LeaveRequest', data)
-            console.log(`[DataStore] Stored ${data.length} leave requests in local database`)
-          }
-          
-          if (balancesRes.ok && 'json' in balancesRes) {
-            const data = transformDates(await balancesRes.json())
-            await storeInLocalDB('LeaveBalance', data)
-            console.log(`[DataStore] Stored ${data.length} leave balances in local database`)
-          }
-          
-          if (policiesRes.ok && 'json' in policiesRes) {
-            const data = transformDates(await policiesRes.json())
-            await storeInLocalDB('LeavePolicy', data)
-            console.log(`[DataStore] Stored ${data.length} leave policies in local database`)
-          }
-          
-          if (holidaysRes.ok && 'json' in holidaysRes) {
-            const data = transformDates(await holidaysRes.json())
-            await storeInLocalDB('Holiday', data)
-            console.log(`[DataStore] Stored ${data.length} holidays in local database`)
-          }
-          
-          if (templatesRes.ok && 'json' in templatesRes) {
-            const data = transformDates(await templatesRes.json())
-            await storeInLocalDB('LeaveRequestTemplate', data)
-            console.log(`[DataStore] Stored ${data.length} leave templates in local database`)
-          }
-
-          // Set last sync time to now
-          await offlineService.setLastSyncTime(new Date().toISOString())
-          console.log('[DataStore] First run sync completed - database populated')
-        } catch (error) {
-          console.error('[DataStore] Error during first run sync:', error)
-        }
-      } else {
-        // Not first run - pull only changes since last sync
-        console.log('[DataStore] Performing incremental sync...')
-        const pullResult = await offlineService.pullChanges()
-        
-        if (pullResult.success && pullResult.changes.length > 0) {
-          console.log(`[DataStore] Pulled ${pullResult.changes.length} changes from server`)
-          
-          // Process and store changes in local database
-          const electronAPI = (window as any).electronAPI
-          if (electronAPI?.db?.upsertRecord) {
-            for (const change of pullResult.changes) {
-              try {
-                await electronAPI.db.upsertRecord(change.table, change.payload)
-              } catch (error) {
-                console.warn(`[DataStore] Error storing ${change.table} record during sync:`, error)
-              }
-            }
-            console.log('[DataStore] Incremental sync completed')
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[DataStore] Error during initial sync:', error)
-    }
-  }, [isFirstRun, storeInLocalDB])
-
-  // Initialize from API or local database
+  // Initialize from API
   useEffect(() => {
-    fetchAll().then(() => {
-      // After initial fetch, perform sync if online
-      if (offlineService.isOnline()) {
-        performInitialSync()
-      }
-    })
-  }, [fetchAll, performInitialSync])
+    fetchAll()
+  }, [fetchAll])
 
   // Set up automatic polling for critical data
   useEffect(() => {
@@ -810,7 +528,7 @@ export function useDataStore(options?: {
 
   const addStaff = async (member: Omit<StaffMember, 'id' | 'createdAt'>) => {
     try {
-      // Generate temporary ID for offline mode
+      // Generate temporary ID for optimistic update
       const tempId = `temp-staff-${Date.now()}`
       const tempMember: StaffMember = {
         id: tempId,
@@ -829,12 +547,8 @@ export function useDataStore(options?: {
           body: JSON.stringify(member),
         })
       } catch (apiError) {
-        // If offline or API fails, queue for sync
-        if (offlineService.isOfflineModeAvailable()) {
-          await offlineService.addToSyncQueue('StaffMember', 'INSERT', tempId, member)
-          // Return temp member - will be replaced on sync
-          return tempMember
-        }
+        // Revert optimistic update on error
+        setStaff((prev) => prev.filter((s) => s.id !== tempId))
         throw apiError
       }
 
@@ -875,11 +589,6 @@ export function useDataStore(options?: {
           body: JSON.stringify(updates),
         })
       } catch (apiError) {
-        // If offline or API fails, queue for sync
-        if (offlineService.isOfflineModeAvailable()) {
-          await offlineService.addToSyncQueue('StaffMember', 'UPDATE', id, updates)
-          return // Keep optimistic update
-        }
         // Revert on error
         if (previous) {
           setStaff((prev) => updateItemInArray(prev, previous))
@@ -963,12 +672,7 @@ export function useDataStore(options?: {
           body: JSON.stringify(request),
         })
       } catch (apiError) {
-        // If offline or API fails, queue for sync
-        if (offlineService.isOfflineModeAvailable()) {
-          await offlineService.addToSyncQueue('LeaveRequest', 'INSERT', tempId, request)
-          // Return temp request - will be replaced on sync
-          return optimisticRequest
-        }
+        // Revert optimistic update on error
         // Revert optimistic update
         setLeaves((prev) => prev.filter((l) => l.id !== tempId))
         throw apiError

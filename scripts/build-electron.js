@@ -51,9 +51,9 @@ function retryOperation(operation, maxRetries = 5, delay = 100) {
   }
 }
 
-console.log('Building Electron app with offline capability...');
-console.log('The Electron app will work offline using bundled static files.');
-console.log('✅ App works OFFLINE! Falls back to remote URL if needed.');
+console.log('Building Electron app for remote API only...');
+console.log('The Electron app will load from remote URL and use remote API.');
+console.log('✅ App requires internet connection.');
 
 // Clean dist folder to avoid rename conflicts
 const distDir = path.join(__dirname, '..', 'dist');
@@ -73,7 +73,9 @@ if (fs.existsSync(distDir)) {
 
 try {
   // Default Vercel URL for production builds
-  const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
+  // Can be overridden via ELECTRON_DEFAULT_API_URL environment variable
+  // Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > ELECTRON_DEFAULT_API_URL > hardcoded default
+  const DEFAULT_VERCEL_URL = process.env.ELECTRON_DEFAULT_API_URL || 'https://hr-leave-portal.vercel.app';
   
   // Get API URL from environment or use default
   // Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL
@@ -88,136 +90,10 @@ try {
   console.log(`Source: ${process.env.ELECTRON_API_URL ? 'ELECTRON_API_URL' : process.env.NEXT_PUBLIC_API_URL ? 'NEXT_PUBLIC_API_URL' : 'DEFAULT (Vercel)'}`);
   console.log('='.repeat(60));
   
-  // Build static files for offline capability
-  console.log('\n📦 Building static files for offline capability...');
-  console.log('   App will load from local files first (works offline)');
-  console.log('   Falls back to remote URL if local files not found');
-  
-  // Build Next.js static export
-  try {
-    console.log('\n🔨 Running Next.js static export...');
-    
-    // Temporarily move API routes folder to avoid static export errors
-    // Next.js static export doesn't support API routes
-    const apiDir = path.join(__dirname, '..', 'app', 'api');
-    const apiBackupDir = path.join(__dirname, '..', 'app', '_api_backup');
-    let apiRoutesMoved = false;
-    
-    if (fs.existsSync(apiDir)) {
-      console.log('📦 Temporarily moving API routes for static export...');
-      try {
-        // Remove backup if it exists
-        if (fs.existsSync(apiBackupDir)) {
-          fs.rmSync(apiBackupDir, { recursive: true, force: true });
-        }
-        // Move API routes to backup location with retry
-        retryOperation(() => {
-          fs.renameSync(apiDir, apiBackupDir);
-        }, 3, 100);
-        apiRoutesMoved = true;
-        console.log('✅ API routes moved to _api_backup');
-      } catch (error) {
-        console.error('❌ Failed to move API routes:', error.message);
-        console.error('   Make sure no processes are using files in app/api');
-        throw error;
-      }
-    }
-    
-    try {
-      // Create .next directory if it doesn't exist
-      const nextDir = path.join(__dirname, '..', '.next');
-      if (!fs.existsSync(nextDir)) {
-        fs.mkdirSync(nextDir, { recursive: true });
-      }
-      
-      // Create required-server-files.json if it doesn't exist (workaround for static export)
-      // This file is needed during the build process even for static exports
-      const requiredServerFilesPath = path.join(nextDir, 'required-server-files.json');
-      if (!fs.existsSync(requiredServerFilesPath)) {
-        const requiredServerFiles = {
-          version: 1,
-          config: {
-            output: 'export'
-          },
-          appDir: true,
-          relativeAppDir: 'app',
-          relativePagesDir: '',
-          relativeRootDir: '.',
-          routes: {}
-        };
-        fs.writeFileSync(requiredServerFilesPath, JSON.stringify(requiredServerFiles, null, 2));
-        console.log('✅ Created required-server-files.json for static export');
-      }
-      
-      // Set ELECTRON=1 environment variable for the build
-      const buildEnv = { ...process.env, ELECTRON: '1' };
-      execSync('npm run build', {
-        stdio: 'inherit',
-        cwd: path.join(__dirname, '..'),
-        env: buildEnv
-      });
-      console.log('✅ Static files built successfully');
-    } finally {
-      // Restore API routes after build
-      if (apiRoutesMoved && fs.existsSync(apiBackupDir)) {
-        console.log('📦 Restoring API routes...');
-        try {
-          // Use retry mechanism for Windows permission issues
-          retryOperation(() => {
-            // Remove existing api directory if it exists
-            if (fs.existsSync(apiDir)) {
-              fs.rmSync(apiDir, { recursive: true, force: true });
-              // Small delay to ensure Windows releases file handles
-              sleep(500);
-            }
-            
-            // Try rename first (faster)
-            try {
-              fs.renameSync(apiBackupDir, apiDir);
-            } catch (renameError) {
-              // If rename fails, use copy + delete approach (more reliable on Windows)
-              console.log('   Using copy method for restoration (more reliable on Windows)...');
-              copyDir(apiBackupDir, apiDir);
-              // Remove backup after successful copy
-              fs.rmSync(apiBackupDir, { recursive: true, force: true });
-            }
-          }, 5, 200);
-          console.log('✅ API routes restored');
-        } catch (error) {
-          console.error('❌ Failed to restore API routes:', error.message);
-          console.error('   The _api_backup folder still exists. You may need to manually restore it.');
-          console.error('   Run: Move-Item -Path "app\\_api_backup" -Destination "app\\api" -Force');
-          // Don't throw - allow build to continue
-        }
-      }
-    }
-    
-    // Verify out folder exists
-    const outDir = path.join(__dirname, '..', 'out');
-    if (!fs.existsSync(outDir)) {
-      throw new Error('out folder not found after build');
-    }
-    if (!fs.existsSync(path.join(outDir, 'index.html'))) {
-      throw new Error('out/index.html not found after build');
-    }
-    console.log('✅ Verified static files in out/ folder');
-    
-    // Fix paths for Electron file:// protocol
-    console.log('\n🔧 Fixing paths for Electron file:// protocol...');
-    try {
-      const { fixElectronPaths } = require('./fix-electron-paths');
-      fixElectronPaths(outDir);
-      console.log('✅ Path fixing complete');
-    } catch (error) {
-      console.error('❌ Failed to fix paths:', error.message);
-      console.error('   The app may not work correctly with file:// protocol');
-      throw error;
-    }
-  } catch (error) {
-    console.error('❌ Failed to build static files:', error.message);
-    console.error('   The app will still work but will require internet connection');
-    throw error;
-  }
+  // No static export needed - app will load from remote URL
+  console.log('\n📦 Building Electron app for remote URL only...');
+  console.log('   App will load from:', electronApiUrl);
+  console.log('   No local static files will be bundled');
   
   // Always embed API URL in preload script (required for production)
   console.log(`\nEmbedding API URL in preload script: ${electronApiUrl}`);
@@ -265,11 +141,11 @@ try {
   
   const builderCmd = 'electron-builder --win';
   console.log(`\nUsing API URL: ${normalizedApiUrl}`);
-  console.log('This URL will be used for all API calls in the built application.');
-  console.log('\n📦 Building Electron app (offline capable):');
-  console.log('   ✅ App loads from local static files (works offline)');
-  console.log('   ✅ Falls back to remote URL if local files not found');
+  console.log('This URL will be used for all API calls and UI loading in the built application.');
+  console.log('\n📦 Building Electron app (remote URL only):');
+  console.log('   ✅ App loads from remote URL:', normalizedApiUrl);
   console.log('   ✅ API calls go to:', normalizedApiUrl);
+  console.log('   ⚠️  Internet connection required');
   
   try {
     execSync(builderCmd, { 
@@ -283,7 +159,8 @@ try {
     const originalPreload = `const { contextBridge, ipcRenderer } = require('electron');
 
 // Default Vercel URL for production builds
-const DEFAULT_VERCEL_URL = 'https://hr-leave-portal.vercel.app';
+// Can be overridden via ELECTRON_DEFAULT_API_URL environment variable
+const DEFAULT_VERCEL_URL = process.env.ELECTRON_DEFAULT_API_URL || 'https://hr-leave-portal.vercel.app';
 
 // Get API URL from environment variable (set at build time or runtime)
 // Priority: ELECTRON_API_URL > NEXT_PUBLIC_API_URL > DEFAULT_VERCEL_URL (production only)
@@ -329,54 +206,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Remove listener
   removeListener: (channel, callback) => {
     ipcRenderer.removeListener(channel, callback);
-  },
-  
-  // Database IPC handlers for offline-first functionality
-  // These enable queuing operations when offline and syncing when online
-  db: {
-    // Add item to sync queue (for offline operations)
-    addToSyncQueue: (tableName, operation, recordId, payload) => 
-      ipcRenderer.invoke('db-add-to-sync-queue', tableName, operation, recordId, payload),
-    
-    // Get sync queue items
-    getSyncQueue: (limit = 50) => 
-      ipcRenderer.invoke('db-get-sync-queue', limit),
-    
-    // Remove item from sync queue
-    removeFromSyncQueue: (id) => 
-      ipcRenderer.invoke('db-remove-from-sync-queue', id),
-    
-    // Increment retry count for sync queue item
-    incrementSyncQueueRetry: (id, error) => 
-      ipcRenderer.invoke('db-increment-sync-queue-retry', id, error),
-    
-    // Get last sync time
-    getLastSyncTime: () => 
-      ipcRenderer.invoke('db-get-last-sync-time'),
-    
-    // Set last sync time
-    setLastSyncTime: (timestamp) => 
-      ipcRenderer.invoke('db-set-last-sync-time', timestamp),
-    
-    // Mark record as synced
-    markSynced: (tableName, recordId) => 
-      ipcRenderer.invoke('db-mark-synced', tableName, recordId),
-    
-    // Upsert record (insert or update)
-    upsertRecord: (tableName, record) => 
-      ipcRenderer.invoke('db-upsert-record', tableName, record),
-    
-    // Get record by ID
-    getRecord: (tableName, recordId) => 
-      ipcRenderer.invoke('db-get-record', tableName, recordId),
-    
-    // Get all records from table
-    getAllRecords: (tableName, limit = 1000) => 
-      ipcRenderer.invoke('db-get-all-records', tableName, limit),
-    
-    // Delete record
-    deleteRecord: (tableName, recordId) => 
-      ipcRenderer.invoke('db-delete-record', tableName, recordId),
   },
   
   // Check if running in Electron

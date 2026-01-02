@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import EmployeePortal from '@/components/employee-portal'
-import { getCurrentUser, logout, type AuthUser } from '@/lib/auth-client'
+import { useAuth } from '@/hooks/use-auth'
+import { AuthLoadingSkeleton } from '@/components/loading-skeletons'
 import { type UserRole } from '@/lib/permissions'
 
 function EmployeePortalWrapper({ staffId, userRole, onLogout }: { staffId: string, userRole: UserRole, onLogout: () => void }) {
@@ -12,41 +13,29 @@ function EmployeePortalWrapper({ staffId, userRole, onLogout }: { staffId: strin
 
 export default function EmployeePage() {
   const router = useRouter()
-  const [staffId, setStaffId] = useState<string | undefined>(undefined)
-  const [userRole, setUserRole] = useState<UserRole | undefined>(undefined)
+  const { user, loading, isAuthenticated, logout, hasRole } = useAuth()
 
-  useEffect(() => {
-    // Check authentication via API
-    const checkAuth = async () => {
-      const user = await getCurrentUser()
-      
-      if (!user || user.role !== 'employee') {
-        router.push('/')
-        return
-      }
-      
-      if (user.staffId) {
-        setStaffId(user.staffId)
-        setUserRole(user.role as UserRole)
-      } else {
-        router.push('/')
-      }
-    }
-
-    checkAuth()
-  }, [router])
-
-  const handleLogout = async () => {
-    await logout()
+  // Redirect if not authenticated or not employee
+  if (!loading && (!isAuthenticated || !hasRole(['employee', 'EMPLOYEE']))) {
+    router.push('/')
+    return null
   }
 
-  if (!staffId || !userRole) {
-    return <div className="p-8">Loading...</div>
+  if (loading) {
+    return <AuthLoadingSkeleton />
+  }
+
+  if (!isAuthenticated || !hasRole(['employee', 'EMPLOYEE']) || !user?.staffId) {
+    return null
   }
 
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <EmployeePortalWrapper staffId={staffId} userRole={userRole} onLogout={handleLogout} />
+    <Suspense fallback={<AuthLoadingSkeleton />}>
+      <EmployeePortalWrapper 
+        staffId={user.staffId} 
+        userRole={user.role as UserRole} 
+        onLogout={logout} 
+      />
     </Suspense>
   )
 }

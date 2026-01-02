@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast'
 import LeaveForm from './leave-form'
 import { PermissionChecks, type UserRole } from '@/lib/permissions'
 import ApprovalDelegation from './approval-delegation'
+import { useOffline } from '@/hooks/use-offline'
+import { PermissionTooltip } from './offline-indicator'
 
 interface LeaveManagementProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -19,6 +21,7 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
   const [showForm, setShowForm] = useState(false)
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
   const { toast } = useToast()
+  const { isOnline } = useOffline()
   
   const role = userRole as UserRole
   
@@ -358,22 +361,34 @@ export default function LeaveManagement({ store, userRole }: LeaveManagementProp
                             })
                             .map((level: any, idx: number) => (
                               <div key={idx} className="flex gap-2 items-center">
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  onClick={() => handleApprove(leave.id, 'approved', role === 'hr' ? 'HR Officer' : 'Manager', level.level)}
-                                  className={`text-xs ${role === 'hr' ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+                                <PermissionTooltip
+                                  hasPermission={isOnline}
+                                  reason="Approval requires online connection"
                                 >
-                                  Approve Level {level.level}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => handleApprove(leave.id, 'rejected', role === 'hr' ? 'HR Officer' : 'Manager', level.level)}
-                                  className="text-xs"
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={() => handleApprove(leave.id, 'approved', role === 'hr' ? 'HR Officer' : 'Manager', level.level)}
+                                    className={`text-xs ${role === 'hr' ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+                                    disabled={!isOnline}
+                                  >
+                                    Approve Level {level.level}
+                                  </Button>
+                                </PermissionTooltip>
+                                <PermissionTooltip
+                                  hasPermission={isOnline}
+                                  reason="Rejection requires online connection"
                                 >
-                                  Reject
-                                </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleApprove(leave.id, 'rejected', role === 'hr' ? 'HR Officer' : 'Manager', level.level)}
+                                    className="text-xs"
+                                    disabled={!isOnline}
+                                  >
+                                    Reject
+                                  </Button>
+                                </PermissionTooltip>
                                 {(level.status === 'pending' || level.status === 'delegated') && (
                                   <ApprovalDelegation
                                     leaveRequestId={leave.id}

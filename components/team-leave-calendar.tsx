@@ -57,7 +57,7 @@ export default function TeamLeaveCalendar({
   const [loading, setLoading] = useState(true)
   const [selectedDepartment, setSelectedDepartment] = useState<string>(department || '')
   const [selectedUnit, setSelectedUnit] = useState<string>(unit || '')
-  const [selectedLeaveType, setSelectedLeaveType] = useState<string>('')
+  const [selectedLeaveType, setSelectedLeaveType] = useState<string>('all')
 
   useEffect(() => {
     fetchCalendarData()
@@ -76,7 +76,7 @@ export default function TeamLeaveCalendar({
       
       if (selectedDepartment) params.append('department', selectedDepartment)
       if (selectedUnit) params.append('unit', selectedUnit)
-      if (selectedLeaveType) params.append('leaveType', selectedLeaveType)
+      if (selectedLeaveType && selectedLeaveType !== 'all') params.append('leaveType', selectedLeaveType)
       
       const response = await apiRequest(`/api/calendar/leave-calendar?${params.toString()}`)
       if (response.ok) {
@@ -194,7 +194,7 @@ export default function TeamLeaveCalendar({
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="Annual">Annual</SelectItem>
                   <SelectItem value="Sick">Sick</SelectItem>
                   <SelectItem value="Training">Training</SelectItem>

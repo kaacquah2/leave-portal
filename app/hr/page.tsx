@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, Suspense } from 'react'
+import { Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Portal from '@/components/portal'
-import { getCurrentUser, logout } from '@/lib/auth-client'
+import { useAuth } from '@/hooks/use-auth'
+import { AuthLoadingSkeleton } from '@/components/loading-skeletons'
 
 function PortalWrapper({ onLogout }: { onLogout: () => void }) {
   return <Portal userRole="hr" onLogout={onLogout} />
@@ -11,28 +12,25 @@ function PortalWrapper({ onLogout }: { onLogout: () => void }) {
 
 export default function HRPage() {
   const router = useRouter()
+  const { user, loading, isAuthenticated, logout, hasRole } = useAuth()
 
-  useEffect(() => {
-    // Check authentication via API
-    const checkAuth = async () => {
-      const user = await getCurrentUser()
-      
-      if (!user || user.role !== 'hr') {
-        router.push('/')
-        return
-      }
-    }
+  // Redirect if not authenticated or not HR
+  if (!loading && (!isAuthenticated || !hasRole(['hr', 'hr_assistant', 'HR_OFFICER', 'HR_DIRECTOR']))) {
+    router.push('/')
+    return null
+  }
 
-    checkAuth()
-  }, [router])
+  if (loading) {
+    return <AuthLoadingSkeleton />
+  }
 
-  const handleLogout = async () => {
-    await logout()
+  if (!isAuthenticated || !hasRole(['hr', 'hr_assistant', 'HR_OFFICER', 'HR_DIRECTOR'])) {
+    return null
   }
 
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <PortalWrapper onLogout={handleLogout} />
+    <Suspense fallback={<AuthLoadingSkeleton />}>
+      <PortalWrapper onLogout={logout} />
     </Suspense>
   )
 }

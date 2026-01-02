@@ -111,9 +111,9 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
     const calculateDaysWithHolidays = async () => {
       if (formData.startDate && formData.endDate) {
         try {
-          const response = await fetch(
-            `/api/leaves/calculate-days?startDate=${formData.startDate}&endDate=${formData.endDate}`,
-            { credentials: 'include' }
+          const { apiRequest } = await import('@/lib/api-config')
+          const response = await apiRequest(
+            `/api/leaves/calculate-days?startDate=${formData.startDate}&endDate=${formData.endDate}`
           )
           if (response.ok) {
             const data = await response.json()
@@ -216,13 +216,10 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
     
     setIsSubmitting(true)
     try {
-      const { apiRequest, API_BASE_URL } = await import('@/lib/api-config')
-      const leaveUrl = API_BASE_URL ? `${API_BASE_URL}/api/leaves` : '/api/leaves'
+      const { apiRequest } = await import('@/lib/api-config')
       
-      const response = await fetch(leaveUrl, {
+      const response = await apiRequest('/api/leaves', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           staffId: formData.staffId,
           staffName: `${staff.firstName} ${staff.lastName}`,
@@ -353,7 +350,7 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
 
       // Upload attachments if any
       if (attachments.length > 0 && leaveRequest?.id) {
-        const { apiRequest, API_BASE_URL } = await import('@/lib/api-config')
+        const { apiRequest } = await import('@/lib/api-config')
         for (const attachment of attachments) {
           try {
             const formData = new FormData()
@@ -362,14 +359,9 @@ export default function LeaveForm({ store, onClose, staffId, templateId }: Leave
             formData.append('attachmentType', attachment.type)
             formData.append('description', attachment.description)
 
-            // Use apiRequest for proper API URL handling in Electron
-            const attachmentUrl = API_BASE_URL 
-              ? `${API_BASE_URL}/api/leaves/${leaveRequest.id}/attachments`
-              : `/api/leaves/${leaveRequest.id}/attachments`
-            
-            const response = await fetch(attachmentUrl, {
+            // Use apiRequest for proper API URL handling in Electron (routes through IPC)
+            const response = await apiRequest(`/api/leaves/${leaveRequest.id}/attachments`, {
               method: 'POST',
-              credentials: 'include',
               body: formData,
             })
 

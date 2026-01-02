@@ -8,6 +8,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { reportsToChiefDirector, isHRMU } from '@/lib/mofa-unit-mapping'
+import { resolveApprover } from './acting-appointment-resolver'
 
 export interface MoFAApprovalLevel {
   level: number
@@ -79,7 +80,18 @@ export async function determineMoFAApprovalWorkflow(
     const isHRMUUnit = isHRMU(staffInfo.unit)
     
     // Level 1: Supervisor
-    if (staffInfo.immediateSupervisorId) {
+    // Try to resolve approver (checks acting appointments, delegations, etc.)
+    const supervisorApprover = await resolveApprover('SUPERVISOR', staffInfo.staffId, staffInfo.unit || undefined)
+    
+    if (supervisorApprover) {
+      levels.push({
+        level: 1,
+        approverRole: 'SUPERVISOR',
+        approverStaffId: supervisorApprover.staffId,
+        approverName: supervisorApprover.name,
+        status: 'pending',
+      })
+    } else if (staffInfo.immediateSupervisorId) {
       levels.push({
         level: 1,
         approverRole: 'SUPERVISOR',
@@ -347,7 +359,7 @@ export async function createApprovalSteps(
 export async function updateApprovalStep(
   leaveRequestId: string,
   level: number,
-  status: 'approved' | 'rejected' | 'delegated' | 'skipped',
+  status: 'approved' | 'rejected' | 'delegated' | 'skipped' | 'pending',
   approverUserId?: string,
   approverName?: string,
   comments?: string,

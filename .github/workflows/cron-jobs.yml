@@ -1,0 +1,159 @@
+name: MoFA HR System Cron Jobs
+
+on:
+  schedule:
+    # Escalation Check - Daily at 9 AM UTC (adjust timezone as needed)
+    - cron: '0 9 * * *'
+    # Notification Queue - Every 5 minutes
+    - cron: '*/5 * * * *'
+    # Data Retention - Monthly on 1st at 2 AM UTC
+    - cron: '0 2 1 * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '.github/workflows/cron-jobs.yml'
+
+env:
+  APP_URL: ${{ secrets.APP_URL || 'https://your-domain.vercel.app' }}
+  CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+jobs:
+  escalation:
+    name: Escalation Check
+    runs-on: ubuntu-latest
+    # Only run on schedule or manual trigger (not on every push)
+    if: |
+      github.event_name == 'schedule' || 
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[cron:escalation]'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Escalation Job
+        run: |
+          echo "Running escalation check job..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.APP_URL }}/api/cron/escalation" \
+            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response Code: $http_code"
+          echo "Response Body: $body"
+          
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: Job failed with HTTP $http_code"
+            exit 1
+          fi
+          
+          echo "Escalation job completed successfully"
+
+  notification-queue:
+    name: Notification Queue Processing
+    runs-on: ubuntu-latest
+    # Run on schedule, manual trigger, or specific commit message
+    if: |
+      github.event_name == 'schedule' || 
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[cron:notification-queue]'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Notification Queue Job
+        run: |
+          echo "Running notification queue job..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.APP_URL }}/api/cron/notification-queue" \
+            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response Code: $http_code"
+          echo "Response Body: $body"
+          
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: Job failed with HTTP $http_code"
+            exit 1
+          fi
+          
+          echo "Notification queue job completed successfully"
+
+  data-retention:
+    name: Data Retention
+    runs-on: ubuntu-latest
+    # Only run on schedule or manual trigger (not on every push)
+    if: |
+      github.event_name == 'schedule' || 
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[cron:data-retention]'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Data Retention Job
+        run: |
+          echo "Running data retention job..."
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.APP_URL }}/api/cron/data-retention" \
+            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response Code: $http_code"
+          echo "Response Body: $body"
+          
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: Job failed with HTTP $http_code"
+            exit 1
+          fi
+          
+          echo "Data retention job completed successfully"
+
+  # Combined job for manual testing
+  test-all-jobs:
+    name: Test All Cron Jobs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test Escalation Job
+        run: |
+          echo "Testing escalation job..."
+          curl -X GET "${{ env.APP_URL }}/api/cron/escalation" \
+            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -w "\nHTTP Status: %{http_code}\n" \
+            -f || echo "Escalation job test completed (may have failed)"
+
+      - name: Test Notification Queue Job
+        run: |
+          echo "Testing notification queue job..."
+          curl -X GET "${{ env.APP_URL }}/api/cron/notification-queue" \
+            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -w "\nHTTP Status: %{http_code}\n" \
+            -f || echo "Notification queue job test completed (may have failed)"
+
+      - name: Test Data Retention Job
+        run: |
+          echo "Testing data retention job..."
+          curl -X GET "${{ env.APP_URL }}/api/cron/data-retention" \
+            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -w "\nHTTP Status: %{http_code}\n" \
+            -f || echo "Data retention job test completed (may have failed)"
+

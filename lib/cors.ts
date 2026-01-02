@@ -23,36 +23,16 @@ export function addCorsHeaders<T = any>(
   // Check for null origin (Electron file:// or app:// protocol)
   // The browser sends the string 'null' as the origin for these protocols
   if (origin === 'null' || origin === null) {
-    // For null origins (file:// or app:// protocol from Electron), we need to use
-    // the request URL's origin instead of '*' to allow credentials.
-    // This is required because CORS spec doesn't allow '*' with credentials.
-    // Since the request is already coming to our server, it's safe to allow our own origin.
-    try {
-      const url = new URL(request.url)
-      corsOrigin = url.origin
-      allowCredentials = true
-      
-      // Log for debugging in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[CORS] Null origin detected, using request URL origin:', corsOrigin)
-      }
-    } catch {
-      // Fallback: try to get origin from Referer header if available
-      if (referer) {
-        try {
-          const refererUrl = new URL(referer)
-          corsOrigin = refererUrl.origin
-          allowCredentials = true
-        } catch {
-          // Fallback to wildcard if URL parsing fails (but credentials won't work)
-          corsOrigin = '*'
-          allowCredentials = false
-        }
-      } else {
-        // Fallback to wildcard if URL parsing fails (but credentials won't work)
-        corsOrigin = '*'
-        allowCredentials = false
-      }
+    // For null origins (file:// or app:// protocol from Electron), we must return
+    // 'null' as the Access-Control-Allow-Origin value to match the request origin.
+    // This is required by CORS spec - the header must match the request origin exactly.
+    // We can still allow credentials with null origin.
+    corsOrigin = 'null'
+    allowCredentials = true
+    
+    // Log for debugging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[CORS] Null origin detected, returning null as CORS origin')
     }
   } else if (!origin) {
     // No origin header - same-origin request

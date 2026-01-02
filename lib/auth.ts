@@ -101,11 +101,7 @@ export async function getUserFromToken(token: string): Promise<AuthUser | null> 
 }
 
 export function getTokenFromRequest(request: Request | NextRequest): string | null {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.substring(7)
-  }
-
+  // 1. Check cookies first (web clients - same-origin, httpOnly cookies)
   // Check cookies using NextRequest.cookies API if available (preferred method)
   if ('cookies' in request && request.cookies) {
     const tokenCookie = request.cookies.get('token')
@@ -121,6 +117,12 @@ export function getTokenFromRequest(request: Request | NextRequest): string | nu
     if (tokenMatch) {
       return tokenMatch[1]
     }
+  }
+
+  // 2. Fallback to Bearer token (Electron/mobile clients - cross-origin, no CORS)
+  const authHeader = request.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.substring(7)
   }
 
   return null
@@ -194,5 +196,82 @@ export async function markPasswordResetTokenAsUsed(token: string) {
     where: { token },
     data: { used: true },
   })
+}
+
+/**
+ * Compatibility layer for next-auth
+ * This codebase uses custom JWT auth, but some files expect next-auth API
+ */
+
+export interface Session {
+  user: {
+    id: string
+    email: string
+    role: string
+    staffId?: string | null
+  }
+}
+
+/**
+ * Get server session from request (next-auth compatibility)
+ * Supports both next-auth v4 API (with authOptions) and direct request
+ * @param authOptionsOrRequest - Auth options (ignored) or Request object
+ * @param request - Optional Request object (for next-auth v4 compatibility)
+ * @returns Session object or null
+ */
+export async function getServerSession(
+  authOptionsOrRequest?: any,
+  request?: Request | NextRequest
+): Promise<Session | null> {
+  // Handle next-auth v4 API: getServerSession(authOptions)
+  // In this case, we need to get the request from context
+  // For now, we'll try to get it from the first parameter if it's a Request
+  let req: Request | NextRequest | undefined = request
+
+  // If first param is a Request-like object, use it
+  if (authOptionsOrRequest && typeof authOptionsOrRequest === 'object') {
+    if ('headers' in authOptionsOrRequest || 'cookies' in authOptionsOrRequest) {
+      req = authOptionsOrRequest as Request | NextRequest
+    }
+  }
+
+  // Try to get request from global context (Next.js 13+ App Router)
+  if (!req && typeof globalThis !== 'undefined') {
+    // This is a workaround - in App Router, we need the request from the route handler
+    // For now, return null if we can't get the request
+    return null
+  }
+
+  if (!req) {
+    return null
+  }
+
+  const token = getTokenFromRequest(req)
+  if (!token) {
+    return null
+  }
+
+  const user = await getUserFromToken(token)
+  if (!user) {
+    return null
+  }
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      staffId: user.staffId,
+    },
+  }
+}
+
+/**
+ * Auth options object (next-auth compatibility)
+ * This is a placeholder for compatibility - actual auth is handled by custom JWT
+ */
+export const authOptions = {
+  // Placeholder for next-auth compatibility
+  // Actual auth is handled by custom JWT system
 }
 

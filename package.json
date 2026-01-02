@@ -1,10 +1,18 @@
 {
-  "name": "my-v0-project",
+  "name": "hr-leave-portal",
   "version": "0.1.0",
   "description": "HR Leave Portal Desktop Application",
   "author": "MOFA",
   "private": true,
   "main": "electron/main.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
   "scripts": {
     "build": "prisma generate && next build --webpack",
     "build:electron": "cross-env ELECTRON=1 prisma generate && next build --webpack",
@@ -112,6 +120,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "utf-8-validate": "^6.0.5",
+    "uuid": "^10.0.0",
     "vaul": "^1.1.2",
     "web-push": "^3.6.7",
     "ws": "^8.18.3",
@@ -123,11 +132,13 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^22",
+    "@types/uuid": "^10.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
     "dotenv": "^17.2.3",
     "electron": "^39.2.7",
+    "electron-updater": "^6.1.7",
     "postcss": "^8.5",
     "prisma": "^7.0.0",
     "sharp": "^0.34.5",
@@ -199,7 +210,19 @@
       "installerIcon": "public/mofa.ico",
       "uninstallerIcon": "public/mofa.ico",
       "installerHeaderIcon": "public/mofa.ico",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "perMachine": false,
+      "runAfterFinish": false,
+      "menuCategory": "Government",
+      "artifactName": "${productName} Setup ${version}.${ext}",
+      "installerLanguages": ["en_US"],
+      "include": "electron/installer-script.nsh",
+      "script": "electron/installer-script.nsh",
+      "warningsAsErrors": false,
+      "differentialPackage": false,
+      "guid": "com.mofa.hr-leave-portal",
+      "installerSidebar": "public/mofa.ico",
+      "uninstallerSidebar": "public/mofa.ico"
     }
   }
 }

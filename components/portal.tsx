@@ -85,6 +85,17 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
     }
   }, [store])
 
+  // Initialize token refresh
+  useEffect(() => {
+    const { startTokenRefresh } = require('@/lib/token-refresh')
+    startTokenRefresh()
+
+    return () => {
+      const { stopTokenRefresh } = require('@/lib/token-refresh')
+      stopTokenRefresh()
+    }
+  }, [])
+
   // Map role for compatibility
   const normalizedRole = mapToMoFARole(userRole)
   

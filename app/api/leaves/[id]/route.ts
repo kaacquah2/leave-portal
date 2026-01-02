@@ -4,6 +4,7 @@ import { sendPushNotification } from '@/lib/send-push-notification'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { READ_ONLY_ROLES } from '@/lib/role-utils'
 import { sendEmail, generateLeaveRequestApprovedEmail, generateLeaveRequestRejectedEmail } from '@/lib/email'
+import { createStaffSnapshot } from '@/lib/staff-versioning'
 import { calculateApprovalStatus, areParallelApprovalsComplete, getNextApprovers } from '@/lib/approval-workflow'
 import { validateLeaveBalance, deductLeaveBalance, restoreLeaveBalance, getBalanceFieldName } from '@/lib/leave-balance-utils'
 import { 
@@ -391,6 +392,21 @@ export async function PATCH(
     // MoFA Compliance: Lock record after final approval
     const isFinalApproval = status === 'approved' && leave.status !== 'approved'
     const shouldLock = isFinalApproval
+
+    // Create staff snapshot at final approval (audit requirement)
+    if (isFinalApproval && status === 'approved') {
+      try {
+        await createStaffSnapshot(
+          leave.staffId,
+          new Date(),
+          'leave_approval',
+          id
+        )
+      } catch (error) {
+        console.error('[LeaveApproval] Error creating staff snapshot:', error)
+        // Don't fail approval if snapshot fails
+      }
+    }
 
     const updated = await prisma.leaveRequest.update({
       where: { id },

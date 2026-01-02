@@ -10,23 +10,110 @@ datasource db {
   provider = "postgresql"
 }
 
+// ============================================
+// ENUMS - Type-safe values for common fields
+// ============================================
+
+/// MoFA Government HR Leave Workflow Roles
+/// Primary roles use uppercase (e.g., EMPLOYEE, SUPERVISOR)
+/// Legacy roles are lowercase for backward compatibility during migration
+enum UserRole {
+  // Primary MoFA roles (uppercase)
+  EMPLOYEE
+  SUPERVISOR
+  UNIT_HEAD
+  DIVISION_HEAD
+  DIRECTOR
+  REGIONAL_MANAGER
+  HR_OFFICER
+  HR_DIRECTOR
+  CHIEF_DIRECTOR
+  AUDITOR
+  SYSTEM_ADMIN
+  SECURITY_ADMIN
+  // Legacy roles (lowercase) - for backward compatibility
+  employee
+  supervisor
+  unit_head
+  division_head
+  directorate_head
+  regional_manager
+  hr_officer
+  hr_director
+  chief_director
+  internal_auditor
+  hr
+  hr_assistant
+  manager
+  deputy_director
+  admin
+  SYS_ADMIN
+}
+
+/// Leave types available in the system
+enum LeaveType {
+  Annual
+  Sick
+  Unpaid
+  SpecialService
+  Training
+  Study
+  Maternity
+  Paternity
+  Compassionate
+}
+
+/// Leave request status workflow
+enum LeaveRequestStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+/// Employment status for staff members
+enum EmploymentStatus {
+  active
+  terminated
+  resigned
+  retired
+  suspended
+}
+
+/// Duty station locations
+enum DutyStation {
+  HQ
+  Region
+  District
+  Agency
+}
+
+/// User authentication and authorization model
+/// Links to StaffMember for employee data access
+/// Tracks security state: password changes, login attempts, session timeouts
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
-  passwordHash  String
-  role          String   // MoFA Government HR roles: 'EMPLOYEE' | 'SUPERVISOR' | 'UNIT_HEAD' | 'DIVISION_HEAD' | 'DIRECTOR' | 'REGIONAL_MANAGER' | 'HR_OFFICER' | 'HR_DIRECTOR' | 'CHIEF_DIRECTOR' | 'AUDITOR' | 'SYSTEM_ADMIN' | 'SECURITY_ADMIN' | Legacy: 'employee' | 'supervisor' | 'unit_head' | 'division_head' | 'directorate_head' | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor' | 'admin' | 'SYS_ADMIN' | 'hr' | 'hr_assistant' | 'manager' | 'deputy_director'
-  staffId       String?  @unique
-  active        Boolean  @default(true)
-  emailVerified Boolean  @default(false)
-  lastLogin     DateTime?
+  passwordHash  String   /// Bcrypt hashed password - never store plain text
+  role          String   /// User role - see UserRole enum for valid values. Supports both new (uppercase) and legacy (lowercase) roles for migration period
+  staffId       String?  @unique /// Optional link to StaffMember.staffId - allows user to access employee data
+  active        Boolean  @default(true) /// Whether account is active (can login)
+  emailVerified Boolean  @default(false) /// Email verification status
+  lastLogin     DateTime? /// Last successful login timestamp for security monitoring
   // Security enhancements
-  passwordChangedAt DateTime? // Track password change date
-  passwordExpiresAt DateTime? // Password expiration date
-  sessionTimeout Int @default(1800) // Session timeout in seconds (default 30 minutes)
-  failedLoginAttempts Int @default(0)
-  lockedUntil DateTime? // Account lock until this date
+  passwordChangedAt DateTime? /// Timestamp when password was last changed - used for password expiration checks
+  passwordExpiresAt DateTime? /// When password expires (null = never expires) - enforces password rotation policy
+  sessionTimeout Int @default(1800) /// Session timeout in seconds (default 30 minutes) - idle timeout for security
+  failedLoginAttempts Int @default(0) /// Count of consecutive failed login attempts - triggers account lock
+  lockedUntil DateTime? /// Account lock expiration - prevents login until this timestamp (null = not locked)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  // Database-level constraints
+  @@index([email])
+  @@index([staffId])
+  @@index([role, active])
+  @@index([lockedUntil])
 
   // Relations
   staff         StaffMember? @relation(fields: [staffId], references: [staffId])
@@ -56,35 +143,48 @@ model Session {
   @@index([lastActivity])
 }
 
+/// Staff member profile and organizational structure
+/// Core employee data model with MoFA government hierarchy support
+/// Links to User for authentication and LeaveRequest for leave management
 model StaffMember {
   id               String   @id @default(cuid())
-  staffId          String   @unique
-  firstName        String
-  lastName         String
-  email            String   @unique
-  phone            String
-  department       String
-  position         String
-  grade            String
-  level            String
+  staffId          String   @unique /// Unique staff identifier (e.g., "MOFA-001234")
+  firstName        String   /// Legal first name
+  lastName         String   /// Legal last name
+  email            String   @unique /// Official work email - must be unique
+  phone            String   /// Primary contact phone number
+  department       String   /// Department name (e.g., "Human Resources", "Finance")
+  position         String   /// Job title/position (e.g., "HR Officer", "Accountant")
+  grade            String   /// Grade level (e.g., "G7", "G8") - used for salary structure
+  level            String   /// Level within grade system
   // Government HR metadata
-  rank             String?  // Staff rank (e.g., "Senior Officer", "Principal Officer")
-  step             String?  // Step within grade
-  directorate      String?  // Directorate name (e.g., "Finance & Administration Directorate", "Policy, Planning, Monitoring & Evaluation (PPME) Directorate", null = reports to Chief Director)
-  division         String?  // Division within directorate (MoFA structure - not commonly used)
-  unit             String?  // Unit name (e.g., "Human Resource Management Unit (HRMU)", "Accounts Unit", "Protocol Unit", "Internal Audit Unit", etc.)
-  dutyStation      String?  // 'HQ' | 'Region' | 'District' | 'Agency' (e.g., Fisheries Commission)
-  photoUrl         String?
-  active           Boolean  @default(true)
-  employmentStatus String   @default("active") // 'active' | 'terminated' | 'resigned' | 'retired' | 'suspended'
-  terminationDate DateTime?
-  terminationReason String?
-  joinDate         DateTime
-  confirmationDate DateTime? // Date when staff was confirmed (after probation period)
-  managerId        String?  // Staff ID of the manager (for team assignment)
-  immediateSupervisorId String? // Staff ID of immediate supervisor/line manager
+  rank             String?  /// Staff rank (e.g., "Senior Officer", "Principal Officer") - MoFA specific
+  step             String?  /// Step within grade - progression within same grade level
+  directorate      String?  /// Directorate name (e.g., "Finance & Administration Directorate", "Policy, Planning, Monitoring & Evaluation (PPME) Directorate", null = reports to Chief Director)
+  division         String?  /// Division within directorate (MoFA structure - not commonly used, mostly for large directorates)
+  unit             String?  /// Unit name (e.g., "Human Resource Management Unit (HRMU)", "Accounts Unit", "Protocol Unit", "Internal Audit Unit", etc.)
+  dutyStation      String?  /// Duty station location - see DutyStation enum: 'HQ' | 'Region' | 'District' | 'Agency' (e.g., Fisheries Commission)
+  photoUrl         String?  /// URL to staff photo/profile picture
+  active           Boolean  @default(true) /// Whether staff member is currently active in system
+  employmentStatus String   @default("active") /// Current employment status - see EmploymentStatus enum: 'active' | 'terminated' | 'resigned' | 'retired' | 'suspended'
+  terminationDate DateTime? /// Date when employment was terminated (if applicable)
+  terminationReason String? /// Reason for termination (if applicable) - for HR records
+  joinDate         DateTime /// Date when staff joined the organization
+  confirmationDate DateTime? /// Date when staff was confirmed (after probation period) - affects leave accrual
+  managerId        String?  /// Staff ID of the manager (for team assignment) - self-referential relationship
+  immediateSupervisorId String? /// Staff ID of immediate supervisor/line manager - may differ from managerId in some org structures
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  
+  // Database-level constraints
+  @@index([email])
+  @@index([staffId])
+  @@index([department, active])
+  @@index([managerId])
+  @@index([immediateSupervisorId])
+  @@index([employmentStatus, active])
+  // Note: Date range validation (endDate >= startDate) should be enforced at application level
+  // Prisma doesn't support check constraints directly - use application validation
 
   // Relations
   user              User?
@@ -116,33 +216,45 @@ model StaffMember {
   assets            Asset[]
   payrollItems      PayrollItem[]
   trainingCertificates TrainingCertificate[]
+  actingAppointments ActingAppointment[]
+  staffHistory      StaffHistory[]
 }
 
+/// Leave request with multi-level approval workflow
+/// Supports MoFA government compliance requirements: handover, declarations, attachments
+/// Tracks approval history and current approval steps
 model LeaveRequest {
   id            String   @id @default(cuid())
-  staffId       String
-  staffName     String
-  leaveType     String   // 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
-  startDate     DateTime
-  endDate       DateTime
-  days          Int
-  reason        String
-  status        String   @default("pending") // 'pending' | 'approved' | 'rejected' | 'cancelled'
-  approvedBy    String?
-  approvalDate  DateTime?
-  templateId    String?
-  approvalLevels Json?   // Array of LeaveApprovalLevel
+  staffId       String   /// Staff ID requesting leave - links to StaffMember
+  staffName     String   /// Staff name (denormalized for performance - avoids joins in reports)
+  leaveType     String   /// Type of leave - see LeaveType enum: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
+  startDate     DateTime /// Leave start date (inclusive)
+  endDate       DateTime /// Leave end date (inclusive) - must be >= startDate
+  days          Int      /// Number of leave days requested (calculated from startDate to endDate excluding weekends/holidays)
+  reason        String   /// Reason for leave request - required for all leave types
+  status        String   @default("pending") /// Current status - see LeaveRequestStatus enum: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  approvedBy    String?  /// User ID of final approver (when status = 'approved')
+  approvalDate  DateTime? /// Date when leave was finally approved/rejected
+  templateId    String?  /// Optional link to LeaveRequestTemplate if created from template
+  approvalLevels Json?    /// Array of LeaveApprovalLevel objects - defines approval workflow structure
   // Government HR: Attachments support
-  attachments   LeaveAttachment[]
+  attachments   LeaveAttachment[] /// Related attachments (medical certificates, memos, etc.)
   // MoFA Compliance: Handover and declaration fields
-  officerTakingOver String? // Name/Staff ID of officer taking over duties
-  handoverNotes     String? // Handover notes/instructions
-  declarationAccepted Boolean @default(false) // "I will not proceed on leave without approval"
+  officerTakingOver String? /// Name/Staff ID of officer taking over duties during leave - required for certain leave types
+  handoverNotes     String? /// Handover notes/instructions for officer taking over
+  declarationAccepted Boolean @default(false) /// Declaration: "I will not proceed on leave without approval" - must be true to submit
   // Payroll impact tracking
-  payrollImpactFlag Boolean @default(false) // Flag for unpaid leave or special payroll considerations
-  locked          Boolean @default(false) // Lock approved records from editing
+  payrollImpactFlag Boolean @default(false) /// Flag for unpaid leave or special payroll considerations - triggers payroll processing
+  locked          Boolean @default(false) /// Lock approved records from editing - prevents modification after approval
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  // Database-level constraints
+  @@index([staffId, status])
+  @@index([status, createdAt])
+  @@index([startDate, endDate])
+  @@index([leaveType, status])
+  @@index([approvedBy])
 
   // Relations
   staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
@@ -151,62 +263,72 @@ model LeaveRequest {
   approvalSteps ApprovalStep[] @relation("ApprovalSteps")
 }
 
+/// Leave balance tracking for each staff member
+/// Maintains current balances, carry-forward amounts, and expiration dates for all leave types
+/// Updated automatically when leave is approved/rejected and during accrual processing
 model LeaveBalance {
   id             String   @id @default(cuid())
-  staffId        String   @unique
-  annual         Float    @default(0)
-  sick           Float    @default(0)
-  unpaid         Float    @default(0)
-  specialService Float    @default(0)
-  training       Float    @default(0)
-  study          Float    @default(0)
-  maternity      Float    @default(0)
-  paternity      Float    @default(0)
-  compassionate  Float    @default(0)
+  staffId        String   @unique /// One-to-one relationship with StaffMember
+  annual         Float    @default(0) /// Current annual leave balance in days
+  sick           Float    @default(0) /// Current sick leave balance in days
+  unpaid         Float    @default(0) /// Unpaid leave days (for tracking purposes)
+  specialService Float    @default(0) /// Special service leave balance (government-specific)
+  training       Float    @default(0) /// Training leave balance
+  study          Float    @default(0) /// Study leave balance
+  maternity      Float    @default(0) /// Maternity leave balance
+  paternity      Float    @default(0) /// Paternity leave balance
+  compassionate  Float    @default(0) /// Compassionate leave balance
   
   // Accrual tracking
-  lastAccrualDate DateTime? // Last date when accrual was processed
-  accrualPeriod   String?    // 'monthly' | 'annual' | 'quarterly'
+  lastAccrualDate DateTime? /// Last date when accrual was processed - used to prevent duplicate accruals
+  accrualPeriod   String?    /// Accrual frequency: 'monthly' | 'annual' | 'quarterly' - determines when balances are updated
   
   // Carry-forward tracking (for each leave type)
+  /// Days of annual leave carried forward from previous year (subject to policy limits)
   annualCarryForward         Float @default(0)
-  sickCarryForward           Float @default(0)
-  specialServiceCarryForward Float @default(0)
-  trainingCarryForward       Float @default(0)
-  studyCarryForward          Float @default(0)
+  sickCarryForward           Float @default(0) /// Sick leave carry-forward (if policy allows)
+  specialServiceCarryForward Float @default(0) /// Special service leave carry-forward
+  trainingCarryForward       Float @default(0) /// Training leave carry-forward
+  studyCarryForward          Float @default(0) /// Study leave carry-forward
   
   // Expiration tracking
-  annualExpiresAt         DateTime? // When unused annual leave expires
-  sickExpiresAt           DateTime? // When unused sick leave expires (if applicable)
-  specialServiceExpiresAt DateTime?
-  trainingExpiresAt       DateTime?
-  studyExpiresAt          DateTime?
+  /// When unused annual leave expires (null = never expires) - enforces use-it-or-lose-it policy
+  annualExpiresAt         DateTime?
+  sickExpiresAt           DateTime? /// When unused sick leave expires (if applicable - usually doesn't expire)
+  specialServiceExpiresAt DateTime? /// Special service leave expiration
+  trainingExpiresAt       DateTime? /// Training leave expiration
+  studyExpiresAt          DateTime? /// Study leave expiration
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  
+  // Database-level constraints
+  @@index([staffId])
+  @@index([lastAccrualDate])
+  @@index([annualExpiresAt])
 
   // Relations
   staff          StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
   accrualHistory LeaveAccrualHistory[]
-  
-  @@index([lastAccrualDate])
-  @@index([annualExpiresAt])
 }
 
+/// Historical record of all leave balance accruals, adjustments, and expirations
+/// Provides audit trail for leave balance changes - immutable once created
+/// Used for reporting, compliance, and dispute resolution
 model LeaveAccrualHistory {
   id              String   @id @default(cuid())
-  staffId         String
-  leaveType       String   // 'Annual' | 'Sick' | 'Special Service' | 'Training' | 'Study'
-  accrualDate     DateTime @default(now())
-  accrualPeriod   String   // 'monthly' | 'annual' | 'quarterly' | 'pro-rata' | 'carry-forward' | 'expiration'
-  daysAccrued     Float    // Days added (positive) or removed (negative)
-  daysBefore      Float    // Balance before accrual
-  daysAfter       Float    // Balance after accrual
-  proRataFactor   Float?   // Pro-rata calculation factor (e.g., 0.5 for half month)
-  carryForwardDays Float?  // Days carried forward (if applicable)
-  expiredDays     Float?   // Days expired (if applicable)
-  notes           String?  // Additional notes about the accrual
-  processedBy     String?  // User/system that processed the accrual
+  staffId         String   /// Staff member whose balance was adjusted
+  leaveType       String   /// Type of leave affected - see LeaveType enum: 'Annual' | 'Sick' | 'Special Service' | 'Training' | 'Study'
+  accrualDate     DateTime @default(now()) /// Date when accrual/adjustment was processed
+  accrualPeriod   String   /// Type of accrual: 'monthly' | 'annual' | 'quarterly' | 'pro-rata' | 'carry-forward' | 'expiration' | 'manual_adjustment'
+  daysAccrued     Float    /// Days added (positive) or removed (negative) - net change to balance
+  daysBefore      Float    /// Balance before this accrual/adjustment - for audit trail
+  daysAfter       Float    /// Balance after this accrual/adjustment - for verification
+  proRataFactor   Float?   /// Pro-rata calculation factor (e.g., 0.5 for half month) - used when staff joins/leaves mid-period
+  carryForwardDays Float?  /// Days carried forward from previous period (if applicable)
+  expiredDays     Float?   /// Days that expired (if applicable) - negative adjustment
+  notes           String?  /// Additional notes about the accrual - reason, policy reference, etc.
+  processedBy     String?  /// User ID or system identifier that processed the accrual - for accountability
   createdAt       DateTime @default(now())
 
   // Relations
@@ -1269,6 +1391,115 @@ model TrainingCertificate {
 
   @@index([staffId])
   @@index([trainingProgramId])
+}
+
+// ============================================
+// NEW MODELS FOR AUDIT REPORT REQUIREMENTS
+// ============================================
+
+// Acting Appointments (PSC requirement)
+model ActingAppointment {
+  id              String   @id @default(cuid())
+  role            String   // Role being acted (SUPERVISOR, UNIT_HEAD, etc.)
+  staffId         String   // Staff ID of acting appointee
+  effectiveDate   DateTime
+  endDate         DateTime
+  authoritySource String   // Appointment letter reference
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  staff           StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  
+  @@index([role, effectiveDate, endDate])
+  @@index([staffId])
+  @@index([effectiveDate, endDate])
+}
+
+// Staff History (Versioning for audit compliance)
+model StaffHistory {
+  id            String   @id @default(cuid())
+  staffId      String
+  fieldName    String   // 'grade', 'rank', 'position', 'step', 'department', 'directorate', 'unit'
+  oldValue     String?
+  newValue     String
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  changedBy    String   // User ID
+  changeReason String?
+  snapshotAt   DateTime? // When snapshot was taken (for audit)
+  createdAt    DateTime @default(now())
+  
+  staff        StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+  
+  @@index([staffId, fieldName, effectiveFrom])
+  @@index([staffId, snapshotAt])
+  @@index([snapshotAt])
+}
+
+// Legal Hold (Investigation freeze)
+model LegalHold {
+  id            String   @id @default(cuid())
+  staffId      String?  // If null, applies to all staff
+  leaveRequestId String? // If null, applies to all leave requests
+  reason        String   // Reason for legal hold
+  placedBy      String   // User ID (HR_DIRECTOR or CHIEF_DIRECTOR)
+  placedAt      DateTime @default(now())
+  expiresAt     DateTime? // Optional expiration
+  releasedBy    String?  // User ID who released
+  releasedAt    DateTime?
+  status        String   @default("active") // 'active' | 'released'
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([staffId, status])
+  @@index([leaveRequestId, status])
+  @@index([status, expiresAt])
+}
+
+// Export Audit Log (Data export tracking)
+model ExportLog {
+  id            String   @id @default(cuid())
+  userId        String   // User who exported
+  userRole      String   // Role of user
+  exportType    String   // 'staff' | 'leave' | 'payroll' | 'audit' | 'custom'
+  dataType      String   // Specific data type exported
+  dateRange     Json?    // {start: Date, end: Date}
+  recordCount   Int      // Number of records exported
+  fileUrl       String?  // URL to exported file (if saved)
+  watermarked   Boolean  @default(true) // Whether file was watermarked
+  ip            String?
+  userAgent     String?
+  timestamp     DateTime @default(now())
+  metadata      Json?    // Additional export details
+  
+  @@index([userId, timestamp])
+  @@index([exportType, timestamp])
+  @@index([timestamp])
+}
+
+// Notification Queue (Offline queue with deduplication)
+model NotificationQueue {
+  id            String   @id @default(cuid())
+  userId        String?
+  staffId       String?
+  type          String
+  title         String
+  message       String
+  link          String?
+  priority      String   @default("normal") // 'low' | 'normal' | 'high' | 'urgent'
+  status        String   @default("pending") // 'pending' | 'sent' | 'failed' | 'expired'
+  deliveryAttempts Int   @default(0)
+  lastAttemptAt DateTime?
+  expiresAt     DateTime? // 30 days default
+  deduplicationKey String? // For deduplication
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([deduplicationKey])
+  @@index([expiresAt])
 }
 
 // Add relations to existing models

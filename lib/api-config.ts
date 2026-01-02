@@ -40,18 +40,6 @@ interface ElectronApiResponse {
   headers?: Record<string, string>;
 }
 
-interface ParsedEndpoint {
-  tableName: string;
-  recordId?: string;
-  operation: 'INSERT' | 'UPDATE' | 'DELETE';
-}
-
-interface QueuedResponse {
-  id: string;
-  _queued: true;
-  _message: string;
-  [key: string]: any;
-}
 
 // ============================================================================
 // Helper Functions
@@ -108,70 +96,6 @@ function normalizeUrl(url: string): string {
 }
 
 /**
- * Parse endpoint to extract table name, record ID, and operation type
- * Handles various endpoint patterns:
- * - /api/table/123
- * - /api/table
- * - /api/users/123/comments/456 (nested)
- * - /api/table?query=value (query params)
- */
-function parseEndpointForOfflineSync(
-  endpoint: string,
-  method: string
-): ParsedEndpoint | null {
-  try {
-    // Remove query string and hash for parsing
-    const cleanEndpoint = endpoint.split('?')[0].split('#')[0];
-    const endpointParts = cleanEndpoint.split('/').filter(Boolean);
-    
-    if (endpointParts.length === 0) return null;
-    
-    // Determine operation type
-    const methodUpper = method.toUpperCase();
-    let operation: 'INSERT' | 'UPDATE' | 'DELETE' = 'INSERT';
-    if (methodUpper === 'DELETE') {
-      operation = 'DELETE';
-    } else if (methodUpper === 'PATCH' || methodUpper === 'PUT') {
-      operation = 'UPDATE';
-    }
-    
-    // Extract table name and record ID
-    // For REST endpoints: /api/table or /api/table/id
-    // For nested: /api/users/123/comments - use the last resource as table
-    let tableName = endpointParts[endpointParts.length - 1];
-    let recordId: string | undefined;
-    
-    // Check if last part is an ID (numeric or UUID)
-    const idPattern = /^(\d+|[a-f0-9-]{36}|[a-f0-9-]{32})$/i;
-    if (tableName && idPattern.test(tableName)) {
-      recordId = tableName;
-      // Table name is the previous part
-      tableName = endpointParts[endpointParts.length - 2] || endpointParts[endpointParts.length - 1];
-    }
-    
-    // If we still don't have a valid table name, try to extract from common patterns
-    if (!tableName || tableName === 'api') {
-      // Look for common REST patterns
-      const apiIndex = endpointParts.indexOf('api');
-      if (apiIndex >= 0 && endpointParts.length > apiIndex + 1) {
-        tableName = endpointParts[apiIndex + 1];
-      } else {
-        // Fallback: use the last non-empty part
-        tableName = endpointParts.filter(p => p !== 'api' && !idPattern.test(p)).pop() || 'unknown';
-      }
-    }
-    
-    // Capitalize table name (common convention)
-    tableName = tableName.charAt(0).toUpperCase() + tableName.slice(1);
-    
-    return { tableName, recordId, operation };
-  } catch (error) {
-    console.warn('[API Config] Failed to parse endpoint:', endpoint, error);
-    return null;
-  }
-}
-
-/**
  * Safely parse request body
  */
 function parseRequestBody(body: BodyInit | null | undefined): any {
@@ -192,14 +116,6 @@ function parseRequestBody(body: BodyInit | null | undefined): any {
   }
   
   return body;
-}
-
-/**
- * Generate a temporary ID for optimistic updates
- */
-function generateTempId(existingId?: string): string {
-  if (existingId) return existingId;
-  return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // ============================================================================
@@ -251,74 +167,6 @@ function getApiBaseUrl(): string {
 }
 
 export const API_BASE_URL = getApiBaseUrl();
-
-// ============================================================================
-// Offline Queue Helper
-// ============================================================================
-
-/**
- * Queue a write operation for offline sync
- * Returns a queued response if successful, null otherwise
- */
-async function queueForOfflineSync(
-  endpoint: string,
-  method: string,
-  body: BodyInit | null | undefined
-): Promise<Response | null> {
-  // Only queue write operations
-  const isWriteOperation = method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
-  if (!isWriteOperation) return null;
-  
-  try {
-    const { offlineService } = await import('./offline-service');
-    
-    if (!offlineService.isOfflineModeAvailable()) {
-      return null;
-    }
-    
-    // Parse endpoint to extract table/operation info
-    const parsed = parseEndpointForOfflineSync(endpoint, method);
-    if (!parsed) {
-      console.warn('[API Request] Could not parse endpoint for offline sync:', endpoint);
-      return null;
-    }
-    
-    // Parse payload
-    const payload = parseRequestBody(body) || {};
-    
-    // Generate temp ID if needed
-    const tempId = generateTempId(parsed.recordId);
-    
-    // Queue the operation
-    await offlineService.addToSyncQueue(
-      parsed.tableName,
-      parsed.operation,
-      tempId,
-      payload
-    );
-    
-    console.log('[API Request] Queued for offline sync:', endpoint, parsed.operation);
-    
-    // Return a mock successful response for optimistic updates
-    const queuedResponse: QueuedResponse = {
-      id: tempId,
-      ...payload,
-      _queued: true,
-      _message: 'Queued for sync when online'
-    };
-    
-    return new Response(JSON.stringify(queuedResponse), {
-      status: 202, // Accepted (queued)
-      statusText: 'Queued for offline sync',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  } catch (error) {
-    console.error('[API Request] Error queuing offline request:', error);
-    return null;
-  }
-}
 
 // ============================================================================
 // Electron IPC Request Handler
@@ -374,7 +222,6 @@ async function handleElectronRequest(
  * Make an API request with the correct base URL
  * In Electron: routes through main process via IPC (no CORS issues)
  * In Web: uses direct fetch with cookies (same-origin, no CORS)
- * Always attempts online first, falls back to offline queuing only if request fails
  * 
  * @template T - Expected response type (defaults to any)
  * @param endpoint - API endpoint (relative or absolute)
@@ -392,7 +239,6 @@ export async function apiRequest<T = any>(
   
   // ✅ Web: Use direct fetch with cookies (same-origin, no CORS)
   const method = options.method || 'GET';
-  const isWriteOperation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
   
   // Build full URL
   let fullUrl: string;
@@ -407,12 +253,10 @@ export async function apiRequest<T = any>(
   
   // Log in development and Electron for debugging
   if (process.env.NODE_ENV === 'development' || isElectron()) {
-    const isOffline = typeof window !== 'undefined' && !navigator.onLine;
-    console.log('[API Request]', fullUrl, method, isOffline ? '(navigator.onLine=false, but trying online anyway)' : '');
+    console.log('[API Request]', fullUrl, method);
   }
   
-  // ALWAYS try online first - don't check navigator.onLine to prevent requests
-  // Both online and offline should work simultaneously
+  // Make the request
   try {
     const response = await fetch(fullUrl, {
       ...options,
@@ -423,33 +267,10 @@ export async function apiRequest<T = any>(
       },
     });
     
-    // If request succeeded, return it
-    if (response.ok || response.status < 500) {
-      return response;
-    }
-    
-    // If request failed with server error (5xx), try to queue for offline sync
-    // but still return the error response so caller can handle it
-    if (response.status >= 500 && isWriteOperation) {
-      const queuedResponse = await queueForOfflineSync(endpoint, method, options.body);
-      if (queuedResponse) {
-        console.log('[API Request] Server error, but queued for offline sync:', endpoint);
-      }
-    }
-    
     return response;
   } catch (error: any) {
-    // Network error, CORS error, or other fetch failure
-    // Try to queue for offline sync if it's a write operation
-    console.log('[API Request] Network/fetch error, attempting offline queue:', error.message);
-    
-    const queuedResponse = await queueForOfflineSync(endpoint, method, options.body);
-    if (queuedResponse) {
-      // Return queued response - request will sync when online
-      return queuedResponse;
-    }
-    
-    // If we couldn't queue it, re-throw the original error
+    // Re-throw the error for the caller to handle
+    console.error('[API Request] Network/fetch error:', error.message);
     throw error;
   }
 }
