@@ -443,6 +443,46 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         },
       })
 
+      // Find an HR officer to assign the onboarding checklist to
+      const hrOfficer = await tx.user.findFirst({
+        where: {
+          role: {
+            in: ['HR_OFFICER', 'hr', 'hr_officer', 'HR_DIRECTOR', 'hr_director', 'hr_assistant'],
+          },
+          active: true,
+        },
+        include: {
+          staff: {
+            select: {
+              staffId: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      })
+
+      // Create onboarding checklist assigned to HR for completion
+      if (hrOfficer && hrOfficer.staff) {
+        const onboardingItems = [
+          { task: 'Complete staff profile details', completed: false, completedBy: null, completedAt: null },
+          { task: 'Verify and update employment documents', completed: false, completedBy: null, completedAt: null },
+          { task: 'Set up and verify leave balances', completed: false, completedBy: null, completedAt: null },
+          { task: 'Assign manager and supervisor relationships', completed: false, completedBy: null, completedAt: null },
+          { task: 'Configure leave policies and entitlements', completed: false, completedBy: null, completedAt: null },
+          { task: 'Review and confirm organizational structure (unit, directorate, division)', completed: false, completedBy: null, completedAt: null },
+        ]
+
+        await tx.onboardingChecklist.create({
+          data: {
+            staffId: staff.staffId,
+            items: onboardingItems,
+            status: 'pending',
+            assignedTo: hrOfficer.staff.staffId,
+          },
+        })
+      }
+
       return { user: newUser, staff }
     })
 

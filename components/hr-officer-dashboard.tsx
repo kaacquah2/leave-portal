@@ -52,19 +52,31 @@ export default function HROfficerDashboard({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [staffId])
+    // Wait for store to be initialized before fetching dashboard data
+    if (store.initialized) {
+      fetchDashboardData()
+    } else if (!store.loading) {
+      // If store is not loading and not initialized, trigger refresh
+      store.refresh()
+    }
+  }, [staffId, store.initialized, store.loading])
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       
+      // Ensure store data is loaded
+      if (!store.initialized || store.loading) {
+        await store.refresh()
+      }
+      
       // Fetch pending leave requests awaiting final HR approval
+      let finalApprovalLeaves: any[] = []
       const leavesResponse = await apiRequest('/api/leaves?status=pending')
       if (leavesResponse.ok) {
         const allLeaves = await leavesResponse.json()
         // Filter for leaves that have passed all manager levels and need HR final approval
-        const finalApprovalLeaves = allLeaves.filter((leave: any) => {
+        finalApprovalLeaves = allLeaves.filter((leave: any) => {
           if (leave.status !== 'pending') return false
           // If no approval levels, HR can approve
           if (!leave.approvalLevels || leave.approvalLevels.length === 0) {
@@ -82,12 +94,12 @@ export default function HROfficerDashboard({
         setPendingLeaves(finalApprovalLeaves.slice(0, 5))
       }
 
-      // Calculate HR statistics
-      const totalStaff = store.staff.filter((s: any) => s.active).length
+      // Calculate HR statistics from store data (now guaranteed to be loaded)
+      const totalStaff = (store.staff || []).filter((s: any) => s.active).length
       const thisMonth = new Date().getMonth()
       const thisYear = new Date().getFullYear()
       
-      const approvedLeaves = store.leaves.filter((l: any) => {
+      const approvedLeaves = (store.leaves || []).filter((l: any) => {
         if (l.status !== 'approved') return false
         const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
         return approvalDate && 
@@ -95,7 +107,7 @@ export default function HROfficerDashboard({
                approvalDate.getFullYear() === thisYear
       })
 
-      const onLeave = store.leaves.filter((l: any) => {
+      const onLeave = (store.leaves || []).filter((l: any) => {
         const today = new Date()
         return l.status === 'approved' &&
                new Date(l.startDate) <= today &&
@@ -104,9 +116,9 @@ export default function HROfficerDashboard({
 
       setHrStats({
         totalStaff,
-        pendingFinalApprovals: pendingLeaves.length,
+        pendingFinalApprovals: finalApprovalLeaves.length,
         approvedThisMonth: approvedLeaves.length,
-        policiesActive: store.leavePolicies?.length || 0,
+        policiesActive: (store.leavePolicies || [])?.length || 0,
         onLeave: onLeave.length,
       })
     } catch (error) {
