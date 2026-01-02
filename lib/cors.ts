@@ -5,16 +5,93 @@ import { NextRequest, NextResponse } from 'next/server'
  * 
  * Electron apps making requests from app:// or file:// protocols
  * have origin 'null', which requires explicit CORS headers.
+ * 
+ * Security: Only allows specific, validated origins to prevent CORS attacks.
  */
+
+/**
+ * Get allowed origins from environment or use defaults
+ * Format: comma-separated list of origins (e.g., "https://app1.com,https://app2.com")
+ */
+function getAllowedOrigins(): string[] {
+  const envOrigins = process.env.ALLOWED_CORS_ORIGINS
+  if (envOrigins) {
+    return envOrigins.split(',').map(origin => origin.trim()).filter(Boolean)
+  }
+  
+  // Default allowed origins based on environment
+  const defaults: string[] = []
+  
+  if (process.env.NODE_ENV === 'development') {
+    // Development: allow localhost and local network (with restrictions)
+    defaults.push(
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost',
+      'http://127.0.0.1'
+    )
+  }
+  
+  // Production: only allow specific production domains
+  const productionDomain = process.env.NEXT_PUBLIC_API_URL || 'https://hr-leave-portal.vercel.app'
+  if (productionDomain) {
+    try {
+      const url = new URL(productionDomain)
+      defaults.push(url.origin)
+    } catch {
+      // Invalid URL, skip
+    }
+  }
+  
+  // Always allow Vercel preview deployments
+  defaults.push('https://hr-leave-portal.vercel.app')
+  
+  return defaults
+}
+
+/**
+ * Check if an origin is allowed
+ * Uses strict matching to prevent CORS attacks
+ */
+function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
+  // Exact match check
+  if (allowedOrigins.includes(origin)) {
+    return true
+  }
+  
+  // For development: allow localhost with any port
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const originUrl = new URL(origin)
+      if (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1') {
+        return true
+      }
+    } catch {
+      // Invalid URL, reject
+      return false
+    }
+  }
+  
+  // For Vercel: allow any vercel.app subdomain (for preview deployments)
+  try {
+    const originUrl = new URL(origin)
+    if (originUrl.hostname.endsWith('.vercel.app')) {
+      return true
+    }
+  } catch {
+    // Invalid URL, reject
+    return false
+  }
+  
+  return false
+}
+
 export function addCorsHeaders<T = any>(
   response: NextResponse<T> | NextResponse<{ error: string }>,
   request: NextRequest
 ): NextResponse<T> | NextResponse<{ error: string }> {
   const origin = request.headers.get('origin')
-  const referer = request.headers.get('referer')
-  
-  // Always set CORS headers to allow cross-origin requests
-  // This is especially important for Electron apps using file:// protocol (null origin)
+  const allowedOrigins = getAllowedOrigins()
   
   // Determine the appropriate CORS origin value
   let corsOrigin: string
@@ -42,29 +119,36 @@ export function addCorsHeaders<T = any>(
       corsOrigin = url.origin
       allowCredentials = true
     } catch {
-      // Fallback to wildcard if URL parsing fails
+      // Fallback to wildcard if URL parsing fails (shouldn't happen in production)
       corsOrigin = '*'
       allowCredentials = false
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[CORS] Failed to parse request URL, using wildcard')
+      }
     }
   } else {
-    // Check if origin is allowed
-    const isAllowed = 
-      origin.includes('vercel.app') || // Vercel deployments
-      origin.includes('localhost') || // Development
-      origin.includes('127.0.0.1') || // Development
-      origin.includes('192.168.') || // Local network
-      origin.includes('10.') || // Local network
-      origin.startsWith('http://localhost') || // Local development
-      origin.startsWith('https://hr-leave-portal.vercel.app') // Production
-    
-    if (isAllowed) {
+    // Check if origin is allowed using strict validation
+    if (isOriginAllowed(origin, allowedOrigins)) {
       // Specific allowed origin - echo it back and enable credentials
       corsOrigin = origin
       allowCredentials = true
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[CORS] Allowed origin: ${origin}`)
+      }
     } else {
-      // Unknown origin - use wildcard but no credentials
-      corsOrigin = '*'
-      allowCredentials = false
+      // Unknown origin - reject in production, warn in development
+      if (process.env.NODE_ENV === 'production') {
+        // In production, reject unknown origins
+        corsOrigin = 'null' // Return null to effectively block
+        allowCredentials = false
+        console.warn(`[CORS] Rejected origin in production: ${origin}`)
+      } else {
+        // In development, use wildcard but log warning
+        corsOrigin = '*'
+        allowCredentials = false
+        console.warn(`[CORS] Unknown origin in development: ${origin}`)
+      }
     }
   }
   

@@ -9,12 +9,18 @@
  * - Environment information (without sensitive data)
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { testDatabaseConnection } from '@/lib/db-utils'
 import { logger } from '@/lib/logger'
+import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
-export async function GET() {
+// Handle OPTIONS preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflight(request) || new NextResponse(null, { status: 204 })
+}
+
+export async function GET(request: NextRequest) {
   const startTime = Date.now()
   const health: {
     status: 'healthy' | 'degraded' | 'unhealthy'
@@ -71,7 +77,8 @@ export async function GET() {
     // Return appropriate status code
     const statusCode = health.status === 'healthy' ? 200 : 503
 
-    return NextResponse.json(health, { status: statusCode })
+    const response = NextResponse.json(health, { status: statusCode })
+    return addCorsHeaders(response, request)
   } catch (error) {
     logger.error('Health check error', error)
     health.status = 'unhealthy'
@@ -80,7 +87,8 @@ export async function GET() {
       error: error instanceof Error ? error.message : 'Unknown error',
     }
 
-    return NextResponse.json(health, { status: 503 })
+    const response = NextResponse.json(health, { status: 503 })
+    return addCorsHeaders(response, request)
   }
 }
 

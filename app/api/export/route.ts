@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { createHash } from 'crypto'
+import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 // Export control matrix by role
 const EXPORT_PERMISSIONS: Record<string, string[]> = {
@@ -30,11 +31,22 @@ function generateWatermark(userId: string, userRole: string, timestamp: Date): s
   return createHash('sha256').update(watermark).digest('hex').substring(0, 16)
 }
 
+// Handle OPTIONS preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflight(request) || new NextResponse(null, { status: 204 })
+}
+
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight requests (fallback)
+  const preflightResponse = handleCorsPreflight(request)
+  if (preflightResponse) {
+    return preflightResponse
+  }
   try {
     const session = await getServerSession(authOptions, request)
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const response = NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return addCorsHeaders(response, request)
     }
 
     const body = await request.json()
@@ -46,17 +58,19 @@ export async function POST(request: NextRequest) {
     })
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      const response = NextResponse.json({ error: 'User not found' }, { status: 404 })
+      return addCorsHeaders(response, request)
     }
 
     const userRole = user.role.toUpperCase()
     const allowedTypes = EXPORT_PERMISSIONS[userRole] || []
 
     if (!allowedTypes.includes(exportType)) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'You do not have permission to export this data type' },
         { status: 403 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Build query based on export type
@@ -114,10 +128,11 @@ export async function POST(request: NextRequest) {
 
       case 'audit':
         if (userRole !== 'AUDITOR' && userRole !== 'HR_DIRECTOR' && userRole !== 'SYSTEM_ADMIN') {
-          return NextResponse.json(
+          const response = NextResponse.json(
             { error: 'Only auditors and HR directors can export audit logs' },
             { status: 403 }
           )
+          return addCorsHeaders(response, request)
         }
         const auditData = await prisma.auditLog.findMany({
           where: {
@@ -135,10 +150,11 @@ export async function POST(request: NextRequest) {
         break
 
       default:
-        return NextResponse.json(
+        const response = NextResponse.json(
           { error: 'Invalid export type' },
           { status: 400 }
         )
+        return addCorsHeaders(response, request)
     }
 
     // Generate watermark
@@ -172,18 +188,20 @@ export async function POST(request: NextRequest) {
       _exportedRole: userRole,
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: watermarkedData,
       recordCount,
       watermark,
     })
+    return addCorsHeaders(response, request)
   } catch (error) {
     console.error('[Export] Error exporting data:', error)
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
+    return addCorsHeaders(response, request)
   }
 }
 
