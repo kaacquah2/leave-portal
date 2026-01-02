@@ -5,7 +5,6 @@ import { mapToMoFARole } from '@/lib/role-mapping'
 import { hasPermission } from '@/lib/permissions'
 import { MOFA_UNITS, getUnitConfig, getDirectorateForUnit } from '@/lib/mofa-unit-mapping'
 import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
-import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
 
 // GET all staff members
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
@@ -410,7 +409,7 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         grade: body.grade.trim(),
         level: body.level.toString(),
         rank: body.rank || null,
-        step: body.step ? parseInt(body.step) : null,
+        step: body.step ? body.step.toString() : null,
         directorate: body.directorate || null,
         division: body.division || null,
         unit: body.unit,

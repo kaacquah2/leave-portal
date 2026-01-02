@@ -121,11 +121,11 @@ export function withAuth<T = any>(
   handler: AuthHandler<T>,
   options: AuthOptions = {}
 ): (request: NextRequest) => Promise<NextResponse<T> | NextResponse<{ error: string }>> {
-  return async (request: NextRequest) => {
+  return async (request: NextRequest): Promise<NextResponse<T> | NextResponse<{ error: string }>> => {
     // Handle CORS preflight requests
     const preflightResponse = handleCorsPreflight(request)
     if (preflightResponse) {
-      return preflightResponse
+      return preflightResponse as NextResponse<T> | NextResponse<{ error: string }>
     }
     
     // Allow public routes (no auth required)
@@ -134,7 +134,7 @@ export function withAuth<T = any>(
       // but it won't be validated
       const mockUser = { id: '', email: '', role: 'guest', staffId: null } as AuthUser
       const response = await handler({ user: mockUser, request })
-      return addCorsHeaders(response, request)
+      return addCorsHeaders(response, request) as NextResponse<T> | NextResponse<{ error: string }>
     }
 
     // Check authentication
@@ -236,7 +236,7 @@ export function withAuth<T = any>(
 
     // Call the handler with authenticated context
     const response = await handler({ user, request })
-    return addCorsHeaders(response, request)
+    return addCorsHeaders(response, request) as NextResponse<T> | NextResponse<{ error: string }>
   }
 }
 

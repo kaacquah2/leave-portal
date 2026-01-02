@@ -6,10 +6,10 @@ import { NextRequest, NextResponse } from 'next/server'
  * Electron apps making requests from app:// or file:// protocols
  * have origin 'null', which requires explicit CORS headers.
  */
-export function addCorsHeaders(
-  response: NextResponse,
+export function addCorsHeaders<T = any>(
+  response: NextResponse<T> | NextResponse<{ error: string }>,
   request: NextRequest
-): NextResponse {
+): NextResponse<T> | NextResponse<{ error: string }> {
   const origin = request.headers.get('origin')
   
   // Allow requests from:
@@ -62,9 +62,9 @@ export function addCorsHeaders(
 /**
  * Handle OPTIONS preflight requests for CORS
  */
-export function handleCorsPreflight(request: NextRequest): NextResponse | null {
+export function handleCorsPreflight(request: NextRequest): NextResponse<{ error: string }> | null {
   if (request.method === 'OPTIONS') {
-    const response = new NextResponse(null, { status: 204 })
+    const response = new NextResponse(null, { status: 204 }) as NextResponse<{ error: string }>
     return addCorsHeaders(response, request)
   }
   return null

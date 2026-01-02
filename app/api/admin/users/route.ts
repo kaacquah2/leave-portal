@@ -152,6 +152,7 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     }
 
     // Validate MoFAD organizational structure
+    let finalDirectorate = directorate
     if (unit) {
       const unitConfig = getUnitConfig(unit)
       
@@ -169,22 +170,22 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       // Validate unit-directorate relationship
       if (unitConfig.directorate) {
         // Unit belongs to a directorate
-        if (directorate && directorate !== unitConfig.directorate) {
+        if (finalDirectorate && finalDirectorate !== unitConfig.directorate) {
           return NextResponse.json(
             { 
               error: `Unit-directorate mismatch`,
-              message: `Unit "${unit}" belongs to "${unitConfig.directorate}", not "${directorate}". Please correct the directorate.`
+              message: `Unit "${unit}" belongs to "${unitConfig.directorate}", not "${finalDirectorate}". Please correct the directorate.`
             },
             { status: 400 }
           )
         }
         // Auto-set directorate if not provided
-        if (!directorate) {
-          directorate = unitConfig.directorate
+        if (!finalDirectorate) {
+          finalDirectorate = unitConfig.directorate
         }
       } else {
         // Unit reports to Chief Director (no directorate)
-        if (directorate) {
+        if (finalDirectorate) {
           return NextResponse.json(
             { 
               error: `Unit reports to Chief Director`,
@@ -386,8 +387,8 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
           grade: grade.trim(),
           level: level.toString(),
           rank: rank || null,
-          step: step ? parseInt(step) : null,
-          directorate: directorate || null,
+          step: step ? step.toString() : null,
+          directorate: finalDirectorate || null,
           division: division || null,
           unit: unit,
           dutyStation: dutyStation || 'HQ',

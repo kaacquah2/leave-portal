@@ -49,7 +49,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
         active: true,
         staffId: true,
         createdAt: true,
-        lastLoginAt: true,
+        lastLogin: true,
         staff: {
           select: {
             staffId: true,
@@ -83,7 +83,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
         dutyStation: u.staff?.dutyStation || null,
         employmentStatus: u.staff?.employmentStatus || null,
         createdAt: u.createdAt,
-        lastLoginAt: u.lastLoginAt,
+        lastLogin: u.lastLogin,
         complianceRestrictions: restrictions,
         // Flag potential compliance issues
         complianceFlags: {

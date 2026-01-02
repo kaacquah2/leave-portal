@@ -5,6 +5,8 @@
  * Uses sliding window algorithm
  */
 
+import { NextResponse } from 'next/server'
+
 interface RateLimitEntry {
   count: number
   resetTime: number
@@ -164,17 +166,16 @@ export async function rateLimit(
 /**
  * Create rate limit response
  */
-export function createRateLimitResponse(result: RateLimitResult, maxRequests: number): Response {
-  return new Response(
-    JSON.stringify({
+export function createRateLimitResponse(result: RateLimitResult, maxRequests: number): NextResponse {
+  return NextResponse.json(
+    {
       error: 'Too many requests',
       message: 'Rate limit exceeded. Please try again later.',
       retryAfter: result.retryAfter,
-    }),
+    },
     {
       status: 429,
       headers: {
-        'Content-Type': 'application/json',
         'Retry-After': String(result.retryAfter || 0),
         'X-RateLimit-Limit': String(maxRequests),
         'X-RateLimit-Remaining': String(result.remaining),
