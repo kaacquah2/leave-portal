@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTokenFromRequest, deleteSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
+// Handle OPTIONS preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflight(request) || new NextResponse(null, { status: 204 })
+}
 
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight requests (fallback, though OPTIONS should be handled above)
+  const preflightResponse = handleCorsPreflight(request)
+  if (preflightResponse) {
+    return preflightResponse
+  }
   try {
     const token = getTokenFromRequest(request)
 
@@ -42,13 +52,14 @@ export async function POST(request: NextRequest) {
       maxAge: 0, // Expire immediately
       path: '/',
     })
-    return response
+    return addCorsHeaders(response, request)
   } catch (error) {
     console.error('Logout error:', error)
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Failed to logout' },
       { status: 500 }
     )
+    return addCorsHeaders(response, request)
   }
 }
 

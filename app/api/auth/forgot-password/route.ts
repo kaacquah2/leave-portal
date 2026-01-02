@@ -9,12 +9,25 @@ import { prisma } from '@/lib/prisma'
 import { createPasswordResetToken } from '@/lib/auth'
 import { sendEmail, generatePasswordResetEmail, getAppUrl } from '@/lib/email'
 import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limit'
+import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
+
+// Handle OPTIONS preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflight(request) || new NextResponse(null, { status: 204 })
+}
 
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight requests (fallback, though OPTIONS should be handled above)
+  const preflightResponse = handleCorsPreflight(request)
+  if (preflightResponse) {
+    return preflightResponse
+  }
+  
   // Apply rate limiting
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.forgotPassword)
   if (!rateLimitResult.allowed) {
-    return createRateLimitResponse(rateLimitResult, RATE_LIMITS.forgotPassword.maxRequests)
+    const response = createRateLimitResponse(rateLimitResult, RATE_LIMITS.forgotPassword.maxRequests)
+    return addCorsHeaders(response, request)
   }
 
   try {
@@ -22,13 +35,14 @@ export async function POST(request: NextRequest) {
     const { email } = body
 
     if (!email) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Email is required',
           errorCode: 'MISSING_EMAIL',
         },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Find user by email
@@ -84,17 +98,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Always return success (security best practice - prevents email enumeration)
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'If an account exists with this email, a password reset link has been sent.',
     })
+    return addCorsHeaders(response, request)
   } catch (error: any) {
     console.error('Forgot password error:', error)
     // Still return success to prevent enumeration
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'If an account exists with this email, a password reset link has been sent.',
     })
+    return addCorsHeaders(response, request)
   }
 }
 

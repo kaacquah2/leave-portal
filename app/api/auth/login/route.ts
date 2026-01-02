@@ -12,9 +12,13 @@ import {
 import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limit'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
+// Handle OPTIONS preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsPreflight(request) || new NextResponse(null, { status: 204 })
+}
 
 export async function POST(request: NextRequest) {
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests (fallback, though OPTIONS should be handled above)
   const preflightResponse = handleCorsPreflight(request)
   if (preflightResponse) {
     return preflightResponse

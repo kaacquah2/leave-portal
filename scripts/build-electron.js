@@ -2,6 +2,55 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// Helper function to copy directory recursively
+function copyDir(src, dest) {
+  if (!fs.existsSync(src)) {
+    return;
+  }
+  
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+  
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+// Helper function to sleep synchronously (for retry delays)
+function sleep(ms) {
+  const start = Date.now();
+  while (Date.now() - start < ms) {
+    // Busy wait - acceptable for short delays in build scripts
+  }
+}
+
+// Helper function to retry an operation with exponential backoff
+function retryOperation(operation, maxRetries = 5, delay = 100) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return operation();
+    } catch (error) {
+      if (i === maxRetries - 1) {
+        throw error;
+      }
+      // Wait before retrying (exponential backoff)
+      const waitTime = delay * Math.pow(2, i);
+      console.log(`   ⚠️  Retry ${i + 1}/${maxRetries} after ${waitTime}ms...`);
+      sleep(waitTime);
+    }
+  }
+}
+
 console.log('Building Electron app with offline capability...');
 console.log('The Electron app will work offline using bundled static files.');
 console.log('✅ App works OFFLINE! Falls back to remote URL if needed.');
@@ -56,14 +105,22 @@ try {
     
     if (fs.existsSync(apiDir)) {
       console.log('📦 Temporarily moving API routes for static export...');
-      // Remove backup if it exists
-      if (fs.existsSync(apiBackupDir)) {
-        fs.rmSync(apiBackupDir, { recursive: true, force: true });
+      try {
+        // Remove backup if it exists
+        if (fs.existsSync(apiBackupDir)) {
+          fs.rmSync(apiBackupDir, { recursive: true, force: true });
+        }
+        // Move API routes to backup location with retry
+        retryOperation(() => {
+          fs.renameSync(apiDir, apiBackupDir);
+        }, 3, 100);
+        apiRoutesMoved = true;
+        console.log('✅ API routes moved to _api_backup');
+      } catch (error) {
+        console.error('❌ Failed to move API routes:', error.message);
+        console.error('   Make sure no processes are using files in app/api');
+        throw error;
       }
-      // Move API routes to backup location
-      fs.renameSync(apiDir, apiBackupDir);
-      apiRoutesMoved = true;
-      console.log('✅ API routes moved to _api_backup');
     }
     
     try {
@@ -104,11 +161,34 @@ try {
       // Restore API routes after build
       if (apiRoutesMoved && fs.existsSync(apiBackupDir)) {
         console.log('📦 Restoring API routes...');
-        if (fs.existsSync(apiDir)) {
-          fs.rmSync(apiDir, { recursive: true, force: true });
+        try {
+          // Use retry mechanism for Windows permission issues
+          retryOperation(() => {
+            // Remove existing api directory if it exists
+            if (fs.existsSync(apiDir)) {
+              fs.rmSync(apiDir, { recursive: true, force: true });
+              // Small delay to ensure Windows releases file handles
+              sleep(500);
+            }
+            
+            // Try rename first (faster)
+            try {
+              fs.renameSync(apiBackupDir, apiDir);
+            } catch (renameError) {
+              // If rename fails, use copy + delete approach (more reliable on Windows)
+              console.log('   Using copy method for restoration (more reliable on Windows)...');
+              copyDir(apiBackupDir, apiDir);
+              // Remove backup after successful copy
+              fs.rmSync(apiBackupDir, { recursive: true, force: true });
+            }
+          }, 5, 200);
+          console.log('✅ API routes restored');
+        } catch (error) {
+          console.error('❌ Failed to restore API routes:', error.message);
+          console.error('   The _api_backup folder still exists. You may need to manually restore it.');
+          console.error('   Run: Move-Item -Path "app\\_api_backup" -Destination "app\\api" -Force');
+          // Don't throw - allow build to continue
         }
-        fs.renameSync(apiBackupDir, apiDir);
-        console.log('✅ API routes restored');
       }
     }
     

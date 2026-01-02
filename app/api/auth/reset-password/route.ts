@@ -10,12 +10,20 @@ import { hashPassword, verifyPassword, verifyPasswordResetToken, markPasswordRes
 import { sendEmail, generatePasswordResetSuccessEmail } from '@/lib/email'
 import { validatePasswordComplexity, isPasswordInHistory, addPasswordToHistory, setPasswordExpiry } from '@/lib/password-policy'
 import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limit'
+import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight requests
+  const preflightResponse = handleCorsPreflight(request)
+  if (preflightResponse) {
+    return preflightResponse
+  }
+  
   // Apply rate limiting
   const rateLimitResult = await rateLimit(request, RATE_LIMITS.resetPassword)
   if (!rateLimitResult.allowed) {
-    return createRateLimitResponse(rateLimitResult, RATE_LIMITS.resetPassword.maxRequests)
+    const response = createRateLimitResponse(rateLimitResult, RATE_LIMITS.resetPassword.maxRequests)
+    return addCorsHeaders(response, request)
   }
 
   try {
@@ -23,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { token, newPassword } = body
 
     if (!token || !newPassword) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Token and new password are required',
           errorCode: 'MISSING_FIELDS',
@@ -35,12 +43,13 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Ghana Government Compliance: Validate password complexity
     const passwordValidation = validatePasswordComplexity(newPassword)
     if (!passwordValidation.valid) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Password does not meet complexity requirements',
           errorCode: 'WEAK_PASSWORD',
@@ -53,12 +62,13 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Verify token
     const tokenData = await verifyPasswordResetToken(token)
     if (!tokenData) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'Invalid or expired reset token',
           errorCode: 'INVALID_TOKEN',
@@ -71,6 +81,7 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Get user
@@ -79,16 +90,17 @@ export async function POST(request: NextRequest) {
     })
 
     if (!user) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Check if new password is same as current password
     const isSamePassword = await verifyPassword(newPassword, user.passwordHash)
     if (isSamePassword) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'New password must be different from current password',
           errorCode: 'SAME_PASSWORD',
@@ -99,13 +111,14 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Ghana Government Compliance: Check password history (prevent reuse)
     // Check BEFORE hashing (function takes plain password)
     const isInHistory = await isPasswordInHistory(user.id, newPassword)
     if (isInHistory) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { 
           error: 'This password has been used recently and cannot be reused',
           errorCode: 'PASSWORD_IN_HISTORY',
@@ -117,6 +130,7 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       )
+      return addCorsHeaders(response, request)
     }
 
     // Hash new password
@@ -169,13 +183,14 @@ export async function POST(request: NextRequest) {
       console.error('Failed to send password reset confirmation email:', emailError)
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Password reset successfully',
     })
+    return addCorsHeaders(response, request)
   } catch (error: any) {
     console.error('Password reset error:', error)
-    return NextResponse.json(
+    const response = NextResponse.json(
       { 
         error: error.message || 'Failed to reset password',
         errorCode: 'RESET_FAILED',
@@ -188,6 +203,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     )
+    return addCorsHeaders(response, request)
   }
 }
 
