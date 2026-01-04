@@ -5,6 +5,11 @@ import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
 
 // GET all leave templates
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const templates = await prisma.leaveRequestTemplate.findMany({

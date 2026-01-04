@@ -8,6 +8,9 @@ node_modules
 .next/
 out/
 
+# Tauri build temporary files (API/middleware moved during build)
+.tauri-build-temp/
+
 # Electron build outputs
 dist/
 *.dmg

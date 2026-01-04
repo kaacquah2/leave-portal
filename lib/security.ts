@@ -1,5 +1,5 @@
 /**
- * Security utilities for password policy, session timeout, and 2FA
+ * Security utilities for password policy and session timeout
  */
 
 import { prisma } from './prisma'

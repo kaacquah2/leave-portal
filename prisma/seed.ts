@@ -103,239 +103,190 @@ async function main() {
   
   console.log('✅ All existing data cleared')
 
-  // Create Staff Members (MoFA Ghana Government Structure)
-  console.log('👥 Creating staff members...')
-  const staffMembers = [
-    {
-      staffId: 'MFA-001',
-      firstName: 'John',
-      lastName: 'Amoah',
-      email: 'john.amoah@mofa.gov.gh',
-      phone: '+233241234567',
-      department: 'Fisheries Management',
-      position: 'Senior Fisheries Officer',
-      grade: 'G7',
-      level: 'Senior',
-      rank: 'Senior Officer',
-      step: 'Step 3',
-      directorate: 'Fisheries Directorate',
-      unit: 'Marine Fisheries Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2020-01-15'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-002',
-      firstName: 'Mary',
-      lastName: 'Asante',
-      email: 'mary.asante@mofa.gov.gh',
-      phone: '+233241234568',
-      department: 'Aquaculture Development',
-      position: 'Aquaculture Specialist',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 2',
-      directorate: 'Aquaculture Directorate',
-      unit: 'Aquaculture Development Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2021-03-20'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-003',
-      firstName: 'Peter',
-      lastName: 'Mensah',
-      email: 'peter.mensah@mofa.gov.gh',
-      phone: '+233241234569',
-      department: 'Research and Development',
-      position: 'Research Scientist',
-      grade: 'G8',
-      level: 'Senior',
-      rank: 'Principal Officer',
-      step: 'Step 4',
-      directorate: 'Research and Development Directorate',
-      unit: 'Research Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2019-06-10'),
-      immediateSupervisorId: null,
-    },
-    {
-      staffId: 'MFA-004',
-      firstName: 'Sarah',
-      lastName: 'Osei',
-      email: 'sarah.osei@mofa.gov.gh',
-      phone: '+233241234570',
-      department: 'Policy and Planning',
-      position: 'Policy Analyst',
-      grade: 'G5',
-      level: 'Junior',
-      rank: 'Senior Officer',
-      step: 'Step 1',
-      directorate: 'Policy, Planning, Monitoring & Evaluation (PPME) Directorate',
-      unit: 'Policy Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2022-02-01'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-005',
-      firstName: 'David',
-      lastName: 'Boateng',
-      email: 'david.boateng@mofa.gov.gh',
-      phone: '+233241234571',
-      department: 'Fisheries Management',
-      position: 'Director',
-      grade: 'G10',
-      level: 'Executive',
-      rank: 'Director',
-      step: 'Step 5',
-      directorate: 'Fisheries Directorate',
-      unit: null, // Directors don't belong to units
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2015-08-15'),
-      immediateSupervisorId: null,
-    },
-    {
-      staffId: 'MFA-006',
-      firstName: 'Grace',
-      lastName: 'Darko',
-      email: 'grace.darko@mofa.gov.gh',
-      phone: '+233241234572',
-      department: 'Aquaculture Development',
-      position: 'Regional Manager',
-      grade: 'G9',
-      level: 'Senior',
-      rank: 'Regional Manager',
-      step: 'Step 3',
-      directorate: 'Aquaculture Directorate',
-      unit: null,
-      dutyStation: 'Region',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2018-05-10'),
-      immediateSupervisorId: null,
-    },
-    {
-      staffId: 'MFA-007',
-      firstName: 'James',
-      lastName: 'Adjei',
-      email: 'james.adjei@mofa.gov.gh',
-      phone: '+233241234573',
-      department: 'Human Resources',
-      position: 'HR Director',
-      grade: 'G10',
-      level: 'Executive',
-      rank: 'Director',
-      step: 'Step 5',
-      directorate: 'Finance & Administration Directorate',
-      unit: 'Human Resource Management Unit (HRMU)',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2016-11-20'),
-      immediateSupervisorId: null,
-    },
-    {
-      staffId: 'MFA-008',
-      firstName: 'Lucy',
-      lastName: 'Appiah',
-      email: 'lucy.appiah@mofa.gov.gh',
-      phone: '+233241234574',
-      department: 'Human Resources',
-      position: 'HR Officer',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 2',
-      directorate: 'Finance & Administration Directorate',
-      unit: 'Human Resource Management Unit (HRMU)',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2021-01-05'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-  ]
+  // Import comprehensive role-based user seed data
+  const { roleBasedUsersSeed } = await import('../lib/role-based-users-seed')
 
-  const createdStaff = await Promise.all(
-    staffMembers.map(staff => prisma.staffMember.create({ data: staff }))
+  // Create Staff Members (MoFAD Comprehensive Role-Based Structure)
+  console.log('👥 Creating comprehensive role-based staff members...')
+  
+  // Create a map of userId to staffId for relationship mapping
+  const userIdToStaffIdMap = new Map<string, string>()
+  roleBasedUsersSeed.forEach(user => {
+    userIdToStaffIdMap.set(user.userId, user.staffId)
+  })
+
+  // Convert role-based users to staff member data
+  const staffMembers = roleBasedUsersSeed.map(user => {
+    // Find the staffId of the person this user reports to
+    let immediateSupervisorId: string | null = null
+    let managerId: string | null = null
+    
+    if (user.reportsTo) {
+      const supervisorStaffId = userIdToStaffIdMap.get(user.reportsTo)
+      if (supervisorStaffId) {
+        // Determine if it's managerId or immediateSupervisorId based on role
+        const supervisorUser = roleBasedUsersSeed.find(u => u.userId === user.reportsTo)
+        if (supervisorUser) {
+          // If supervisor is a supervisor role, use immediateSupervisorId
+          // If supervisor is a unit head or director, use managerId
+          if (supervisorUser.role === 'SUPERVISOR') {
+            immediateSupervisorId = supervisorStaffId
+          } else if (['UNIT_HEAD', 'DIRECTOR', 'HEAD_OF_INDEPENDENT_UNIT', 'HR_DIRECTOR', 'CHIEF_DIRECTOR'].includes(supervisorUser.role)) {
+            managerId = supervisorStaffId
+            immediateSupervisorId = supervisorStaffId // Also set as immediate supervisor
+          } else {
+            immediateSupervisorId = supervisorStaffId
+          }
+        }
+      }
+    }
+
+    // Calculate confirmationDate (typically 6 months after joinDate for confirmed staff)
+    // For HR users, Directors, Chief Director, and senior staff, assume they're already confirmed
+    // Confirmation date affects leave accrual - confirmed staff accrue leave immediately
+    const isSeniorStaff = 
+      user.role === 'HR_OFFICER' || 
+      user.role === 'HR_DIRECTOR' || 
+      user.role === 'DIRECTOR' || 
+      user.role === 'CHIEF_DIRECTOR' ||
+      user.role === 'HEAD_OF_INDEPENDENT_UNIT' ||
+      user.role === 'UNIT_HEAD'
+    
+    const confirmationDate = isSeniorStaff
+      ? new Date(user.joinDate.getTime() - 180 * 24 * 60 * 60 * 1000) // Confirmed before join (already confirmed)
+      : new Date(user.joinDate.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months after join for regular staff
+
+    return {
+      staffId: user.staffId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email.toLowerCase(),
+      phone: user.phone,
+      department: user.department,
+      position: user.position,
+      grade: user.grade,
+      level: user.level,
+      rank: user.rank || null,
+      step: user.step || null,
+      directorate: user.directorate || null,
+      unit: user.unit || null,
+      subUnit: user.subUnit || null,
+      dutyStation: user.dutyStation || 'HQ',
+      employmentStatus: 'active' as const,
+      active: true,
+      joinDate: user.joinDate,
+      confirmationDate,
+      managerId,
+      immediateSupervisorId,
+      // Store the original user data for dependency sorting
+      _reportsTo: user.reportsTo,
+    }
+  })
+
+  // Sort staff members by dependency level using topological sort
+  // This ensures managers are created before their subordinates
+  const sortedStaffMembers: typeof staffMembers = []
+  const remaining = [...staffMembers]
+  const createdStaffIds = new Set<string>()
+
+  while (remaining.length > 0) {
+    let progress = false
+    
+    // Find all staff that can be created (their dependencies are already created or null)
+    for (let i = remaining.length - 1; i >= 0; i--) {
+      const staff = remaining[i]
+      const canCreate = 
+        (!staff.managerId || createdStaffIds.has(staff.managerId)) &&
+        (!staff.immediateSupervisorId || createdStaffIds.has(staff.immediateSupervisorId))
+      
+      if (canCreate) {
+        sortedStaffMembers.push(staff)
+        createdStaffIds.add(staff.staffId)
+        remaining.splice(i, 1)
+        progress = true
+      }
+    }
+    
+    // If no progress was made, there might be a circular dependency
+    // In that case, create remaining staff without their dependencies (they'll be updated later)
+    if (!progress && remaining.length > 0) {
+      console.warn(`⚠️  Warning: ${remaining.length} staff members have unresolved dependencies. Creating them without relationships...`)
+      for (const staff of remaining) {
+        sortedStaffMembers.push({
+          ...staff,
+          managerId: null,
+          immediateSupervisorId: null,
+        })
+        createdStaffIds.add(staff.staffId)
+      }
+      remaining.length = 0
+    }
+  }
+
+  // Create staff members sequentially to respect dependencies
+  const createdStaff = []
+  for (const staff of sortedStaffMembers) {
+    // Remove the temporary _reportsTo field before creating
+    const { _reportsTo, ...staffData } = staff
+    const created = await prisma.staffMember.create({ data: staffData })
+    createdStaff.push(created)
+  }
+
+  // If any staff were created without relationships due to dependency issues,
+  // update them now with the correct relationships
+  const needsUpdate = sortedStaffMembers.filter(s => {
+    const original = staffMembers.find(os => os.staffId === s.staffId)
+    return original && (
+      (original.managerId && !s.managerId) || 
+      (original.immediateSupervisorId && !s.immediateSupervisorId)
+    )
+  })
+  
+  if (needsUpdate.length > 0) {
+    console.log(`🔄 Updating ${needsUpdate.length} staff members with relationship data...`)
+    for (const staff of needsUpdate) {
+      const originalStaff = staffMembers.find(s => s.staffId === staff.staffId)
+      if (originalStaff) {
+        await prisma.staffMember.update({
+          where: { staffId: staff.staffId },
+          data: {
+            managerId: originalStaff.managerId,
+            immediateSupervisorId: originalStaff.immediateSupervisorId,
+          },
+        })
+      }
+    }
+  }
+
+  console.log(`✅ Created ${createdStaff.length} comprehensive role-based staff members`)
+
+  // Create Leave Balances for all role-based staff members
+  console.log('💰 Creating leave balances for role-based staff members...')
+  const roleBasedLeaveBalances = createdStaff.map((staff, index) => ({
+    staffId: staff.staffId,
+    annual: 20 + (index % 15), // Vary between 20-34 days
+    sick: 10 + (index % 10), // Vary between 10-19 days
+    unpaid: 0,
+    specialService: 5 + (index % 5), // Vary between 5-9 days
+    training: 3 + (index % 3), // Vary between 3-5 days
+    study: 0,
+    maternity: 0,
+    paternity: 0,
+    compassionate: 0,
+    annualCarryForward: index % 3 === 0 ? 5 : 0, // Some have carry forward
+    sickCarryForward: 0,
+    specialServiceCarryForward: 0,
+    trainingCarryForward: 0,
+    studyCarryForward: 0,
+    lastAccrualDate: new Date('2024-12-01'),
+    accrualPeriod: 'monthly',
+  }))
+
+  const createdRoleBasedBalances = await Promise.all(
+    roleBasedLeaveBalances.map(balance => prisma.leaveBalance.create({ data: balance }))
   )
 
-  console.log(`✅ Created ${createdStaff.length} staff members`)
-
-  // Update supervisor and manager relationships after all staff are created
-  console.log('🔗 Updating supervisor and manager relationships...')
-  await prisma.staffMember.update({
-    where: { staffId: 'MFA-001' },
-    data: { 
-      managerId: null,
-      immediateSupervisorId: 'MFA-005', // John reports to Director
-    },
-  })
-  await prisma.staffMember.update({
-    where: { staffId: 'MFA-002' },
-    data: { 
-      managerId: null, // Will be set after creation // Mary reports to John
-      immediateSupervisorId: null, // Will be set after creation
-    },
-  })
-  await prisma.staffMember.update({
-    where: { staffId: 'MFA-003' },
-    data: { 
-      managerId: null,
-      immediateSupervisorId: 'MFA-005', // Peter reports to Director
-    },
-  })
-  await prisma.staffMember.update({
-    where: { staffId: 'MFA-004' },
-    data: { 
-      managerId: null, // Will be set after creation // Sarah reports to Peter
-      immediateSupervisorId: null, // Will be set after creation
-    },
-  })
-  await prisma.staffMember.update({
-    where: { staffId: 'MFA-005' },
-    data: { 
-      managerId: null,
-      immediateSupervisorId: null, // Director reports to Chief Director (not in seed)
-    },
-  })
-  await prisma.staffMember.update({
-    where: { staffId: 'MFA-006' },
-    data: { 
-      managerId: null,
-      immediateSupervisorId: 'MFA-005', // Regional Manager reports to Director
-    },
-  })
-  await prisma.staffMember.update({
-    where: { staffId: 'MFA-007' },
-    data: { 
-      managerId: null,
-      immediateSupervisorId: null, // HR Director reports to Chief Director
-    },
-  })
-  await prisma.staffMember.update({
-    where: { staffId: 'MFA-008' },
-    data: { 
-      managerId: null, // Will be set after creation // Lucy reports to James
-      immediateSupervisorId: null, // Will be set after creation
-    },
-  })
+  console.log(`✅ Created ${createdRoleBasedBalances.length} leave balances for role-based staff members`)
 
   // Create Leave Policies (MoFA Ghana Government)
   console.log('📋 Creating leave policies...')
@@ -456,88 +407,7 @@ async function main() {
 
   console.log(`✅ Created ${createdPolicies.length} leave policies`)
 
-  // Create Leave Balances (with all leave types)
-  console.log('💰 Creating leave balances...')
-  const leaveBalances = [
-    { 
-      staffId: 'MFA-001', 
-      annual: 15, sick: 10, unpaid: 0, specialService: 5, training: 3,
-      study: 0, maternity: 0, paternity: 0, compassionate: 0,
-      annualCarryForward: 5, sickCarryForward: 0, specialServiceCarryForward: 0,
-      trainingCarryForward: 0, studyCarryForward: 0,
-      lastAccrualDate: new Date('2024-12-01'),
-      accrualPeriod: 'monthly',
-    },
-    { 
-      staffId: 'MFA-002', 
-      annual: 20, sick: 12, unpaid: 0, specialService: 7, training: 2,
-      study: 0, maternity: 0, paternity: 0, compassionate: 0,
-      annualCarryForward: 0, sickCarryForward: 0, specialServiceCarryForward: 0,
-      trainingCarryForward: 0, studyCarryForward: 0,
-      lastAccrualDate: new Date('2024-12-01'),
-      accrualPeriod: 'monthly',
-    },
-    { 
-      staffId: 'MFA-003', 
-      annual: 25, sick: 15, unpaid: 0, specialService: 10, training: 5,
-      study: 0, maternity: 0, paternity: 0, compassionate: 0,
-      annualCarryForward: 8, sickCarryForward: 0, specialServiceCarryForward: 0,
-      trainingCarryForward: 0, studyCarryForward: 0,
-      lastAccrualDate: new Date('2024-12-01'),
-      accrualPeriod: 'monthly',
-    },
-    { 
-      staffId: 'MFA-004', 
-      annual: 18, sick: 8, unpaid: 0, specialService: 3, training: 1,
-      study: 0, maternity: 0, paternity: 0, compassionate: 0,
-      annualCarryForward: 0, sickCarryForward: 0, specialServiceCarryForward: 0,
-      trainingCarryForward: 0, studyCarryForward: 0,
-      lastAccrualDate: new Date('2024-12-01'),
-      accrualPeriod: 'monthly',
-    },
-    { 
-      staffId: 'MFA-005', 
-      annual: 22, sick: 11, unpaid: 0, specialService: 6, training: 4,
-      study: 0, maternity: 0, paternity: 0, compassionate: 0,
-      annualCarryForward: 3, sickCarryForward: 0, specialServiceCarryForward: 0,
-      trainingCarryForward: 0, studyCarryForward: 0,
-      lastAccrualDate: new Date('2024-12-01'),
-      accrualPeriod: 'monthly',
-    },
-    { 
-      staffId: 'MFA-006', 
-      annual: 16, sick: 9, unpaid: 0, specialService: 4, training: 2,
-      study: 0, maternity: 0, paternity: 0, compassionate: 0,
-      annualCarryForward: 0, sickCarryForward: 0, specialServiceCarryForward: 0,
-      trainingCarryForward: 0, studyCarryForward: 0,
-      lastAccrualDate: new Date('2024-12-01'),
-      accrualPeriod: 'monthly',
-    },
-    { 
-      staffId: 'MFA-007', 
-      annual: 28, sick: 18, unpaid: 0, specialService: 12, training: 6,
-      study: 0, maternity: 0, paternity: 0, compassionate: 0,
-      annualCarryForward: 10, sickCarryForward: 0, specialServiceCarryForward: 0,
-      trainingCarryForward: 0, studyCarryForward: 0,
-      lastAccrualDate: new Date('2024-12-01'),
-      accrualPeriod: 'monthly',
-    },
-    { 
-      staffId: 'MFA-008', 
-      annual: 21, sick: 13, unpaid: 0, specialService: 8, training: 3,
-      study: 0, maternity: 0, paternity: 0, compassionate: 0,
-      annualCarryForward: 2, sickCarryForward: 0, specialServiceCarryForward: 0,
-      trainingCarryForward: 0, studyCarryForward: 0,
-      lastAccrualDate: new Date('2024-12-01'),
-      accrualPeriod: 'monthly',
-    },
-  ]
-
-  const createdBalances = await Promise.all(
-    leaveBalances.map(balance => prisma.leaveBalance.create({ data: balance }))
-  )
-
-  console.log(`✅ Created ${createdBalances.length} leave balances`)
+  // Leave balances are created above for role-based staff members
 
   // Create Holidays (Ghana Public Holidays)
   console.log('🎉 Creating holidays...')
@@ -608,135 +478,168 @@ async function main() {
 
   // Create Leave Requests
   console.log('📅 Creating leave requests...')
-  const leaveRequests = [
-    {
-      staffId: 'MFA-001',
-      staffName: 'John Amoah',
-      leaveType: 'Annual',
-      startDate: new Date('2024-12-20'),
-      endDate: new Date('2024-12-27'),
-      days: 5,
-      reason: 'End of year vacation with family',
-      status: 'pending',
-      declarationAccepted: true,
-      approvalLevels: [
-        { level: 1, approverRole: 'SUPERVISOR', status: 'pending' },
-        { level: 2, approverRole: 'HR_OFFICER', status: 'pending' },
-      ],
-    },
-    {
-      staffId: 'MFA-002',
-      staffName: 'Mary Asante',
-      leaveType: 'Sick',
-      startDate: new Date('2024-11-15'),
-      endDate: new Date('2024-11-17'),
-      days: 3,
-      reason: 'Medical treatment',
-      status: 'approved',
-      approvedBy: 'John Amoah',
-      approvalDate: new Date('2024-11-10'),
-      declarationAccepted: true,
-      approvalLevels: [
-        { level: 1, approverRole: 'SUPERVISOR', status: 'approved', approverName: 'John Amoah', approvalDate: '2024-11-10' },
-      ],
-    },
-    {
-      staffId: 'MFA-003',
-      staffName: 'Peter Mensah',
-      leaveType: 'Training',
-      startDate: new Date('2024-12-10'),
-      endDate: new Date('2024-12-14'),
-      days: 5,
-      reason: 'Advanced research methodology training',
-      status: 'pending',
-      declarationAccepted: true,
-      approvalLevels: [
-        { level: 1, approverRole: 'SUPERVISOR', status: 'pending' },
-      ],
-    },
-    {
-      staffId: 'MFA-004',
-      staffName: 'Sarah Osei',
-      leaveType: 'Annual',
-      startDate: new Date('2024-11-25'),
-      endDate: new Date('2024-11-29'),
-      days: 5,
-      reason: 'Personal vacation',
-      status: 'approved',
-      approvedBy: 'Lucy Appiah',
-      approvalDate: new Date('2024-11-20'),
-      declarationAccepted: true,
-      approvalLevels: [
-        { level: 1, approverRole: 'SUPERVISOR', status: 'approved', approverName: 'Peter Mensah', approvalDate: '2024-11-18' },
-        { level: 2, approverRole: 'HR_OFFICER', status: 'approved', approverName: 'Lucy Appiah', approvalDate: '2024-11-20' },
-      ],
-    },
-    {
-      staffId: 'MFA-005',
-      staffName: 'David Boateng',
-      leaveType: 'Sick',
-      startDate: new Date('2024-12-01'),
-      endDate: new Date('2024-12-03'),
-      days: 3,
-      reason: 'Recovery from surgery',
-      status: 'approved',
-      approvedBy: 'Lucy Appiah',
-      approvalDate: new Date('2024-11-28'),
-      declarationAccepted: true,
-      approvalLevels: [
-        { level: 1, approverRole: 'HR_OFFICER', status: 'approved', approverName: 'Lucy Appiah', approvalDate: '2024-11-28' },
-      ],
-    },
-  ]
+  
+  // Get some actual staff members for leave requests
+  // Use employees (not managers/directors) for sample leave requests
+  const employeeStaff = createdStaff.filter(s => {
+    const user = roleBasedUsersSeed.find(u => u.staffId === s.staffId)
+    return user && ['EMPLOYEE', 'SUPERVISOR'].includes(user.role)
+  })
+  
+  // Get supervisor and HR officer staffIds for approval steps
+  const supervisorStaff = createdStaff.find(s => {
+    const user = roleBasedUsersSeed.find(u => u.staffId === s.staffId)
+    return user && user.role === 'SUPERVISOR'
+  })
+  const hrOfficerStaff = createdStaff.find(s => {
+    const user = roleBasedUsersSeed.find(u => u.staffId === s.staffId)
+    return user && user.role === 'HR_OFFICER'
+  })
+  
+  let createdLeaves: any[] = []
+  
+  if (employeeStaff.length < 5) {
+    console.warn('⚠️  Not enough employee staff members found for leave requests. Skipping leave request creation.')
+  } else {
+    const leaveRequests = [
+      {
+        staffId: employeeStaff[0].staffId,
+        staffName: `${employeeStaff[0].firstName} ${employeeStaff[0].lastName}`,
+        leaveType: 'Annual',
+        startDate: new Date('2024-12-20'),
+        endDate: new Date('2024-12-27'),
+        days: 5,
+        reason: 'End of year vacation with family',
+        status: 'pending',
+        declarationAccepted: true,
+        approvalLevels: [
+          { level: 1, approverRole: 'SUPERVISOR', status: 'pending' },
+          { level: 2, approverRole: 'HR_OFFICER', status: 'pending' },
+        ],
+      },
+      {
+        staffId: employeeStaff[1].staffId,
+        staffName: `${employeeStaff[1].firstName} ${employeeStaff[1].lastName}`,
+        leaveType: 'Sick',
+        startDate: new Date('2024-11-15'),
+        endDate: new Date('2024-11-17'),
+        days: 3,
+        reason: 'Medical treatment',
+        status: 'approved',
+        approvedBy: supervisorStaff ? `${supervisorStaff.firstName} ${supervisorStaff.lastName}` : 'Supervisor',
+        approvalDate: new Date('2024-11-10'),
+        declarationAccepted: true,
+        approvalLevels: [
+          { level: 1, approverRole: 'SUPERVISOR', status: 'approved', approverName: supervisorStaff ? `${supervisorStaff.firstName} ${supervisorStaff.lastName}` : 'Supervisor', approvalDate: '2024-11-10' },
+        ],
+      },
+      {
+        staffId: employeeStaff[2].staffId,
+        staffName: `${employeeStaff[2].firstName} ${employeeStaff[2].lastName}`,
+        leaveType: 'Training',
+        startDate: new Date('2024-12-10'),
+        endDate: new Date('2024-12-14'),
+        days: 5,
+        reason: 'Advanced research methodology training',
+        status: 'pending',
+        declarationAccepted: true,
+        approvalLevels: [
+          { level: 1, approverRole: 'SUPERVISOR', status: 'pending' },
+        ],
+      },
+      {
+        staffId: employeeStaff[3].staffId,
+        staffName: `${employeeStaff[3].firstName} ${employeeStaff[3].lastName}`,
+        leaveType: 'Annual',
+        startDate: new Date('2024-11-25'),
+        endDate: new Date('2024-11-29'),
+        days: 5,
+        reason: 'Personal vacation',
+        status: 'approved',
+        approvedBy: hrOfficerStaff ? `${hrOfficerStaff.firstName} ${hrOfficerStaff.lastName}` : 'HR Officer',
+        approvalDate: new Date('2024-11-20'),
+        declarationAccepted: true,
+        approvalLevels: [
+          { level: 1, approverRole: 'SUPERVISOR', status: 'approved', approverName: supervisorStaff ? `${supervisorStaff.firstName} ${supervisorStaff.lastName}` : 'Supervisor', approvalDate: '2024-11-18' },
+          { level: 2, approverRole: 'HR_OFFICER', status: 'approved', approverName: hrOfficerStaff ? `${hrOfficerStaff.firstName} ${hrOfficerStaff.lastName}` : 'HR Officer', approvalDate: '2024-11-20' },
+        ],
+      },
+      {
+        staffId: employeeStaff[4].staffId,
+        staffName: `${employeeStaff[4].firstName} ${employeeStaff[4].lastName}`,
+        leaveType: 'Sick',
+        startDate: new Date('2024-12-01'),
+        endDate: new Date('2024-12-03'),
+        days: 3,
+        reason: 'Recovery from surgery',
+        status: 'approved',
+        approvedBy: hrOfficerStaff ? `${hrOfficerStaff.firstName} ${hrOfficerStaff.lastName}` : 'HR Officer',
+        approvalDate: new Date('2024-11-28'),
+        declarationAccepted: true,
+        approvalLevels: [
+          { level: 1, approverRole: 'HR_OFFICER', status: 'approved', approverName: hrOfficerStaff ? `${hrOfficerStaff.firstName} ${hrOfficerStaff.lastName}` : 'HR Officer', approvalDate: '2024-11-28' },
+        ],
+      },
+    ]
 
-  const createdLeaves = await Promise.all(
-    leaveRequests.map(leave => prisma.leaveRequest.create({ data: leave }))
-  )
+    createdLeaves = await Promise.all(
+      leaveRequests.map(leave => prisma.leaveRequest.create({ data: leave }))
+    )
 
-  console.log(`✅ Created ${createdLeaves.length} leave requests`)
+    console.log(`✅ Created ${createdLeaves.length} leave requests`)
+  }
 
   // Create Approval Steps for Leave Requests
   console.log('📝 Creating approval steps for leave requests...')
   const approvalSteps = []
+  
+  // Get approver staffIds
+  const supervisorStaffId = supervisorStaff?.staffId || null
+  const hrOfficerStaffId = hrOfficerStaff?.staffId || null
+  
   for (const leave of createdLeaves) {
     if (leave.status === 'pending') {
-      approvalSteps.push({
-        leaveRequestId: leave.id,
-        level: 1,
-        approverRole: 'SUPERVISOR',
-        approverStaffId: 'MFA-001',
-        status: 'pending',
-        previousLevelCompleted: true,
-      })
-      if (leave.leaveType === 'Annual' || leave.leaveType === 'Unpaid') {
+      if (supervisorStaffId) {
+        approvalSteps.push({
+          leaveRequestId: leave.id,
+          level: 1,
+          approverRole: 'SUPERVISOR',
+          approverStaffId: supervisorStaffId,
+          status: 'pending',
+          previousLevelCompleted: true,
+        })
+      }
+      if ((leave.leaveType === 'Annual' || leave.leaveType === 'Unpaid') && hrOfficerStaffId) {
         approvalSteps.push({
           leaveRequestId: leave.id,
           level: 2,
           approverRole: 'HR_OFFICER',
-          approverStaffId: 'MFA-008',
+          approverStaffId: hrOfficerStaffId,
           status: 'pending',
           previousLevelCompleted: false,
         })
       }
     } else if (leave.status === 'approved') {
-      approvalSteps.push({
-        leaveRequestId: leave.id,
-        level: 1,
-        approverRole: leave.leaveType === 'Sick' ? 'SUPERVISOR' : 'SUPERVISOR',
-        approverStaffId: 'MFA-001',
-        status: 'approved',
-        approverName: leave.approvedBy || 'John Amoah',
-        approvalDate: leave.approvalDate || new Date(),
-        previousLevelCompleted: true,
-      })
-      if (leave.leaveType === 'Annual') {
+      if (supervisorStaffId) {
+        approvalSteps.push({
+          leaveRequestId: leave.id,
+          level: 1,
+          approverRole: 'SUPERVISOR',
+          approverStaffId: supervisorStaffId,
+          status: 'approved',
+          approverName: leave.approvedBy || (supervisorStaff ? `${supervisorStaff.firstName} ${supervisorStaff.lastName}` : 'Supervisor'),
+          approvalDate: leave.approvalDate || new Date(),
+          previousLevelCompleted: true,
+        })
+      }
+      if (leave.leaveType === 'Annual' && hrOfficerStaffId) {
         approvalSteps.push({
           leaveRequestId: leave.id,
           level: 2,
           approverRole: 'HR_OFFICER',
-          approverStaffId: 'MFA-008',
+          approverStaffId: hrOfficerStaffId,
           status: 'approved',
-          approverName: leave.approvedBy || 'Lucy Appiah',
+          approverName: leave.approvedBy || (hrOfficerStaff ? `${hrOfficerStaff.firstName} ${hrOfficerStaff.lastName}` : 'HR Officer'),
           approvalDate: leave.approvalDate || new Date(),
           previousLevelCompleted: true,
         })
@@ -790,164 +693,204 @@ async function main() {
 
   // Create Payslips
   console.log('💵 Creating payslips...')
-  const payslips = [
-    {
-      staffId: 'MFA-001',
-      month: '2024-11',
-      year: 2024,
-      basicSalary: 85000,
-      allowances: 15000,
-      deductions: 12000,
-      netSalary: 88000,
-      tax: 8000,
-      pension: 4000,
-    },
-    {
-      staffId: 'MFA-002',
-      month: '2024-11',
-      year: 2024,
-      basicSalary: 75000,
-      allowances: 12000,
-      deductions: 10000,
-      netSalary: 77000,
-      tax: 7000,
-      pension: 3000,
-    },
-    {
-      staffId: 'MFA-003',
-      month: '2024-11',
-      year: 2024,
-      basicSalary: 95000,
-      allowances: 18000,
-      deductions: 14000,
-      netSalary: 99000,
-      tax: 9000,
-      pension: 5000,
-    },
-    {
-      staffId: 'MFA-004',
-      month: '2024-11',
-      year: 2024,
-      basicSalary: 65000,
-      allowances: 10000,
-      deductions: 8000,
-      netSalary: 67000,
-      tax: 6000,
-      pension: 2000,
-    },
-    {
-      staffId: 'MFA-005',
-      month: '2024-11',
-      year: 2024,
-      basicSalary: 72000,
-      allowances: 11000,
-      deductions: 9000,
-      netSalary: 74000,
-      tax: 6500,
-      pension: 2500,
-    },
-  ]
+  
+  let createdPayslips: any[] = []
+  
+  // Use actual staff members for payslips (use first 5 staff members)
+  if (createdStaff.length < 5) {
+    console.warn('⚠️  Not enough staff members found for payslips. Skipping payslip creation.')
+  } else {
+    const payslips = [
+      {
+        staffId: createdStaff[0].staffId,
+        month: '2024-11',
+        year: 2024,
+        basicSalary: 85000,
+        allowances: 15000,
+        deductions: 12000,
+        netSalary: 88000,
+        tax: 8000,
+        pension: 4000,
+      },
+      {
+        staffId: createdStaff[1].staffId,
+        month: '2024-11',
+        year: 2024,
+        basicSalary: 75000,
+        allowances: 12000,
+        deductions: 10000,
+        netSalary: 77000,
+        tax: 7000,
+        pension: 3000,
+      },
+      {
+        staffId: createdStaff[2].staffId,
+        month: '2024-11',
+        year: 2024,
+        basicSalary: 95000,
+        allowances: 18000,
+        deductions: 14000,
+        netSalary: 99000,
+        tax: 9000,
+        pension: 5000,
+      },
+      {
+        staffId: createdStaff[3].staffId,
+        month: '2024-11',
+        year: 2024,
+        basicSalary: 65000,
+        allowances: 10000,
+        deductions: 8000,
+        netSalary: 67000,
+        tax: 6000,
+        pension: 2000,
+      },
+      {
+        staffId: createdStaff[4].staffId,
+        month: '2024-11',
+        year: 2024,
+        basicSalary: 72000,
+        allowances: 11000,
+        deductions: 9000,
+        netSalary: 74000,
+        tax: 6500,
+        pension: 2500,
+      },
+    ]
 
-  const createdPayslips = await Promise.all(
-    payslips.map(payslip => prisma.payslip.create({ data: payslip }))
-  )
+    createdPayslips = await Promise.all(
+      payslips.map(payslip => prisma.payslip.create({ data: payslip }))
+    )
 
-  console.log(`✅ Created ${createdPayslips.length} payslips`)
+    console.log(`✅ Created ${createdPayslips.length} payslips`)
+  }
 
   // Create Performance Reviews
   console.log('⭐ Creating performance reviews...')
-  const performanceReviews = [
-    {
-      staffId: 'MFA-001',
-      reviewPeriod: '2024 Q3',
-      reviewDate: new Date('2024-10-15'),
-      reviewedBy: 'Lucy Appiah',
-      rating: 4,
-      strengths: ['Excellent technical skills', 'Strong leadership abilities', 'Good team collaboration'],
-      areasForImprovement: ['Time management', 'Documentation skills'],
-      goals: ['Complete advanced training', 'Lead 2 major projects'],
-      comments: 'John has shown exceptional performance this quarter. Continue the great work!',
-      status: 'completed',
-    },
-    {
-      staffId: 'MFA-002',
-      reviewPeriod: '2024 Q3',
-      reviewDate: new Date('2024-10-20'),
-      reviewedBy: 'Lucy Appiah',
-      rating: 5,
-      strengths: ['Outstanding research capabilities', 'Excellent communication', 'Innovative thinking'],
-      areasForImprovement: [],
-      goals: ['Publish research paper', 'Mentor junior staff'],
-      comments: 'Mary has exceeded expectations in all areas. Outstanding performance!',
-      status: 'completed',
-    },
-    {
-      staffId: 'MFA-003',
-      reviewPeriod: '2024 Q3',
-      reviewDate: new Date('2024-10-18'),
-      reviewedBy: 'Lucy Appiah',
-      rating: 4,
-      strengths: ['Strong analytical skills', 'Dedicated to research', 'Good problem-solving'],
-      areasForImprovement: ['Presentation skills'],
-      goals: ['Present at conference', 'Complete research project'],
-      comments: 'Peter continues to demonstrate strong research capabilities.',
-      status: 'completed',
-    },
-  ]
+  
+  // Get some actual staff IDs from created staff members for performance reviews
+  // Use employees from different units for variety
+  const availableStaffIds = createdStaff
+    .filter(staff => staff.employmentStatus === 'active')
+    .slice(0, 3)
+    .map(staff => staff.staffId)
+  
+  // If we don't have enough staff, get all available
+  if (availableStaffIds.length < 3) {
+    const allStaffIds = createdStaff
+      .filter(staff => staff.employmentStatus === 'active')
+      .map(staff => staff.staffId)
+    availableStaffIds.push(...allStaffIds.slice(0, 3 - availableStaffIds.length))
+  }
+  
+  // Initialize createdReviews array
+  let createdReviews: any[] = []
+  
+  // Only create reviews if we have staff members
+  if (availableStaffIds.length > 0) {
+    const performanceReviews = [
+      {
+        staffId: availableStaffIds[0],
+        reviewPeriod: '2024 Q3',
+        reviewDate: new Date('2024-10-15'),
+        reviewedBy: 'Lucy Appiah',
+        rating: 4,
+        strengths: ['Excellent technical skills', 'Strong leadership abilities', 'Good team collaboration'],
+        areasForImprovement: ['Time management', 'Documentation skills'],
+        goals: ['Complete advanced training', 'Lead 2 major projects'],
+        comments: 'Has shown exceptional performance this quarter. Continue the great work!',
+        status: 'completed',
+      },
+      ...(availableStaffIds.length > 1 ? [{
+        staffId: availableStaffIds[1],
+        reviewPeriod: '2024 Q3',
+        reviewDate: new Date('2024-10-20'),
+        reviewedBy: 'Lucy Appiah',
+        rating: 5,
+        strengths: ['Outstanding research capabilities', 'Excellent communication', 'Innovative thinking'],
+        areasForImprovement: [],
+        goals: ['Publish research paper', 'Mentor junior staff'],
+        comments: 'Has exceeded expectations in all areas. Outstanding performance!',
+        status: 'completed',
+      }] : []),
+      ...(availableStaffIds.length > 2 ? [{
+        staffId: availableStaffIds[2],
+        reviewPeriod: '2024 Q3',
+        reviewDate: new Date('2024-10-18'),
+        reviewedBy: 'Lucy Appiah',
+        rating: 4,
+        strengths: ['Strong analytical skills', 'Dedicated to research', 'Good problem-solving'],
+        areasForImprovement: ['Presentation skills'],
+        goals: ['Present at conference', 'Complete research project'],
+        comments: 'Continues to demonstrate strong research capabilities.',
+        status: 'completed',
+      }] : []),
+    ]
 
-  const createdReviews = await Promise.all(
-    performanceReviews.map(review => prisma.performanceReview.create({ data: review }))
-  )
+    createdReviews = await Promise.all(
+      performanceReviews.map(review => prisma.performanceReview.create({ data: review }))
+    )
 
-  console.log(`✅ Created ${createdReviews.length} performance reviews`)
+    console.log(`✅ Created ${createdReviews.length} performance reviews`)
+  } else {
+    console.log('⚠️  No staff members available for performance reviews')
+  }
 
   // Create Audit Logs
   console.log('📊 Creating audit logs...')
+  
+  // Get some actual staff IDs for audit logs if available
+  const auditStaffIds = createdStaff
+    .filter(staff => staff.employmentStatus === 'active')
+    .slice(0, 3)
+    .map(staff => staff.staffId)
+  
   const auditLogs = [
-    {
+    ...(auditStaffIds.length > 0 ? [{
       action: 'CREATE_STAFF',
       user: 'hrofficer@mofa.gov.gh',
       userRole: 'HR_OFFICER',
-      staffId: 'MFA-001',
-      details: 'Created staff member John Amoah',
+      staffId: auditStaffIds[0],
+      details: 'Created staff member',
       timestamp: new Date('2024-01-15'),
-    },
-    {
+    }] : []),
+    ...(auditStaffIds.length > 0 ? [{
       action: 'CREATE_LEAVE',
       user: 'employee@mofa.gov.gh',
       userRole: 'EMPLOYEE',
-      staffId: 'MFA-001',
+      staffId: auditStaffIds[0],
       details: 'Submitted Annual leave request for 5 days',
       timestamp: new Date('2024-11-10'),
-    },
-    {
+    }] : []),
+    ...(auditStaffIds.length > 1 ? [{
       action: 'UPDATE_LEAVE',
       user: 'supervisor@mofa.gov.gh',
       userRole: 'SUPERVISOR',
-      staffId: 'MFA-002',
+      staffId: auditStaffIds[1],
       details: 'Approved leave request',
       timestamp: new Date('2024-11-10'),
-    },
-    {
+    }] : []),
+    ...(auditStaffIds.length > 1 ? [{
       action: 'CREATE_STAFF',
       user: 'hrofficer@mofa.gov.gh',
       userRole: 'HR_OFFICER',
-      staffId: 'MFA-002',
-      details: 'Created staff member Mary Asante',
+      staffId: auditStaffIds[1],
+      details: 'Created staff member',
       timestamp: new Date('2024-03-20'),
-    },
-    {
+    }] : []),
+    ...(auditStaffIds.length > 0 ? [{
       action: 'UPDATE_STAFF',
       user: 'hrofficer@mofa.gov.gh',
       userRole: 'HR_OFFICER',
-      staffId: 'MFA-001',
+      staffId: auditStaffIds[0],
       details: 'Updated staff member details',
       timestamp: new Date('2024-06-01'),
-    },
+    }] : []),
     {
       action: 'CREATE_LEAVE_POLICY',
       user: 'hrofficer@mofa.gov.gh',
       userRole: 'HR_OFFICER',
+      staffId: null,
       details: 'Created leave policy for Annual',
       timestamp: new Date('2024-01-01'),
     },
@@ -955,6 +898,7 @@ async function main() {
       action: 'CREATE_HOLIDAY',
       user: 'hrofficer@mofa.gov.gh',
       userRole: 'HR_OFFICER',
+      staffId: null,
       details: 'Created holiday: New Year\'s Day',
       timestamp: new Date('2024-01-01'),
     },
@@ -966,432 +910,9 @@ async function main() {
 
   console.log(`✅ Created ${createdAuditLogs.length} audit logs`)
 
-  // Create Additional Staff Members (Expanding to 25+ staff)
-  console.log('👥 Creating additional staff members...')
-  const additionalStaff = [
-    {
-      staffId: 'MFA-009',
-      firstName: 'Kwame',
-      lastName: 'Owusu',
-      email: 'kwame.owusu@mofa.gov.gh',
-      phone: '+233241234575',
-      department: 'Fisheries Management',
-      position: 'Fisheries Officer',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 1',
-      directorate: 'Fisheries Directorate',
-      unit: 'Marine Fisheries Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2021-09-10'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-010',
-      firstName: 'Ama',
-      lastName: 'Gyasi',
-      email: 'ama.gyasi@mofa.gov.gh',
-      phone: '+233241234576',
-      department: 'Aquaculture Development',
-      position: 'Extension Officer',
-      grade: 'G5',
-      level: 'Junior',
-      rank: 'Senior Officer',
-      step: 'Step 1',
-      directorate: 'Aquaculture Directorate',
-      unit: 'Aquaculture Development Unit',
-      dutyStation: 'Region',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2022-07-15'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-011',
-      firstName: 'Kofi',
-      lastName: 'Agyeman',
-      email: 'kofi.agyeman@mofa.gov.gh',
-      phone: '+233241234577',
-      department: 'Research and Development',
-      position: 'Research Assistant',
-      grade: 'G4',
-      level: 'Junior',
-      rank: 'Officer',
-      step: 'Step 1',
-      directorate: 'Research and Development Directorate',
-      unit: 'Research Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2023-01-20'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-012',
-      firstName: 'Akosua',
-      lastName: 'Bonsu',
-      email: 'akosua.bonsu@mofa.gov.gh',
-      phone: '+233241234578',
-      department: 'Policy and Planning',
-      position: 'Planning Officer',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 2',
-      directorate: 'Policy, Planning, Monitoring & Evaluation (PPME) Directorate',
-      unit: 'Policy Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2020-11-05'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-013',
-      firstName: 'Yaw',
-      lastName: 'Tetteh',
-      email: 'yaw.tetteh@mofa.gov.gh',
-      phone: '+233241234579',
-      department: 'Administration',
-      position: 'Administrative Assistant',
-      grade: 'G4',
-      level: 'Junior',
-      rank: 'Officer',
-      step: 'Step 1',
-      directorate: 'Finance & Administration Directorate',
-      unit: 'Administration Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2023-03-10'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-014',
-      firstName: 'Efua',
-      lastName: 'Quartey',
-      email: 'efua.quartey@mofa.gov.gh',
-      phone: '+233241234580',
-      department: 'Human Resources',
-      position: 'HR Assistant',
-      grade: 'G5',
-      level: 'Junior',
-      rank: 'Senior Officer',
-      step: 'Step 1',
-      directorate: 'Finance & Administration Directorate',
-      unit: 'Human Resource Management Unit (HRMU)',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2022-05-20'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-015',
-      firstName: 'Nana',
-      lastName: 'Amoako',
-      email: 'nana.amoako@mofa.gov.gh',
-      phone: '+233241234581',
-      department: 'Finance',
-      position: 'Accountant',
-      grade: 'G7',
-      level: 'Senior',
-      rank: 'Senior Officer',
-      step: 'Step 3',
-      directorate: 'Finance & Administration Directorate',
-      unit: 'Accounts Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2019-04-12'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-016',
-      firstName: 'Abena',
-      lastName: 'Frimpong',
-      email: 'abena.frimpong@mofa.gov.gh',
-      phone: '+233241234582',
-      department: 'Internal Audit',
-      position: 'Internal Auditor',
-      grade: 'G8',
-      level: 'Senior',
-      rank: 'Principal Officer',
-      step: 'Step 4',
-      directorate: 'Finance & Administration Directorate',
-      unit: 'Internal Audit Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2018-08-25'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-017',
-      firstName: 'Kojo',
-      lastName: 'Sarpong',
-      email: 'kojo.sarpong@mofa.gov.gh',
-      phone: '+233241234583',
-      department: 'Fisheries Management',
-      position: 'Marine Biologist',
-      grade: 'G7',
-      level: 'Senior',
-      rank: 'Senior Officer',
-      step: 'Step 2',
-      directorate: 'Fisheries Directorate',
-      unit: 'Marine Fisheries Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2020-06-18'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-018',
-      firstName: 'Adwoa',
-      lastName: 'Manu',
-      email: 'adwoa.manu@mofa.gov.gh',
-      phone: '+233241234584',
-      department: 'Aquaculture Development',
-      position: 'Aquaculture Technician',
-      grade: 'G5',
-      level: 'Junior',
-      rank: 'Senior Officer',
-      step: 'Step 1',
-      directorate: 'Aquaculture Directorate',
-      unit: 'Aquaculture Development Unit',
-      dutyStation: 'Region',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2022-09-05'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-019',
-      firstName: 'Emmanuel',
-      lastName: 'Osei',
-      email: 'emmanuel.osei@mofa.gov.gh',
-      phone: '+233241234585',
-      department: 'Research and Development',
-      position: 'Data Analyst',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 2',
-      directorate: 'Research and Development Directorate',
-      unit: 'Research Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2021-02-14'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-020',
-      firstName: 'Gifty',
-      lastName: 'Asiedu',
-      email: 'gifty.asiedu@mofa.gov.gh',
-      phone: '+233241234586',
-      department: 'Policy and Planning',
-      position: 'Monitoring & Evaluation Officer',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 2',
-      directorate: 'Policy, Planning, Monitoring & Evaluation (PPME) Directorate',
-      unit: 'Policy Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2020-10-30'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-021',
-      firstName: 'Prince',
-      lastName: 'Mensah',
-      email: 'prince.mensah@mofa.gov.gh',
-      phone: '+233241234587',
-      department: 'Protocol',
-      position: 'Protocol Officer',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 1',
-      directorate: 'Finance & Administration Directorate',
-      unit: 'Protocol Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2021-07-22'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-022',
-      firstName: 'Patience',
-      lastName: 'Amoah',
-      email: 'patience.amoah@mofa.gov.gh',
-      phone: '+233241234588',
-      department: 'Fisheries Management',
-      position: 'Fisheries Inspector',
-      grade: 'G5',
-      level: 'Junior',
-      rank: 'Senior Officer',
-      step: 'Step 1',
-      directorate: 'Fisheries Directorate',
-      unit: 'Marine Fisheries Unit',
-      dutyStation: 'Region',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2022-11-08'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-023',
-      firstName: 'Richard',
-      lastName: 'Boateng',
-      email: 'richard.boateng@mofa.gov.gh',
-      phone: '+233241234589',
-      department: 'Aquaculture Development',
-      position: 'Aquaculture Officer',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 1',
-      directorate: 'Aquaculture Directorate',
-      unit: 'Aquaculture Development Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2021-12-03'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-024',
-      firstName: 'Comfort',
-      lastName: 'Darko',
-      email: 'comfort.darko@mofa.gov.gh',
-      phone: '+233241234590',
-      department: 'Human Resources',
-      position: 'HR Officer',
-      grade: 'G6',
-      level: 'Middle',
-      rank: 'Principal Officer',
-      step: 'Step 2',
-      directorate: 'Finance & Administration Directorate',
-      unit: 'Human Resource Management Unit (HRMU)',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2020-03-17'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-    {
-      staffId: 'MFA-025',
-      firstName: 'Samuel',
-      lastName: 'Adjei',
-      email: 'samuel.adjei@mofa.gov.gh',
-      phone: '+233241234591',
-      department: 'Research and Development',
-      position: 'Research Officer',
-      grade: 'G7',
-      level: 'Senior',
-      rank: 'Senior Officer',
-      step: 'Step 3',
-      directorate: 'Research and Development Directorate',
-      unit: 'Research Unit',
-      dutyStation: 'HQ',
-      employmentStatus: 'active',
-      active: true,
-      joinDate: new Date('2019-09-25'),
-      managerId: null, // Will be set after creation
-      immediateSupervisorId: null, // Will be set after creation
-    },
-  ]
-
-  const createdAdditionalStaff = await Promise.all(
-    additionalStaff.map(staff => prisma.staffMember.create({ data: staff }))
-  )
-
-  console.log(`✅ Created ${createdAdditionalStaff.length} additional staff members`)
-
-  // Update manager and supervisor relationships for additional staff
-  console.log('🔗 Updating relationships for additional staff...')
-  const additionalStaffUpdates = [
-    { staffId: 'MFA-009', managerId: 'MFA-001', immediateSupervisorId: 'MFA-001' },
-    { staffId: 'MFA-010', managerId: 'MFA-006', immediateSupervisorId: 'MFA-006' },
-    { staffId: 'MFA-011', managerId: 'MFA-003', immediateSupervisorId: 'MFA-003' },
-    { staffId: 'MFA-012', managerId: 'MFA-003', immediateSupervisorId: 'MFA-003' },
-    { staffId: 'MFA-013', managerId: 'MFA-007', immediateSupervisorId: 'MFA-007' },
-    { staffId: 'MFA-014', managerId: 'MFA-008', immediateSupervisorId: 'MFA-008' },
-    { staffId: 'MFA-015', managerId: 'MFA-007', immediateSupervisorId: 'MFA-007' },
-    { staffId: 'MFA-016', managerId: 'MFA-007', immediateSupervisorId: 'MFA-007' },
-    { staffId: 'MFA-017', managerId: 'MFA-001', immediateSupervisorId: 'MFA-001' },
-    { staffId: 'MFA-018', managerId: 'MFA-006', immediateSupervisorId: 'MFA-006' },
-    { staffId: 'MFA-019', managerId: 'MFA-003', immediateSupervisorId: 'MFA-003' },
-    { staffId: 'MFA-020', managerId: 'MFA-003', immediateSupervisorId: 'MFA-003' },
-    { staffId: 'MFA-021', managerId: 'MFA-007', immediateSupervisorId: 'MFA-007' },
-    { staffId: 'MFA-022', managerId: 'MFA-006', immediateSupervisorId: 'MFA-006' },
-    { staffId: 'MFA-023', managerId: 'MFA-001', immediateSupervisorId: 'MFA-001' },
-    { staffId: 'MFA-024', managerId: 'MFA-008', immediateSupervisorId: 'MFA-008' },
-    { staffId: 'MFA-025', managerId: 'MFA-003', immediateSupervisorId: 'MFA-003' },
-  ]
-
-  await Promise.all(
-    additionalStaffUpdates.map(update =>
-      prisma.staffMember.update({
-        where: { staffId: update.staffId },
-        data: { managerId: update.managerId, immediateSupervisorId: update.immediateSupervisorId },
-      })
-    )
-  )
-
-  // Create leave balances for additional staff
-  console.log('💰 Creating leave balances for additional staff...')
-  const additionalBalances = createdAdditionalStaff.map((staff, index) => ({
-    staffId: staff.staffId,
-    annual: 15 + (index % 10),
-    sick: 8 + (index % 5),
-    unpaid: 0,
-    specialService: 3 + (index % 4),
-    training: 2 + (index % 3),
-    study: 0,
-    maternity: 0,
-    paternity: 0,
-    compassionate: 0,
-    annualCarryForward: index % 3 === 0 ? 5 : 0,
-    sickCarryForward: 0,
-    specialServiceCarryForward: 0,
-    trainingCarryForward: 0,
-    studyCarryForward: 0,
-    lastAccrualDate: new Date('2024-12-01'),
-    accrualPeriod: 'monthly',
-  }))
-
-  const createdAdditionalBalances = await Promise.all(
-    additionalBalances.map(balance => prisma.leaveBalance.create({ data: balance }))
-  )
-
-  console.log(`✅ Created ${createdAdditionalBalances.length} additional leave balances`)
+  // Note: Additional staff members are already created from role-based users seed
+  // No need to create duplicate staff with hardcoded IDs
+  // Leave balances for all staff are already created above
 
   // Define grade salaries (used for salary structures and payslips)
   const gradeSalaries: Record<string, number> = {
@@ -1409,7 +930,7 @@ async function main() {
   const additionalPayslips = []
   const months = ['2024-09', '2024-10', '2024-11']
   for (const month of months) {
-    for (const staff of [...createdStaff, ...createdAdditionalStaff].slice(0, 20)) {
+    for (const staff of createdStaff.slice(0, 20)) {
       const salary = gradeSalaries[staff.grade] || 50000
       additionalPayslips.push({
         staffId: staff.staffId,
@@ -1431,126 +952,54 @@ async function main() {
 
   console.log(`✅ Created ${createdAdditionalPayslips.length} additional payslips`)
 
-  // Create User Accounts for All Roles
-  console.log('👤 Creating user accounts for all roles...')
+  // Create User Accounts for All Role-Based Users
+  console.log('👤 Creating user accounts for all role-based users...')
   
   // Default password for all test users
   const defaultPassword = 'Password123!'
   const passwordHash = await bcrypt.hash(defaultPassword, 10)
 
-  // Define users for all MoFA roles
-  const roleUsers = [
-    // MoFA Exact Roles
-    {
-      email: 'employee@mofa.gov.gh',
-      role: 'EMPLOYEE',
-      staffId: 'MFA-002', // Mary Asante
-      displayName: 'Employee',
-    },
-    {
-      email: 'supervisor@mofa.gov.gh',
-      role: 'SUPERVISOR',
-      staffId: 'MFA-001', // John Amoah
-      displayName: 'Supervisor',
-    },
-    {
-      email: 'unithead@mofa.gov.gh',
-      role: 'UNIT_HEAD',
-      staffId: 'MFA-003', // Peter Mensah
-      displayName: 'Unit Head',
-    },
-    {
-      email: 'divisionhead@mofa.gov.gh',
-      role: 'DIVISION_HEAD',
-      staffId: 'MFA-004', // Sarah Osei
-      displayName: 'Division Head',
-    },
-    {
-      email: 'director@mofa.gov.gh',
-      role: 'DIRECTOR',
-      staffId: 'MFA-005', // David Boateng
-      displayName: 'Director',
-    },
-    {
-      email: 'regionalmanager@mofa.gov.gh',
-      role: 'REGIONAL_MANAGER',
-      staffId: 'MFA-006', // Grace Darko
-      displayName: 'Regional Manager',
-    },
-    {
-      email: 'hrofficer@mofa.gov.gh',
-      role: 'HR_OFFICER',
-      staffId: 'MFA-008', // Lucy Appiah
-      displayName: 'HR Officer',
-    },
-    {
-      email: 'hrdirector@mofa.gov.gh',
-      role: 'HR_DIRECTOR',
-      staffId: 'MFA-007', // James Adjei
-      displayName: 'HR Director',
-    },
-    {
-      email: 'chiefdirector@mofa.gov.gh',
-      role: 'CHIEF_DIRECTOR',
-      staffId: null, // Chief Director may not have staff record
-      displayName: 'Chief Director',
-    },
-    {
-      email: 'auditor@mofa.gov.gh',
-      role: 'AUDITOR',
-      staffId: null, // Auditor may not have staff record
-      displayName: 'Auditor',
-    },
-    {
-      email: 'sysadmin@mofa.gov.gh',
-      role: 'SYS_ADMIN',
-      staffId: null, // System Admin may not have staff record
-      displayName: 'System Admin',
-    },
-  ]
-
+  // Create users from role-based seed data
   const createdUsers = []
   const credentialsList = []
 
-  for (const userData of roleUsers) {
+  for (const userSeed of roleBasedUsersSeed) {
     try {
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
-        where: { email: userData.email },
+        where: { email: userSeed.email },
       })
 
       if (existingUser) {
         // Update existing seeded user to exempt from password expiration
         await prisma.user.update({
-          where: { email: userData.email },
+          where: { email: userSeed.email },
           data: {
             passwordExpiresAt: null, // Seeded users never expire
             passwordChangedAt: existingUser.passwordChangedAt || null, // Preserve if already set
           },
         })
-        console.log(`   ✅ Updated existing seeded user: ${userData.email} (exempt from password expiration)`)
+        console.log(`   ✅ Updated existing seeded user: ${userSeed.email} (${userSeed.role})`)
         continue
       }
 
-      // If staffId is provided, verify it exists
-      if (userData.staffId) {
-        const staff = await prisma.staffMember.findUnique({
-          where: { staffId: userData.staffId },
-        })
-        if (!staff) {
-          console.log(`   ⚠️  Staff ID ${userData.staffId} not found for ${userData.email}, creating without staff link...`)
-          userData.staffId = null as any
-        }
+      // Verify staffId exists
+      const staff = await prisma.staffMember.findUnique({
+        where: { staffId: userSeed.staffId },
+      })
+      if (!staff) {
+        console.log(`   ⚠️  Staff ID ${userSeed.staffId} not found for ${userSeed.email}, skipping user creation...`)
+        continue
       }
 
       // Create user
       // Seeded users are exempt from password expiration for testing/demo purposes
       const user = await prisma.user.create({
         data: {
-          email: userData.email,
+          email: userSeed.email,
           passwordHash,
-          role: userData.role,
-          staffId: userData.staffId,
+          role: userSeed.role,
+          staffId: userSeed.staffId,
           active: true,
           emailVerified: false,
           passwordExpiresAt: null, // Seeded users never expire
@@ -1560,16 +1009,99 @@ async function main() {
 
       createdUsers.push(user)
       credentialsList.push({
-        role: userData.displayName,
-        email: userData.email,
+        role: `${userSeed.name} (${userSeed.role})`,
+        email: userSeed.email,
         password: defaultPassword,
-        staffId: userData.staffId || 'N/A',
+        staffId: userSeed.staffId,
       })
 
-      console.log(`   ✅ Created user: ${userData.email} (${userData.role})`)
+      console.log(`   ✅ Created user: ${userSeed.email} (${userSeed.role}) - ${userSeed.name}`)
     } catch (error: any) {
-      console.error(`   ❌ Error creating user ${userData.email}:`, error.message)
+      console.error(`   ❌ Error creating user ${userSeed.email}:`, error.message)
     }
+  }
+
+  // Create System Admin User Account (no staff member required, but we'll create a minimal one for consistency)
+  console.log('🔧 Creating system admin user account...')
+  try {
+    const systemAdminEmail = 'system.admin@mofa.gov.gh'
+    const systemAdminStaffId = 'MoFA-SYS-ADMIN-001'
+    
+    // Check if system admin user already exists
+    const existingSystemAdmin = await prisma.user.findUnique({
+      where: { email: systemAdminEmail },
+    })
+
+    if (!existingSystemAdmin) {
+      // Create a minimal staff member for system admin (for consistency)
+      const systemAdminStaff = await prisma.staffMember.upsert({
+        where: { staffId: systemAdminStaffId },
+        update: {},
+        create: {
+          staffId: systemAdminStaffId,
+          firstName: 'System',
+          lastName: 'Administrator',
+          email: systemAdminEmail,
+          phone: '+233241000000',
+          department: 'Information Technology',
+          position: 'System Administrator',
+          grade: 'G10',
+          level: 'Executive',
+          rank: 'Director',
+          step: 'Step 5',
+          directorate: null,
+          unit: 'ICT Unit',
+          dutyStation: 'HQ',
+          employmentStatus: 'active',
+          active: true,
+          joinDate: new Date('2020-01-01'),
+          confirmationDate: new Date('2020-01-01'),
+        },
+      })
+
+      // Create system admin user account
+      const systemAdminUser = await prisma.user.create({
+        data: {
+          email: systemAdminEmail,
+          passwordHash,
+          role: 'SYSTEM_ADMIN',
+          staffId: systemAdminStaffId,
+          active: true,
+          emailVerified: false,
+          passwordExpiresAt: null, // System admin password never expires
+          passwordChangedAt: null,
+        },
+      })
+
+      createdUsers.push(systemAdminUser)
+      credentialsList.push({
+        role: 'System Administrator (SYSTEM_ADMIN)',
+        email: systemAdminEmail,
+        password: defaultPassword,
+        staffId: systemAdminStaffId,
+      })
+
+      console.log(`   ✅ Created system admin user: ${systemAdminEmail} (SYSTEM_ADMIN)`)
+    } else {
+      // Update existing system admin to ensure correct role and password settings
+      await prisma.user.update({
+        where: { email: systemAdminEmail },
+        data: {
+          role: 'SYSTEM_ADMIN',
+          passwordExpiresAt: null,
+          active: true,
+        },
+      })
+      console.log(`   ✅ Updated existing system admin user: ${systemAdminEmail} (SYSTEM_ADMIN)`)
+      credentialsList.push({
+        role: 'System Administrator (SYSTEM_ADMIN)',
+        email: systemAdminEmail,
+        password: defaultPassword,
+        staffId: systemAdminStaffId,
+      })
+    }
+  } catch (error: any) {
+    console.error(`   ❌ Error creating system admin user:`, error.message)
   }
 
   console.log(`✅ Created ${createdUsers.length} user accounts`)
@@ -1590,7 +1122,7 @@ async function main() {
 
   // Create Attendance Records
   console.log('⏰ Creating attendance records...')
-  const allStaffIds = [...createdStaff, ...createdAdditionalStaff].map(s => s.staffId)
+  const allStaffIds = createdStaff.map(s => s.staffId)
   const attendanceRecords = []
   const today = new Date()
   
@@ -1683,7 +1215,7 @@ async function main() {
   const documentTypes = ['contract', 'certificate', 'promotion', 'other']
   const categories = ['Employment', 'Training', 'Performance', 'Administrative']
   
-  for (const staff of [...createdStaff, ...createdAdditionalStaff].slice(0, 15)) {
+  for (const staff of createdStaff.slice(0, 15)) {
     for (let i = 0; i < 2; i++) {
       documents.push({
         staffId: staff.staffId,
@@ -1883,7 +1415,7 @@ async function main() {
   console.log('💰 Creating salary structures...')
   const salaryStructures = []
   
-  for (const staff of [...createdStaff, ...createdAdditionalStaff]) {
+  for (const staff of createdStaff) {
     const basicSalary = gradeSalaries[staff.grade] || 50000
     salaryStructures.push({
       staffId: staff.staffId,
@@ -1947,7 +1479,7 @@ async function main() {
   // Create Onboarding Checklists
   console.log('📋 Creating onboarding checklists...')
   const onboardingChecklists = []
-  for (const staff of [...createdStaff, ...createdAdditionalStaff].slice(0, 5)) {
+  for (const staff of createdStaff.slice(0, 5)) {
     onboardingChecklists.push({
       staffId: staff.staffId,
       items: [
@@ -2063,7 +1595,7 @@ async function main() {
   // Create Leave Accrual History
   console.log('📈 Creating leave accrual history...')
   const leaveAccrualHistory = []
-  for (const balance of [...createdBalances, ...createdAdditionalBalances].slice(0, 10)) {
+  for (const balance of createdRoleBasedBalances.slice(0, 10)) {
     for (let month = 0; month < 6; month++) {
       const accrualDate = new Date('2024-07-01')
       accrualDate.setMonth(accrualDate.getMonth() + month)
@@ -2090,14 +1622,14 @@ async function main() {
 
   console.log('✨ Seed completed successfully!')
   console.log(`\n📊 Comprehensive Seed Summary:`)
-  console.log(`   - Staff Members: ${createdStaff.length + createdAdditionalStaff.length}`)
+  console.log(`   - Staff Members: ${createdStaff.length}`)
   console.log(`   - Leave Policies: ${createdPolicies.length}`)
-  console.log(`   - Leave Balances: ${createdBalances.length + createdAdditionalBalances.length}`)
+  console.log(`   - Leave Balances: ${createdRoleBasedBalances.length}`)
   console.log(`   - Holidays: ${createdHolidays.length}`)
   console.log(`   - Leave Templates: ${createdTemplates.length}`)
   console.log(`   - Leave Requests: ${createdLeaves.length}`)
   console.log(`   - Leave Accrual History: ${createdLeaveAccrualHistory.length}`)
-  console.log(`   - Payslips: ${createdPayslips.length + createdAdditionalPayslips.length}`)
+  console.log(`   - Payslips: ${createdPayslips.length + (createdAdditionalPayslips?.length || 0)}`)
   console.log(`   - Approval Steps: ${createdApprovalSteps.length}`)
   console.log(`   - Leave Approval History: ${createdLeaveApprovalHistory.length}`)
   console.log(`   - Performance Reviews: ${createdReviews.length}`)
@@ -2119,16 +1651,16 @@ async function main() {
   console.log(`   - Profile Change Requests: ${createdProfileChangeRequests.length}`)
   console.log(`   - Approval Delegations: ${createdApprovalDelegations.length}`)
   const totalRecords = 
-    createdStaff.length + createdAdditionalStaff.length +
+    createdStaff.length +
     createdPolicies.length +
-    createdBalances.length + createdAdditionalBalances.length +
+    createdRoleBasedBalances.length +
     createdHolidays.length +
     createdTemplates.length +
     createdLeaves.length +
     createdApprovalSteps.length +
     createdLeaveApprovalHistory.length +
     createdLeaveAccrualHistory.length +
-    createdPayslips.length + createdAdditionalPayslips.length +
+    createdPayslips.length + (createdAdditionalPayslips?.length || 0) +
     createdReviews.length +
     createdAuditLogs.length +
     createdUsers.length +

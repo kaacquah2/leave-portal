@@ -5,24 +5,25 @@
  * based on the Staff & HR Management Portal requirements.
  */
 
-// MoFA Government HR Leave Workflow Roles (Exact Role Codes)
+// Ghana Civil Service HR Leave Workflow Roles (Exact Role Codes)
 export type UserRole = 
-  | 'EMPLOYEE'              // All confirmed MoFA staff
+  | 'EMPLOYEE'              // All confirmed staff
   | 'SUPERVISOR'            // Immediate Supervisor / Line Manager
   | 'UNIT_HEAD'             // Head of functional unit
-  | 'DIVISION_HEAD'         // Head of division under directorate
-  | 'DIRECTOR'              // Director of MoFA Directorate
-  | 'REGIONAL_MANAGER'      // Head of MoFA Regional Office
+  | 'HEAD_OF_DEPARTMENT'    // Head of Department (HoD) - Director of Core Directorate (statutory Civil Service role)
+  | 'HEAD_OF_INDEPENDENT_UNIT' // Head of Independent Unit (Legal, RTI, PR, Audit, Client Service) - Functions as HoD
+  | 'DIRECTOR'              // Director of Core Directorate
   | 'HR_OFFICER'            // HR Officer (HRM) - Final approval authority
   | 'HR_DIRECTOR'           // Head of Human Resource Directorate
   | 'CHIEF_DIRECTOR'        // Chief Director / Ministerial Authority
   | 'AUDITOR'               // Internal Auditor (IAA) - Read-only
   | 'SYSTEM_ADMIN'           // System Administrator (Technical config and system management)
-  | 'SECURITY_ADMIN'         // Security Administrator (Audit logs, access review, compliance)
   // Legacy roles (for backward compatibility during migration)
-  | 'employee' | 'supervisor' | 'unit_head' | 'division_head' | 'directorate_head' 
-  | 'regional_manager' | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor'
+  | 'employee' | 'supervisor' | 'unit_head' | 'directorate_head' 
+  | 'hr_officer' | 'hr_director' | 'chief_director' | 'internal_auditor'
   | 'hr' | 'hr_assistant' | 'manager' | 'deputy_director' | 'admin' | 'SYS_ADMIN'
+  | 'head_of_department' | 'hod' // Legacy HoD mappings
+  | 'head_of_independent_unit' // Legacy mapping for HEAD_OF_INDEPENDENT_UNIT
 
 /**
  * Permission types for different actions
@@ -159,21 +160,38 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'availability:view:team', // Unit level
   ],
 
-  // 4. DIVISION_HEAD - Head of division under directorate (Level 3 Approval)
-  DIVISION_HEAD: [
-    'employee:view:team', // Division level
-    'leave:view:team', // Division level
-    'leave:approve:team', // Level 3 approval
+  // 3.5. HEAD_OF_DEPARTMENT - Head of Department (HoD) - Director of Core Directorate (Level 3 Approval)
+  // Statutory Civil Service role - Directors act as HoDs for their directorates
+  HEAD_OF_DEPARTMENT: [
+    'employee:view:team', // Directorate level
+    'leave:view:team', // Directorate level
+    'leave:approve:team', // Level 3 approval (HoD level)
     'performance:view:team',
     'attendance:view:team',
     'reports:team:view',
-    'unit:view:own', // View units in division
-    'directorate:view:own', // View parent directorate
-    'calendar:view:team', // Division level
-    'availability:view:team', // Division level
+    'unit:view:own', // View units in directorate
+    'directorate:view:own', // View own directorate
+    'directorate:manage:own', // Manage own directorate
+    'calendar:view:team', // Directorate level
+    'availability:view:team', // Directorate level
   ],
 
-  // 5. DIRECTOR - Director of MoFA Directorate (Level 4 Approval)
+  // 3.6. HEAD_OF_INDEPENDENT_UNIT - Head of Independent Unit (Legal, RTI, PR, Audit, Client Service)
+  // Functions as HoD for approval chains - Independent units report directly to Chief Director
+  HEAD_OF_INDEPENDENT_UNIT: [
+    'employee:view:team', // Independent unit level
+    'leave:view:team', // Independent unit level
+    'leave:approve:team', // Level 3 approval (HoD level for independent units)
+    'performance:view:team',
+    'attendance:view:team',
+    'reports:team:view',
+    'unit:view:own', // View own independent unit
+    'directorate:view:own', // Can view all (reports to Chief Director)
+    'calendar:view:team', // Independent unit level
+    'availability:view:team', // Independent unit level
+  ],
+
+  // 4. DIRECTOR - Director of MoFA Directorate (Level 4 Approval)
   DIRECTOR: [
     'employee:view:team', // Directorate level
     'leave:view:team', // Directorate level
@@ -188,21 +206,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'availability:view:team', // Directorate level
   ],
 
-  // 6. REGIONAL_MANAGER - Head of MoFA Regional Office
-  REGIONAL_MANAGER: [
-    'employee:view:team', // Regional/district staff
-    'leave:view:team', // Regional/district staff
-    'leave:approve:team', // Regional approval
-    'performance:view:team',
-    'attendance:view:team',
-    'reports:team:view',
-    'region:view:own', // View own region
-    'region:manage:own', // Manage own region
-    'calendar:view:team', // Regional level
-    'availability:view:team', // Regional level
-  ],
-
-  // 7. HR_OFFICER - HR Officer (HRM) - Final approval authority
+  // 5. HR_OFFICER - HR Officer (HRM) - Final approval authority
   HR_OFFICER: [
     'employee:view:all',
     'employee:update',
@@ -300,18 +304,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:hr:view',
     'org:view:all', // View all organizational structure
     'org:manage:all', // Manage organizational structure
-  ],
-
-  // 13. SECURITY_ADMIN - Security Administrator (Audit logs, access review, compliance)
-  // Ghana Government Compliance: Cannot approve leave or edit staff records (segregation of duties)
-  SECURITY_ADMIN: [
-    'system:audit:view', // Full audit log access
-    'system:reports:view',
-    'reports:system:view',
-    'employee:view:all', // View only, cannot edit
-    'leave:view:all', // View only, cannot approve
-    'org:view:all', // View all organizational structure (read-only)
-    // Note: Cannot approve leave or edit staff records per compliance requirements
   ],
 
   // ========== LEGACY ROLES (Backward Compatibility) ==========
@@ -490,17 +482,48 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:team:view',
   ],
 
-  // Division Head: Third level approval
-  division_head: [
-    'employee:view:team', // Extended to division level
-    'leave:view:team',
-    'leave:approve:team', // Can approve division staff
+  // Head of Department (HoD): Third level approval - Director or Head of Independent Unit
+  head_of_department: [
+    'employee:view:team', // Directorate/Unit level
+    'leave:view:team', // Directorate/Unit level
+    'leave:approve:team', // Level 3 approval (HoD level)
     'performance:view:team',
-    'performance:review:team',
     'attendance:view:team',
-    'attendance:correct:team',
-    'timesheet:approve:team',
     'reports:team:view',
+    'unit:view:own', // View units in directorate/independent unit
+    'directorate:view:own', // View own directorate (if Director) or view all (if Independent Unit Head)
+    'directorate:manage:own', // Manage own directorate/independent unit
+    'calendar:view:team', // Directorate/Unit level
+    'availability:view:team', // Directorate/Unit level
+  ],
+
+  // Legacy alias for head_of_department
+  hod: [
+    'employee:view:team', // Directorate/Unit level
+    'leave:view:team', // Directorate/Unit level
+    'leave:approve:team', // Level 3 approval (HoD level)
+    'performance:view:team',
+    'attendance:view:team',
+    'reports:team:view',
+    'unit:view:own', // View units in directorate/independent unit
+    'directorate:view:own', // View own directorate (if Director) or view all (if Independent Unit Head)
+    'directorate:manage:own', // Manage own directorate/independent unit
+    'calendar:view:team', // Directorate/Unit level
+    'availability:view:team', // Directorate/Unit level
+  ],
+
+  // Head of Independent Unit: Legacy mapping (lowercase)
+  head_of_independent_unit: [
+    'employee:view:team', // Independent unit level
+    'leave:view:team', // Independent unit level
+    'leave:approve:team', // Level 3 approval (HoD level for independent units)
+    'performance:view:team',
+    'attendance:view:team',
+    'reports:team:view',
+    'unit:view:own', // View own independent unit
+    'directorate:view:own', // Can view all (reports to Chief Director)
+    'calendar:view:team', // Independent unit level
+    'availability:view:team', // Independent unit level
   ],
 
   // Directorate Head: Fourth level approval
@@ -508,19 +531,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'employee:view:team', // Extended to directorate level
     'leave:view:team',
     'leave:approve:team', // Can approve directorate staff
-    'performance:view:team',
-    'performance:review:team',
-    'attendance:view:team',
-    'attendance:correct:team',
-    'timesheet:approve:team',
-    'reports:team:view',
-  ],
-
-  // Regional Manager: For regional/district staff
-  regional_manager: [
-    'employee:view:team', // Regional/district staff
-    'leave:view:team',
-    'leave:approve:team', // Can approve regional staff
     'performance:view:team',
     'performance:review:team',
     'attendance:view:team',

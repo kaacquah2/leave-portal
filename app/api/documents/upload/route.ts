@@ -10,6 +10,10 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'documents')
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
@@ -23,13 +27,22 @@ async function ensureUploadDir() {
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {
-      await ensureUploadDir()
+      // Ensure upload directory exists
+      try {
+        await ensureUploadDir()
+      } catch (dirError: any) {
+        console.error('Error creating upload directory:', dirError)
+        return NextResponse.json(
+          { error: 'Failed to initialize upload directory. Please contact system administrator.' },
+          { status: 500 }
+        )
+      }
 
       const formData = await request.formData()
-      const file = formData.get('file') as File
+      const file = formData.get('file') as File | null
       const staffId = formData.get('staffId') as string | null
-      const type = formData.get('type') as string
-      const category = formData.get('category') as string
+      const type = formData.get('type') as string | null
+      const category = formData.get('category') as string | null
       const description = formData.get('description') as string | null
       const isPublic = formData.get('isPublic') === 'true'
 
@@ -63,10 +76,18 @@ export async function POST(request: NextRequest) {
       const filename = `${timestamp}_${sanitizedName}`
       const filepath = join(UPLOAD_DIR, filename)
 
-      // Save file
-      const bytes = await file.arrayBuffer()
-      const buffer = Buffer.from(bytes)
-      await writeFile(filepath, buffer)
+      // Save file with error handling
+      try {
+        const bytes = await file.arrayBuffer()
+        const buffer = Buffer.from(bytes)
+        await writeFile(filepath, buffer)
+      } catch (writeError: any) {
+        console.error('Error writing file:', writeError)
+        return NextResponse.json(
+          { error: `Failed to save file: ${writeError.message || 'Unknown error'}` },
+          { status: 500 }
+        )
+      }
 
       // Create document record
       const { prisma } = await import('@/lib/prisma')

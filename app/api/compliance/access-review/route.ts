@@ -2,7 +2,7 @@
  * Access Review API
  * 
  * Ghana Government Compliance: Regular access reviews for state institution requirements
- * Allows auditors and security admins to review user access and permissions
+ * Allows auditors and system admins to review user access and permissions
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -11,6 +11,9 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { AUDIT_ROLES } from '@/lib/role-utils'
 import { mapToMoFARole } from '@/lib/role-mapping'
 import { getRoleComplianceRestrictions } from '@/lib/compliance-utils'
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 
 /**
  * GET - Get access review report
@@ -24,10 +27,10 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const normalizedRole = mapToMoFARole(user.role)
     
-    // Only auditors and security admins can access review reports
+    // Only auditors and system admins can access review reports
     if (!AUDIT_ROLES.includes(normalizedRole)) {
       return NextResponse.json(
-        { error: 'Forbidden - Only auditors and security administrators can access review reports' },
+        { error: 'Forbidden - Only auditors and system administrators can access review reports' },
         { status: 403 }
       )
     }
@@ -87,8 +90,8 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
         complianceRestrictions: restrictions,
         // Flag potential compliance issues
         complianceFlags: {
-          canApproveLeaveButShouldNot: !restrictions.canApproveLeave && (role === 'SYSTEM_ADMIN' || role === 'SECURITY_ADMIN'),
-          canEditStaffButShouldNot: !restrictions.canEditStaff && (role === 'SYSTEM_ADMIN' || role === 'SECURITY_ADMIN'),
+          canApproveLeaveButShouldNot: !restrictions.canApproveLeave && role === 'SYSTEM_ADMIN',
+          canEditStaffButShouldNot: !restrictions.canEditStaff && role === 'SYSTEM_ADMIN',
           inactiveUserWithActiveRole: !u.active && u.role,
           staffTerminatedButUserActive: u.staff?.employmentStatus !== 'active' && u.active,
         },

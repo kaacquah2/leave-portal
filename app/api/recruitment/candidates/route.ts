@@ -10,6 +10,11 @@ import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { prisma } from '@/lib/prisma'
 
 // GET - List candidates
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {

@@ -6,14 +6,17 @@ import { calculateLeaveDays } from '@/lib/leave-calculation-utils'
 import { validateLeaveBalance, checkOverlappingLeaves } from '@/lib/leave-balance-utils'
 import { getNextApprovers } from '@/lib/approval-workflow'
 import { 
-  determineMoFAApprovalWorkflow, 
+  determineCivilServiceApprovalWorkflow, 
   getStaffOrganizationalInfo, 
-  getNextMoFAApprovers,
-  createApprovalSteps 
-} from '@/lib/mofa-approval-workflow'
+  getNextCivilServiceApprovers
+} from '@/lib/ghana-civil-service-approval-workflow'
+import { createApprovalSteps } from '@/lib/ghana-civil-service-approval-workflow-db'
 import { logLeaveSubmission } from '@/lib/audit-logger'
 import { notifyLeaveSubmission } from '@/lib/notification-service'
 import { getUserRBACContext, canCreateLeaveRequest } from '@/lib/mofa-rbac-middleware'
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 
 // GET all leave requests
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
@@ -80,7 +83,7 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
     // Check if this is a draft (draft has relaxed validation)
     const isDraft = body.status === 'draft'
     
-    // Validate required fields (MoFA Compliance) - relaxed for drafts
+    // Validate required fields (Ghana Civil Service Compliance) - relaxed for drafts
     if (!isDraft) {
       if (!body.staffId || !body.leaveType || !body.startDate || !body.endDate || !body.reason) {
         return NextResponse.json(
@@ -89,10 +92,10 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         )
       }
 
-      // Validate MoFA compliance fields (not required for drafts)
-      if (!body.officerTakingOver || !body.handoverNotes || !body.declarationAccepted) {
+      // Validate Ghana Civil Service compliance fields (not required for drafts)
+      if (!body.declarationAccepted) {
         return NextResponse.json(
-          { error: 'Missing required MoFA compliance fields: officerTakingOver, handoverNotes, declarationAccepted' },
+          { error: 'Missing required Ghana Civil Service compliance field: declarationAccepted' },
           { status: 400 }
         )
       }
@@ -196,8 +199,8 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         )
       }
 
-      // Determine MoFA approval workflow based on organizational structure
-      approvalLevels = await determineMoFAApprovalWorkflow(
+      // Determine Ghana Civil Service approval workflow based on organizational structure
+      approvalLevels = await determineCivilServiceApprovalWorkflow(
         staffOrgInfo,
         body.leaveType,
         days
@@ -273,10 +276,19 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
         status: isDraft ? 'draft' : 'pending',
         templateId: body.templateId,
         approvalLevels: approvalLevels.length > 0 ? (approvalLevels as any) : undefined, // Legacy support
-        // MoFA Compliance fields (optional for drafts)
+        // Ghana Civil Service Compliance fields (optional for drafts)
         officerTakingOver: body.officerTakingOver || (isDraft ? undefined : null),
         handoverNotes: body.handoverNotes || (isDraft ? undefined : null),
         declarationAccepted: isDraft ? false : (body.declarationAccepted || false),
+        // PSC/OHCS Compliance: External clearance for special leave types
+        requiresExternalClearance: body.requiresExternalClearance || false,
+        externalClearanceStatus: body.externalClearanceStatus || null,
+        pscReferenceNumber: body.pscReferenceNumber || null,
+        ohcsReferenceNumber: body.ohcsReferenceNumber || null,
+        // HR Validation (will be set when HR Officer validates)
+        hrValidated: false,
+        hrValidatedBy: null,
+        hrValidatedAt: null,
         payrollImpactFlag,
         locked: false, // Will be locked after final approval
       },
@@ -321,9 +333,9 @@ export const POST = withAuth(async ({ user, request }: AuthContext) => {
       userAgent,
     })
 
-    // Create notifications for approvers using MoFA notification service (skip for drafts)
+    // Create notifications for approvers using Ghana Civil Service notification service (skip for drafts)
     if (!isDraft && approvalLevels && approvalLevels.length > 0) {
-      const nextApprovers = getNextMoFAApprovers(approvalLevels)
+      const nextApprovers = getNextCivilServiceApprovers(approvalLevels)
       
       // Find users with the approver roles
       const approverUserIds: string[] = []

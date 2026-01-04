@@ -14,6 +14,7 @@ import { logDataAccess } from '@/lib/data-access-logger'
 import { hasPermission } from '@/lib/permissions'
 import { mapToMoFARole } from '@/lib/role-mapping'
 
+// Force static export configuration (required for static export mode)
 // For static export, API routes are not generated but need generateStaticParams
 // Return a dummy value to satisfy Next.js static export requirements
 export function generateStaticParams() {

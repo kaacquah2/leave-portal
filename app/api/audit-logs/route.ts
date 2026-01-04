@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { AUDIT_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 // GET audit logs
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {

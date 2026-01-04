@@ -7,6 +7,11 @@ import { getWeekendDates, formatCalendarDate } from '@/lib/calendar-utils'
 import { parseISO, startOfDay, endOfDay } from 'date-fns'
 
 // GET leave calendar data
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const normalizedRole = mapToMoFARole(user.role)
@@ -89,6 +94,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
         }
       } else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
         // Unit staff
+        // Note: division_head is mapped to UNIT_HEAD during normalization
         if (userStaff?.unit) {
           const unitStaff = await prisma.staffMember.findMany({
             where: { unit: userStaff.unit },
@@ -96,32 +102,14 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
           })
           where.staffId = { in: unitStaff.map(s => s.staffId) }
         }
-      } else if (normalizedRole === 'DIVISION_HEAD' || normalizedRole === 'division_head') {
-        // Division staff
-        if (userStaff?.directorate) {
-          const divisionStaff = await prisma.staffMember.findMany({
-            where: { directorate: userStaff.directorate },
-            select: { staffId: true },
-          })
-          where.staffId = { in: divisionStaff.map(s => s.staffId) }
-        }
       } else if (normalizedRole === 'DIRECTOR' || normalizedRole === 'directorate_head' || normalizedRole === 'deputy_director') {
-        // Directorate staff
+        // Note: regional_manager is mapped to DIRECTOR during normalization
         if (userStaff?.directorate) {
           const directorateStaff = await prisma.staffMember.findMany({
             where: { directorate: userStaff.directorate },
             select: { staffId: true },
           })
           where.staffId = { in: directorateStaff.map(s => s.staffId) }
-        }
-      } else if (normalizedRole === 'REGIONAL_MANAGER' || normalizedRole === 'regional_manager') {
-        // Regional staff
-        if (userStaff?.dutyStation) {
-          const regionalStaff = await prisma.staffMember.findMany({
-            where: { dutyStation: { in: ['Region', 'District'] } },
-            select: { staffId: true },
-          })
-          where.staffId = { in: regionalStaff.map(s => s.staffId) }
         }
       }
     } else if (canViewOwn) {

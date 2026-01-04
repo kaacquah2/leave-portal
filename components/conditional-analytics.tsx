@@ -11,12 +11,14 @@ export function ConditionalAnalytics() {
   const [shouldRender, setShouldRender] = useState(false)
 
   useEffect(() => {
-    // Check if we're in Electron
-    const isElectron = typeof window !== 'undefined' && 
-      (!!(window as any).electronAPI || !!(window as any).__ELECTRON_API_URL__)
+    // Check if we're in desktop (Tauri or Electron)
+    const isDesktop = typeof window !== 'undefined' && 
+      (('__TAURI__' in window) || 
+       !!(window as any).electronAPI || 
+       !!(window as any).__ELECTRON_API_URL__)
     
-    // Only render Analytics if not in Electron
-    setShouldRender(!isElectron)
+    // Only render Analytics if not in desktop
+    setShouldRender(!isDesktop)
   }, [])
 
   if (!shouldRender) {

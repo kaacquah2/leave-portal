@@ -98,16 +98,8 @@ export default function StaffManagement({ store, userRole, currentStaff }: Staff
       return staff.filter((s: any) => s.staffId === (currentStaff as any)?.staffId)
     }
     
-    // Regional Manager: Filter by duty station (Region/District)
-    if (normalizedRole === 'REGIONAL_MANAGER' || normalizedRole === 'regional_manager') {
-      if (canViewOwnRegion && userDutyStation) {
-        return staff.filter((s: any) => 
-          UnitBasedPermissions.canViewRegionStaff(role, userDutyStation, s.dutyStation)
-        )
-      }
-    }
-    
     // Director: Filter by directorate
+    // Note: regional_manager is mapped to DIRECTOR during normalization
     if (normalizedRole === 'DIRECTOR' || normalizedRole === 'directorate_head' || normalizedRole === 'deputy_director') {
       if (canViewOwnDirectorate && userDirectorate) {
         return staff.filter((s: any) => 
@@ -116,11 +108,12 @@ export default function StaffManagement({ store, userRole, currentStaff }: Staff
       }
     }
     
-    // Division Head: Filter by directorate (similar to Director)
-    if (normalizedRole === 'DIVISION_HEAD' || normalizedRole === 'division_head') {
-      if (canViewOwnDirectorate && userDirectorate) {
+    // Unit Head: Filter by unit
+    // Note: division_head is mapped to UNIT_HEAD during normalization
+    if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
+      if (canViewOwnUnit && userUnit) {
         return staff.filter((s: any) => 
-          UnitBasedPermissions.canViewDirectorateStaff(role, userDirectorate, s.directorate)
+          UnitBasedPermissions.canViewUnitStaff(role, userUnit, s.unit)
         )
       }
     }
@@ -185,7 +178,9 @@ export default function StaffManagement({ store, userRole, currentStaff }: Staff
     if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
       return `View staff in ${userUnit || 'your unit'}`
     }
-    if (normalizedRole === 'REGIONAL_MANAGER' || normalizedRole === 'regional_manager') {
+    // Note: regional_manager is mapped to DIRECTOR during normalization
+    // This check is for backward compatibility with raw roles
+    if ((normalizedRole as string) === 'regional_manager') {
       return `View staff in ${userDutyStation || 'your region'}`
     }
     return 'View your team members\' information'

@@ -12,6 +12,10 @@ import { AUDIT_ROLES } from '@/lib/role-utils'
 import { mapToMoFARole } from '@/lib/role-mapping'
 import { getRoleComplianceRestrictions, validateCompliance } from '@/lib/compliance-utils'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * GET - Get comprehensive compliance report
  * 
@@ -25,10 +29,10 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const normalizedRole = mapToMoFARole(user.role)
     
-    // Only auditors and security admins can access compliance reports
+    // Only auditors and system admins can access compliance reports
     if (!AUDIT_ROLES.includes(normalizedRole)) {
       return NextResponse.json(
-        { error: 'Forbidden - Only auditors and security administrators can access compliance reports' },
+        { error: 'Forbidden - Only auditors and system administrators can access compliance reports' },
         { status: 403 }
       )
     }
@@ -70,8 +74,6 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
         violations: [
           ...(role === 'SYSTEM_ADMIN' && restrictions.canApproveLeave ? ['SYSTEM_ADMIN_CAN_APPROVE_LEAVE'] : []),
           ...(role === 'SYSTEM_ADMIN' && restrictions.canEditStaff ? ['SYSTEM_ADMIN_CAN_EDIT_STAFF'] : []),
-          ...(role === 'SECURITY_ADMIN' && restrictions.canApproveLeave ? ['SECURITY_ADMIN_CAN_APPROVE_LEAVE'] : []),
-          ...(role === 'SECURITY_ADMIN' && restrictions.canEditStaff ? ['SECURITY_ADMIN_CAN_EDIT_STAFF'] : []),
         ],
       }
     })
@@ -132,12 +134,6 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
         systemAdminsWithEditAccess: roleCompliance.filter(
           (r) => r.normalizedRole === 'SYSTEM_ADMIN' && r.complianceStatus.canEditStaff
         ).length,
-        securityAdminsWithApprovalAccess: roleCompliance.filter(
-          (r) => r.normalizedRole === 'SECURITY_ADMIN' && r.complianceStatus.canApproveLeave
-        ).length,
-        securityAdminsWithEditAccess: roleCompliance.filter(
-          (r) => r.normalizedRole === 'SECURITY_ADMIN' && r.complianceStatus.canEditStaff
-        ).length,
       },
     }
     
@@ -155,12 +151,6 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
           : []),
         ...(complianceMetrics.separationOfDuties.systemAdminsWithEditAccess > 0
           ? ['Review SYSTEM_ADMIN roles - they should not have staff edit access']
-          : []),
-        ...(complianceMetrics.separationOfDuties.securityAdminsWithApprovalAccess > 0
-          ? ['Review SECURITY_ADMIN roles - they should not have leave approval access']
-          : []),
-        ...(complianceMetrics.separationOfDuties.securityAdminsWithEditAccess > 0
-          ? ['Review SECURITY_ADMIN roles - they should not have staff edit access']
           : []),
       ],
     }

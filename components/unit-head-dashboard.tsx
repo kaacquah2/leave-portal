@@ -26,6 +26,7 @@ import {
 import { useDataStore } from '@/lib/data-store'
 import { type UserRole } from '@/lib/permissions'
 import { apiRequest } from '@/lib/api-config'
+import RoleQuickActions from '@/components/role-quick-actions'
 
 interface UnitHeadDashboardProps {
   staffId?: string
@@ -58,35 +59,109 @@ export default function UnitHeadDashboard({
     try {
       setLoading(true)
       
-      // Fetch pending leave requests for unit
-      const leavesResponse = await apiRequest('/api/leaves?status=pending')
-      if (leavesResponse.ok) {
-        const allLeaves = await leavesResponse.json()
-        // Filter for unit staff (enhanced with actual unit filtering)
-        const unitLeaves = allLeaves.filter((leave: any) => {
-          return leave.status === 'pending' && 
-                 leave.staff?.unit === unit
-        })
-        setPendingLeaves(unitLeaves.slice(0, 5))
+      if (!unit) {
+        console.warn('Unit head dashboard: No unit provided')
+        setLoading(false)
+        return
       }
 
-      // Calculate unit statistics
-      const unitMembers = store.staff.filter((s: any) => s.unit === unit && s.active)
-      const onLeave = store.leaves.filter((l: any) => {
-        const today = new Date()
-        return l.status === 'approved' &&
-               new Date(l.startDate) <= today &&
-               new Date(l.endDate) >= today &&
-               l.staff?.unit === unit
-      })
-      const availableStaff = unitMembers.length - onLeave.length
+      // Fetch pending leave requests for unit using unit-head-specific endpoint
+      try {
+        const pendingResponse = await apiRequest('/api/leaves/pending/unit-head')
+        if (pendingResponse.ok) {
+          const data = await pendingResponse.json()
+          const unitHeadLeaves = data.leaves || data || []
+          // Filter by unit if not already filtered
+          const unitLeaves = unitHeadLeaves.filter((leave: any) => {
+            return leave.staff?.unit === unit
+          })
+          setPendingLeaves(unitLeaves.slice(0, 5))
+        } else {
+          // Fallback to general endpoint and filter
+          const leavesResponse = await apiRequest('/api/leaves?status=pending')
+          if (leavesResponse.ok) {
+            const allLeaves = await leavesResponse.json()
+            const unitLeaves = allLeaves.filter((leave: any) => {
+              return leave.status === 'pending' && 
+                     leave.staff?.unit === unit
+            })
+            setPendingLeaves(unitLeaves.slice(0, 5))
+          }
+        }
+      } catch (leavesError) {
+        console.error('Error fetching pending leaves:', leavesError)
+      }
 
-      setUnitStats({
-        unitMembers: unitMembers.length,
-        pendingApprovals: pendingLeaves.length,
-        onLeave: onLeave.length,
-        availableStaff,
-      })
+      // Fetch unit members from API or store
+      try {
+        const unitResponse = await apiRequest(`/api/staff?unit=${encodeURIComponent(unit)}`)
+        let unitMembers: any[] = []
+        if (unitResponse.ok) {
+          unitMembers = await unitResponse.json()
+        } else {
+          // Fallback to store filtering
+          unitMembers = store.staff.filter((s: any) => s.unit === unit && s.active)
+        }
+
+        // Fetch currently on leave from API
+        const today = new Date()
+        let onLeave: any[] = []
+        try {
+          const onLeaveResponse = await apiRequest(
+            `/api/leaves?status=approved&startDate=${today.toISOString().split('T')[0]}&endDate=${today.toISOString().split('T')[0]}`
+          )
+          if (onLeaveResponse.ok) {
+            const allApproved = await onLeaveResponse.json()
+            onLeave = allApproved.filter((l: any) => {
+              return new Date(l.startDate) <= today &&
+                     new Date(l.endDate) >= today &&
+                     l.staff?.unit === unit
+            })
+          } else {
+            // Fallback to store
+            onLeave = store.leaves.filter((l: any) => {
+              return l.status === 'approved' &&
+                     new Date(l.startDate) <= today &&
+                     new Date(l.endDate) >= today &&
+                     l.staff?.unit === unit
+            })
+          }
+        } catch (onLeaveError) {
+          console.error('Error fetching on-leave data:', onLeaveError)
+          // Fallback to store
+          onLeave = store.leaves.filter((l: any) => {
+            return l.status === 'approved' &&
+                   new Date(l.startDate) <= today &&
+                   new Date(l.endDate) >= today &&
+                   l.staff?.unit === unit
+          })
+        }
+        const availableStaff = unitMembers.length - onLeave.length
+
+        setUnitStats({
+          unitMembers: unitMembers.length,
+          pendingApprovals: pendingLeaves.length,
+          onLeave: onLeave.length,
+          availableStaff,
+        })
+      } catch (teamError) {
+        console.error('Error fetching unit data:', teamError)
+        // Use store as fallback
+        const unitMembers = store.staff.filter((s: any) => s.unit === unit && s.active)
+        const today = new Date()
+        const onLeave = store.leaves.filter((l: any) => {
+          return l.status === 'approved' &&
+                 new Date(l.startDate) <= today &&
+                 new Date(l.endDate) >= today &&
+                 l.staff?.unit === unit
+        })
+        setUnitStats({
+          unitMembers: unitMembers.length,
+          pendingApprovals: pendingLeaves.length,
+          onLeave: onLeave.length,
+          availableStaff: unitMembers.length - onLeave.length,
+        })
+      }
     } catch (error) {
       console.error('Error fetching unit head dashboard data:', error)
     } finally {
@@ -242,6 +317,19 @@ export default function UnitHeadDashboard({
       )}
 
       {/* Quick Actions */}
+      <RoleQuickActions userRole={userRole} onAction={(action) => {
+        if (onNavigate) {
+          if (action === 'View Unit Calendar') {
+            onNavigate('calendar')
+          } else if (action.includes('Acting Officer')) {
+            onNavigate('acting-appointments')
+          } else if (action.includes('Approve') || action.includes('Reject')) {
+            onNavigate('leave')
+          }
+        }
+      }} />
+      
+      {/* Additional Actions */}
       {onNavigate && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>

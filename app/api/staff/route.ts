@@ -6,7 +6,11 @@ import { hasPermission } from '@/lib/permissions'
 import { MOFA_UNITS, getUnitConfig, getDirectorateForUnit } from '@/lib/mofa-unit-mapping'
 import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
 
+// Force static export configuration (required for static export mode)
 // GET all staff members
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Normalize role to MoFA role code
@@ -44,16 +48,8 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
         return NextResponse.json([])
       }
     }
-    // Regional Manager: Filter by duty station (Region/District)
-    else if (normalizedRole === 'REGIONAL_MANAGER' || normalizedRole === 'regional_manager') {
-      if (userStaff?.dutyStation) {
-        where.dutyStation = {
-          in: ['Region', 'District'],
-        }
-        // Optionally filter by same region if we have region data
-      }
-    }
     // Director: Filter by directorate
+    // Note: regional_manager is mapped to DIRECTOR during normalization
     else if (
       normalizedRole === 'DIRECTOR' || 
       normalizedRole === 'directorate_head' || 
@@ -66,15 +62,8 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
         return NextResponse.json([])
       }
     }
-    // Division Head: Filter by directorate (similar to Director)
-    else if (normalizedRole === 'DIVISION_HEAD' || normalizedRole === 'division_head') {
-      if (userStaff?.directorate) {
-        where.directorate = userStaff.directorate
-      } else {
-        return NextResponse.json([])
-      }
-    }
     // Unit Head: Filter by unit
+    // Note: division_head is mapped to UNIT_HEAD during normalization
     else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
       if (userStaff?.unit) {
         where.unit = userStaff.unit
@@ -117,7 +106,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     'hr', 'hr_assistant', 'admin', 'employee', 'manager', 'deputy_director',
     'EMPLOYEE', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR',
     'REGIONAL_MANAGER', 'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR',
-    'AUDITOR', 'SYSTEM_ADMIN', 'SYS_ADMIN', 'SECURITY_ADMIN'
+    'AUDITOR', 'SYSTEM_ADMIN', 'SYS_ADMIN'
   ] 
 })
 

@@ -11,6 +11,11 @@ import { hasPermission } from '@/lib/permissions'
 import { sendNotification } from '@/lib/notification-service'
 
 // GET all encashment requests (HR Director/Chief Director only)
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only HR Director or Chief Director can view encashment requests

@@ -2,6 +2,44 @@
 
 This directory contains GitHub Actions workflows for the MoFA HR System.
 
+## Electron Build Workflow
+
+The `build-electron.yml` workflow builds the Electron desktop application.
+
+### Quick Start
+
+1. **Push the workflow file** (already included in the repository)
+2. **Go to Actions tab** → **Build Electron App** → **Run workflow**
+3. **Download the installer** from the **Artifacts** section
+
+### Features
+
+- ✅ **No local setup required** - Visual Studio Build Tools are pre-installed
+- ✅ **Automatic builds** - Triggers on push to main/master
+- ✅ **Manual builds** - Trigger from Actions tab with custom options
+- ✅ **Release builds** - Automatically builds and creates releases
+- ✅ **Multi-platform** - Supports Windows, macOS, and Linux
+
+### Usage
+
+**Manual Build:**
+1. Go to **Actions** → **Build Electron App**
+2. Click **Run workflow**
+3. Select platform (win/mac/linux/all)
+4. Optionally set API URL
+5. Download installer from **Artifacts**
+
+**Automatic Build:**
+- Pushes to `main`/`master` automatically trigger Windows build
+- Only runs if Electron-related files changed
+
+**Release Build:**
+- Creating a release/tag automatically builds and creates a GitHub release
+
+For detailed instructions, see [docs/GITHUB-ACTIONS-BUILD.md](../../docs/GITHUB-ACTIONS-BUILD.md).
+
+---
+
 ## Cron Jobs Workflow
 
 The `cron-jobs.yml` workflow runs scheduled tasks for the HR system.

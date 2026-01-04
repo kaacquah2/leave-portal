@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isEmployee, isManager, isHR, isAdmin } from '@/lib/auth-proxy'
 import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 
 // GET all leave balances
 export const GET = withAuth(async ({ user, request }: AuthContext) => {

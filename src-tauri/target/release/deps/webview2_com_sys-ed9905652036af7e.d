@@ -1,0 +1,9 @@
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\webview2_com_sys-ed9905652036af7e.d: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\declared_interfaces.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\bindings.rs
+
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\libwebview2_com_sys-ed9905652036af7e.rlib: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\declared_interfaces.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\bindings.rs
+
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\libwebview2_com_sys-ed9905652036af7e.rmeta: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\declared_interfaces.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\bindings.rs
+
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\lib.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\declared_interfaces.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\webview2-com-sys-0.38.0\src\bindings.rs:

@@ -216,12 +216,13 @@ export function useDataStore(options?: {
       setLoading(true)
       setError(null)
       
-      const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI
+      const isDesktop = typeof window !== 'undefined' && 
+        (('__TAURI__' in window) || !!(window as any).electronAPI)
       
-      // Log API base URL for debugging (especially in Electron)
+      // Log API base URL for debugging (especially in desktop)
       if (typeof window !== 'undefined') {
-        const apiBaseUrl = (window as any).__ELECTRON_API_URL__ || (window as any).electronAPI?.apiUrl || API_BASE_URL || 'relative';
-        console.log('[DataStore] Fetching data from API. Electron:', isElectron, 'Base URL:', apiBaseUrl);
+        const apiBaseUrl = API_BASE_URL || 'relative';
+        console.log('[DataStore] Fetching data from API. Desktop:', isDesktop, 'Base URL:', apiBaseUrl);
       }
 
       // Start API requests

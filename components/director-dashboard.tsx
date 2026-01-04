@@ -116,47 +116,117 @@ export default function DirectorDashboard({
         setPendingLeaves(directorateLeaves.slice(0, 5))
       }
 
-      // Calculate directorate statistics from store
-      // Ensure store has data
-      if (!store.staff || store.staff.length === 0) {
-        console.warn('Director dashboard: Store staff data not loaded yet')
-        // Try to refresh the store
-        store.refreshCritical()
-        setLoading(false)
-        return
-      }
-
-      const directorateStaff = store.staff.filter((s: any) => 
-        s.directorate === directorate && s.active
-      )
-      
-      const uniqueUnits = new Set(
-        directorateStaff.map((s: any) => s.unit).filter(Boolean)
-      )
-      
-      const onLeave = (store.leaves || []).filter((l: any) => {
+      // Fetch directorate staff from API
+      try {
+        const staffResponse = await apiRequest(`/api/staff?directorate=${encodeURIComponent(directorate)}`)
+        let directorateStaff: any[] = []
+        if (staffResponse.ok) {
+          directorateStaff = await staffResponse.json()
+          directorateStaff = directorateStaff.filter((s: any) => s.active)
+        } else {
+          // Fallback to store
+          directorateStaff = (store.staff || []).filter((s: any) => 
+            s.directorate === directorate && s.active
+          )
+        }
+        
+        const uniqueUnits = new Set(
+          directorateStaff.map((s: any) => s.unit).filter(Boolean)
+        )
+        
+        // Fetch currently on leave from API
         const today = new Date()
-        return l.status === 'approved' &&
-               new Date(l.startDate) <= today &&
-               new Date(l.endDate) >= today &&
-               l.staff?.directorate === directorate
-      })
-      
-      // Count escalations (leaves pending > 3 days)
-      const threeDaysAgo = new Date()
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-      const escalations = directorateLeaves.filter((l: any) => {
-        const createdDate = l.createdAt ? new Date(l.createdAt) : null
-        return createdDate && createdDate < threeDaysAgo
-      })
+        try {
+          const onLeaveResponse = await apiRequest(
+            `/api/leaves?status=approved&startDate=${today.toISOString().split('T')[0]}&endDate=${today.toISOString().split('T')[0]}`
+          )
+          let onLeave: any[] = []
+          if (onLeaveResponse.ok) {
+            const allApproved = await onLeaveResponse.json()
+            onLeave = allApproved.filter((l: any) => {
+              return new Date(l.startDate) <= today &&
+                     new Date(l.endDate) >= today &&
+                     l.staff?.directorate === directorate
+            })
+          } else {
+            // Fallback to store
+            onLeave = (store.leaves || []).filter((l: any) => {
+              return l.status === 'approved' &&
+                     new Date(l.startDate) <= today &&
+                     new Date(l.endDate) >= today &&
+                     l.staff?.directorate === directorate
+            })
+          }
+          
+          // Count escalations (leaves pending > 3 days)
+          const threeDaysAgo = new Date()
+          threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+          const escalations = directorateLeaves.filter((l: any) => {
+            const createdDate = l.createdAt ? new Date(l.createdAt) : null
+            return createdDate && createdDate < threeDaysAgo
+          })
 
-      setDirectorateStats({
-        totalStaff: directorateStaff.length,
-        pendingApprovals: directorateLeaves.length,
-        onLeave: onLeave.length,
-        units: uniqueUnits.size,
-        escalationCount: escalations.length,
-      })
+          setDirectorateStats({
+            totalStaff: directorateStaff.length,
+            pendingApprovals: directorateLeaves.length,
+            onLeave: onLeave.length,
+            units: uniqueUnits.size,
+            escalationCount: escalations.length,
+          })
+        } catch (onLeaveError) {
+          console.error('Error fetching on-leave data:', onLeaveError)
+          // Use store fallback
+          const today = new Date()
+          const onLeave = (store.leaves || []).filter((l: any) => {
+            return l.status === 'approved' &&
+                   new Date(l.startDate) <= today &&
+                   new Date(l.endDate) >= today &&
+                   l.staff?.directorate === directorate
+          })
+          const threeDaysAgo = new Date()
+          threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+          const escalations = directorateLeaves.filter((l: any) => {
+            const createdDate = l.createdAt ? new Date(l.createdAt) : null
+            return createdDate && createdDate < threeDaysAgo
+          })
+          setDirectorateStats({
+            totalStaff: directorateStaff.length,
+            pendingApprovals: directorateLeaves.length,
+            onLeave: onLeave.length,
+            units: uniqueUnits.size,
+            escalationCount: escalations.length,
+          })
+        }
+      } catch (staffError) {
+        console.error('Error fetching directorate staff:', staffError)
+        // Use store fallback
+        const directorateStaff = (store.staff || []).filter((s: any) => 
+          s.directorate === directorate && s.active
+        )
+        const uniqueUnits = new Set(
+          directorateStaff.map((s: any) => s.unit).filter(Boolean)
+        )
+        const today = new Date()
+        const onLeave = (store.leaves || []).filter((l: any) => {
+          return l.status === 'approved' &&
+                 new Date(l.startDate) <= today &&
+                 new Date(l.endDate) >= today &&
+                 l.staff?.directorate === directorate
+        })
+        const threeDaysAgo = new Date()
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+        const escalations = directorateLeaves.filter((l: any) => {
+          const createdDate = l.createdAt ? new Date(l.createdAt) : null
+          return createdDate && createdDate < threeDaysAgo
+        })
+        setDirectorateStats({
+          totalStaff: directorateStaff.length,
+          pendingApprovals: directorateLeaves.length,
+          onLeave: onLeave.length,
+          units: uniqueUnits.size,
+          escalationCount: escalations.length,
+        })
+      }
     } catch (error) {
       console.error('Error fetching director dashboard data:', error)
     } finally {

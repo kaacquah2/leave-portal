@@ -11,6 +11,7 @@ import jsPDF from 'jspdf'
 import { HR_ROLES, ADMIN_ROLES, READ_ONLY_ROLES } from '@/lib/role-utils'
 
 // Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 
 // Generate static params for dynamic route (empty array = skip static generation)
 export function generateStaticParams() {
@@ -22,7 +23,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  return withAuth(async ({ user }: AuthContext) => {
+  
+  // During static export build, return early without accessing cookies
+  const isBuild = typeof process !== 'undefined' && 
+                  process.env.ELECTRON === '1' && 
+                  (process.env.NEXT_PHASE === 'phase-production-build' || !globalThis.window)
+  
+  if (isBuild) {
+    return NextResponse.json({
+      error: 'Static export build - approval letter generation requires runtime',
+    }, { status: 503 })
+  }
+  
+  // At runtime, dynamically import withAuth
+  const runtimeHandler = async () => {
+    const { withAuth } = await import('@/lib/auth-proxy')
+    return withAuth(async ({ user }: AuthContext) => {
     try {
       // Get leave request with all related data
       const leave = await prisma.leaveRequest.findUnique({
@@ -261,6 +277,9 @@ export async function GET(
         { status: 500 }
       )
     }
-  }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES, 'EMPLOYEE', 'employee', 'CHIEF_DIRECTOR', 'chief_director'] })(request)
+    }, { allowedRoles: [...HR_ROLES, ...ADMIN_ROLES, 'EMPLOYEE', 'employee', 'CHIEF_DIRECTOR', 'chief_director'] })(request)
+  }
+  
+  return runtimeHandler()
 }
 

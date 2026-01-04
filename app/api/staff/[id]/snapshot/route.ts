@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { getStaffDataAtTime } from '@/lib/staff-versioning'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions, request)
     if (!session?.user) {
@@ -22,7 +31,7 @@ export async function GET(
       )
     }
 
-    const snapshot = await getStaffDataAtTime(params.id, new Date(atTime))
+    const snapshot = await getStaffDataAtTime(id, new Date(atTime))
 
     if (!snapshot) {
       return NextResponse.json(

@@ -28,6 +28,7 @@ import {
 import { useDataStore } from '@/lib/data-store'
 import { type UserRole } from '@/lib/permissions'
 import { apiRequest } from '@/lib/api-config'
+import RoleQuickActions from '@/components/role-quick-actions'
 
 interface HROfficerDashboardProps {
   staffId?: string
@@ -52,75 +53,195 @@ export default function HROfficerDashboard({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Wait for store to be initialized before fetching dashboard data
-    if (store.initialized) {
-      fetchDashboardData()
-    } else if (!store.loading) {
-      // If store is not loading and not initialized, trigger refresh
-      store.refresh()
-    }
-  }, [staffId, store.initialized, store.loading])
+    fetchDashboardData()
+  }, [staffId])
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       
-      // Ensure store data is loaded
-      if (!store.initialized || store.loading) {
-        await store.refresh()
-      }
-      
-      // Fetch pending leave requests awaiting final HR approval
+      // Fetch pending leave requests awaiting final HR approval from API
       let finalApprovalLeaves: any[] = []
-      const leavesResponse = await apiRequest('/api/leaves?status=pending')
-      if (leavesResponse.ok) {
-        const allLeaves = await leavesResponse.json()
-        // Filter for leaves that have passed all manager levels and need HR final approval
-        finalApprovalLeaves = allLeaves.filter((leave: any) => {
-          if (leave.status !== 'pending') return false
-          // If no approval levels, HR can approve
-          if (!leave.approvalLevels || leave.approvalLevels.length === 0) {
-            return true
-          }
-          // Check if all manager levels are approved and HR level is pending
-          const hrLevel = leave.approvalLevels.find((al: any) => 
-            (al.approverRole === 'HR_OFFICER' || al.approverRole === 'hr') && al.status === 'pending'
-          )
-          if (!hrLevel) return false
-          // Check if all previous levels are approved
-          const previousLevels = leave.approvalLevels.filter((al: any) => al.level < hrLevel.level)
-          return previousLevels.every((al: any) => al.status === 'approved')
-        })
-        setPendingLeaves(finalApprovalLeaves.slice(0, 5))
+      try {
+        const leavesResponse = await apiRequest('/api/leaves?status=pending')
+        if (leavesResponse.ok) {
+          const allLeaves = await leavesResponse.json()
+          // Filter for leaves that have passed all manager levels and need HR final approval
+          finalApprovalLeaves = allLeaves.filter((leave: any) => {
+            if (leave.status !== 'pending') return false
+            // If no approval levels, HR can approve
+            if (!leave.approvalLevels || leave.approvalLevels.length === 0) {
+              return true
+            }
+            // Check if all manager levels are approved and HR level is pending
+            const hrLevel = leave.approvalLevels.find((al: any) => 
+              (al.approverRole === 'HR_OFFICER' || al.approverRole === 'hr') && al.status === 'pending'
+            )
+            if (!hrLevel) return false
+            // Check if all previous levels are approved
+            const previousLevels = leave.approvalLevels.filter((al: any) => al.level < hrLevel.level)
+            return previousLevels.every((al: any) => al.status === 'approved')
+          })
+          setPendingLeaves(finalApprovalLeaves.slice(0, 5))
+        }
+      } catch (leavesError) {
+        console.error('Error fetching pending leaves:', leavesError)
       }
 
-      // Calculate HR statistics from store data (now guaranteed to be loaded)
-      const totalStaff = (store.staff || []).filter((s: any) => s.active).length
-      const thisMonth = new Date().getMonth()
-      const thisYear = new Date().getFullYear()
-      
-      const approvedLeaves = (store.leaves || []).filter((l: any) => {
-        if (l.status !== 'approved') return false
-        const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
-        return approvalDate && 
-               approvalDate.getMonth() === thisMonth && 
-               approvalDate.getFullYear() === thisYear
-      })
+      // Fetch staff statistics from API
+      try {
+        const staffResponse = await apiRequest('/api/staff')
+        let totalStaff = 0
+        if (staffResponse.ok) {
+          const allStaff = await staffResponse.json()
+          totalStaff = allStaff.filter((s: any) => s.active).length
+        } else {
+          // Fallback to store
+          totalStaff = (store.staff || []).filter((s: any) => s.active).length
+        }
 
-      const onLeave = (store.leaves || []).filter((l: any) => {
+        // Fetch approved leaves for this month from API
+        const thisMonth = new Date().getMonth()
+        const thisYear = new Date().getFullYear()
+        const monthStart = new Date(thisYear, thisMonth, 1)
+        const monthEnd = new Date(thisYear, thisMonth + 1, 0)
+        
+        try {
+          const approvedResponse = await apiRequest(
+            `/api/leaves?status=approved&startDate=${monthStart.toISOString().split('T')[0]}&endDate=${monthEnd.toISOString().split('T')[0]}`
+          )
+          let approvedLeaves: any[] = []
+          if (approvedResponse.ok) {
+            approvedLeaves = await approvedResponse.json()
+            approvedLeaves = approvedLeaves.filter((l: any) => {
+              const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+              return approvalDate && 
+                     approvalDate.getMonth() === thisMonth && 
+                     approvalDate.getFullYear() === thisYear
+            })
+          } else {
+            // Fallback to store
+            approvedLeaves = (store.leaves || []).filter((l: any) => {
+              if (l.status !== 'approved') return false
+              const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+              return approvalDate && 
+                     approvalDate.getMonth() === thisMonth && 
+                     approvalDate.getFullYear() === thisYear
+            })
+          }
+
+          // Fetch currently on leave from API
+          const today = new Date()
+          try {
+            const onLeaveResponse = await apiRequest(
+              `/api/leaves?status=approved&startDate=${today.toISOString().split('T')[0]}&endDate=${today.toISOString().split('T')[0]}`
+            )
+            let onLeave: any[] = []
+            if (onLeaveResponse.ok) {
+              const allApproved = await onLeaveResponse.json()
+              onLeave = allApproved.filter((l: any) => {
+                return new Date(l.startDate) <= today &&
+                       new Date(l.endDate) >= today
+              })
+            } else {
+              // Fallback to store
+              onLeave = (store.leaves || []).filter((l: any) => {
+                return l.status === 'approved' &&
+                       new Date(l.startDate) <= today &&
+                       new Date(l.endDate) >= today
+              })
+            }
+
+            // Fetch leave policies count
+            let policiesActive = 0
+            try {
+              const policiesResponse = await apiRequest('/api/leave-policies')
+              if (policiesResponse.ok) {
+                const policies = await policiesResponse.json()
+                policiesActive = Array.isArray(policies) ? policies.length : 0
+              } else {
+                policiesActive = (store.leavePolicies || [])?.length || 0
+              }
+            } catch (policiesError) {
+              policiesActive = (store.leavePolicies || [])?.length || 0
+            }
+
+            setHrStats({
+              totalStaff,
+              pendingFinalApprovals: finalApprovalLeaves.length,
+              approvedThisMonth: approvedLeaves.length,
+              policiesActive,
+              onLeave: onLeave.length,
+            })
+          } catch (onLeaveError) {
+            console.error('Error fetching on-leave data:', onLeaveError)
+            // Use store fallback
+            const onLeave = (store.leaves || []).filter((l: any) => {
+              return l.status === 'approved' &&
+                     new Date(l.startDate) <= today &&
+                     new Date(l.endDate) >= today
+            })
+            setHrStats({
+              totalStaff,
+              pendingFinalApprovals: finalApprovalLeaves.length,
+              approvedThisMonth: approvedLeaves.length,
+              policiesActive: (store.leavePolicies || [])?.length || 0,
+              onLeave: onLeave.length,
+            })
+          }
+        } catch (approvedError) {
+          console.error('Error fetching approved leaves:', approvedError)
+          // Use store fallback
+          const thisMonth = new Date().getMonth()
+          const thisYear = new Date().getFullYear()
+          const approvedLeaves = (store.leaves || []).filter((l: any) => {
+            if (l.status !== 'approved') return false
+            const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+            return approvalDate && 
+                   approvalDate.getMonth() === thisMonth && 
+                   approvalDate.getFullYear() === thisYear
+          })
+          const today = new Date()
+          const onLeave = (store.leaves || []).filter((l: any) => {
+            return l.status === 'approved' &&
+                   new Date(l.startDate) <= today &&
+                   new Date(l.endDate) >= today
+          })
+          setHrStats({
+            totalStaff,
+            pendingFinalApprovals: finalApprovalLeaves.length,
+            approvedThisMonth: approvedLeaves.length,
+            policiesActive: (store.leavePolicies || [])?.length || 0,
+            onLeave: onLeave.length,
+          })
+        }
+      } catch (staffError) {
+        console.error('Error fetching staff data:', staffError)
+        // Use store fallback
+        const totalStaff = (store.staff || []).filter((s: any) => s.active).length
+        const thisMonth = new Date().getMonth()
+        const thisYear = new Date().getFullYear()
+        const approvedLeaves = (store.leaves || []).filter((l: any) => {
+          if (l.status !== 'approved') return false
+          const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+          return approvalDate && 
+                 approvalDate.getMonth() === thisMonth && 
+                 approvalDate.getFullYear() === thisYear
+        })
         const today = new Date()
-        return l.status === 'approved' &&
-               new Date(l.startDate) <= today &&
-               new Date(l.endDate) >= today
-      })
-
-      setHrStats({
-        totalStaff,
-        pendingFinalApprovals: finalApprovalLeaves.length,
-        approvedThisMonth: approvedLeaves.length,
-        policiesActive: (store.leavePolicies || [])?.length || 0,
-        onLeave: onLeave.length,
-      })
+        const onLeave = (store.leaves || []).filter((l: any) => {
+          return l.status === 'approved' &&
+                 new Date(l.startDate) <= today &&
+                 new Date(l.endDate) >= today
+        })
+        setHrStats({
+          totalStaff,
+          pendingFinalApprovals: finalApprovalLeaves.length,
+          approvedThisMonth: approvedLeaves.length,
+          policiesActive: (store.leavePolicies || [])?.length || 0,
+          onLeave: onLeave.length,
+        })
+      }
     } catch (error) {
       console.error('Error fetching HR officer dashboard data:', error)
     } finally {
@@ -267,10 +388,21 @@ export default function HROfficerDashboard({
       </Card>
 
       {/* Quick Actions */}
+      <RoleQuickActions userRole={userRole} onAction={(action) => {
+        if (onNavigate) {
+          if (action.includes('Validate') || action.includes('Reject')) {
+            onNavigate('hr-validation')
+          } else if (action.includes('Export')) {
+            onNavigate('reports')
+          }
+        }
+      }} />
+      
+      {/* Additional Actions */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>Additional Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {onNavigate && (

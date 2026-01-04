@@ -4,8 +4,7 @@ import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
 import { restoreLeaveBalance } from '@/lib/leave-balance-utils'
 import { isEmployee } from '@/lib/auth-proxy'
 
-// Force static export configuration (required for static export mode)
-
+// Force dynamic - this route uses cookies via getTokenFromRequest and cannot be statically pre-rendered
 // Generate static params for dynamic route (empty array = skip static generation)
 export function generateStaticParams() {
   return [{ id: 'dummy' }]

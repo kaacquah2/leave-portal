@@ -4,6 +4,9 @@ import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { sendEmail } from '@/lib/email'
 import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 // GET pending approvals that need reminders
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {

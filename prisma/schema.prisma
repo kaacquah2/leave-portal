@@ -14,30 +14,27 @@ datasource db {
 // ENUMS - Type-safe values for common fields
 // ============================================
 
-/// MoFA Government HR Leave Workflow Roles
+/// Ghana Civil Service HR Leave Workflow Roles
 /// Primary roles use uppercase (e.g., EMPLOYEE, SUPERVISOR)
 /// Legacy roles are lowercase for backward compatibility during migration
 enum UserRole {
-  // Primary MoFA roles (uppercase)
+  // Primary Ghana Civil Service roles (uppercase)
   EMPLOYEE
   SUPERVISOR
   UNIT_HEAD
-  DIVISION_HEAD
+  HEAD_OF_DEPARTMENT // HoD - Director of Core Directorate (statutory Civil Service role)
+  HEAD_OF_INDEPENDENT_UNIT // Head of Independent Unit (Legal, RTI, PR, Audit, Client Service) - Functions as HoD
   DIRECTOR
-  REGIONAL_MANAGER
   HR_OFFICER
   HR_DIRECTOR
   CHIEF_DIRECTOR
   AUDITOR
   SYSTEM_ADMIN
-  SECURITY_ADMIN
   // Legacy roles (lowercase) - for backward compatibility
   employee
   supervisor
   unit_head
-  division_head
   directorate_head
-  regional_manager
   hr_officer
   hr_director
   chief_director
@@ -48,16 +45,25 @@ enum UserRole {
   deputy_director
   admin
   SYS_ADMIN
+  // Legacy HoD mappings
+  head_of_department
+  hod
+  head_of_independent_unit // Legacy mapping for HEAD_OF_INDEPENDENT_UNIT
 }
 
 /// Leave types available in the system
+/// Includes PSC/OHCS governed leave types
 enum LeaveType {
   Annual
   Sick
   Unpaid
   SpecialService
   Training
-  Study
+  Study // PSC/OHCS governed - requires external clearance
+  StudyWithPay // PSC/OHCS governed - requires external clearance
+  StudyWithoutPay // PSC/OHCS governed - requires external clearance
+  LeaveOfAbsence // PSC/OHCS governed - requires external clearance
+  Secondment // PSC/OHCS governed - requires external clearance
   Maternity
   Paternity
   Compassionate
@@ -69,6 +75,7 @@ enum LeaveRequestStatus {
   approved
   rejected
   cancelled
+  recorded // For Chief Director leave - recorded and notified to OHCS
 }
 
 /// Employment status for staff members
@@ -162,8 +169,10 @@ model StaffMember {
   step             String?  /// Step within grade - progression within same grade level
   directorate      String?  /// Directorate name (e.g., "Finance & Administration Directorate", "Policy, Planning, Monitoring & Evaluation (PPME) Directorate", null = reports to Chief Director)
   division         String?  /// Division within directorate (MoFA structure - not commonly used, mostly for large directorates)
-  unit             String?  /// Unit name (e.g., "Human Resource Management Unit (HRMU)", "Accounts Unit", "Protocol Unit", "Internal Audit Unit", etc.)
+  unit             String?  /// Unit name (e.g., "Human Resource Planning Unit", "Accounts Unit", "Internal Audit Unit", etc.)
+  subUnit          String?  /// Sub-unit within unit (e.g., "Culture & Capture Fisheries Sub-Unit")
   dutyStation      String?  /// Duty station location - see DutyStation enum: 'HQ' | 'Region' | 'District' | 'Agency' (e.g., Fisheries Commission)
+  actingOfficerId  String?  /// Staff ID of acting officer (required for Unit Heads, Directors, critical staff on leave)
   photoUrl         String?  /// URL to staff photo/profile picture
   active           Boolean  @default(true) /// Whether staff member is currently active in system
   employmentStatus String   @default("active") /// Current employment status - see EmploymentStatus enum: 'active' | 'terminated' | 'resigned' | 'retired' | 'suspended'
@@ -239,13 +248,24 @@ model LeaveRequest {
   approvalLevels Json?    /// Array of LeaveApprovalLevel objects - defines approval workflow structure
   // Government HR: Attachments support
   attachments   LeaveAttachment[] /// Related attachments (medical certificates, memos, etc.)
-  // MoFA Compliance: Handover and declaration fields
+  // Ghana Civil Service Compliance: Handover and declaration fields
   officerTakingOver String? /// Name/Staff ID of officer taking over duties during leave - required for certain leave types
   handoverNotes     String? /// Handover notes/instructions for officer taking over
   declarationAccepted Boolean @default(false) /// Declaration: "I will not proceed on leave without approval" - must be true to submit
+  // PSC/OHCS Compliance: External clearance for special leave types
+  requiresExternalClearance Boolean @default(false) /// Flag for PSC/OHCS governed leave (Study Leave, Leave of Absence, Secondment)
+  externalClearanceStatus String? /// 'pending' | 'approved' | 'rejected' | null - Status of PSC/OHCS clearance
+  pscReferenceNumber String? /// PSC reference number for external clearance
+  ohcsReferenceNumber String? /// OHCS reference number for external clearance
+  externalClearanceDate DateTime? /// Date when external clearance was received
   // Payroll impact tracking
   payrollImpactFlag Boolean @default(false) /// Flag for unpaid leave or special payroll considerations - triggers payroll processing
+  // Ghana Civil Service Compliance: HR validation
+  hrValidated Boolean @default(false) /// HR validation is mandatory before final approval
+  hrValidatedBy String? /// User ID of HR Officer who validated
+  hrValidatedAt DateTime? /// Date when HR validation was completed
   locked          Boolean @default(false) /// Lock approved records from editing - prevents modification after approval
+  version         Int     @default(0) /// Optimistic locking version field - increments on each update to detect concurrent modifications
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
@@ -299,6 +319,7 @@ model LeaveBalance {
   trainingExpiresAt       DateTime? /// Training leave expiration
   studyExpiresAt          DateTime? /// Study leave expiration
   
+  version         Int     @default(0) /// Optimistic locking version field - increments on each update to detect concurrent modifications
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   
@@ -412,6 +433,67 @@ model ApprovalStep {
   @@index([approverRole, status])
   @@index([approverStaffId, status])
   @@index([status, createdAt])
+}
+
+// Database-Driven Workflow Engine
+// Stores workflow definitions and steps for configurable approval chains
+model WorkflowDefinition {
+  id            String   @id @default(cuid())
+  name          String   // Workflow name (e.g., "Standard Staff Leave", "Director Leave")
+  description   String?  // Human-readable description
+  version       Int      @default(1) // Version number for workflow versioning
+  isActive      Boolean  @default(true) // Whether this version is active
+  isDefault     Boolean  @default(false) // Default workflow for its category
+  mdaId         String?  // Optional: MDA-specific workflow (null = applies to all MDAs)
+  mdaName       String?  // Optional: MDA name for display
+  // Workflow matching criteria (JSON for flexibility)
+  conditions    Json?    // Conditions for when this workflow applies (e.g., position, grade, unit, leaveType)
+  // Metadata
+  createdBy     String?  // User ID who created this workflow
+  createdByName String?  // Name of creator
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  activatedAt   DateTime? // When this version was activated
+  deactivatedAt DateTime? // When this version was deactivated
+  
+  // Relations
+  steps         WorkflowStep[] @relation("WorkflowSteps")
+  previousVersion WorkflowDefinition? @relation("WorkflowVersions", fields: [previousVersionId], references: [id])
+  previousVersionId String? @unique
+  nextVersion   WorkflowDefinition? @relation("WorkflowVersions")
+  
+  // Note: Cannot use mdaId in unique constraint as it's nullable
+  // Uniqueness enforced in application logic
+  @@unique([name, version])
+  @@index([name, version, mdaId])
+  @@index([isActive, isDefault])
+  @@index([mdaId, isActive])
+  @@index([createdAt])
+}
+
+// Individual steps in a workflow definition
+model WorkflowStep {
+  id                String   @id @default(cuid())
+  workflowId        String   // WorkflowDefinition.id
+  stepOrder         Int      // Sequential order (1, 2, 3, ...)
+  approverRole      String   // Required role (SUPERVISOR, UNIT_HEAD, etc.)
+  approverRoleType  String?  // Optional: specific role type or condition
+  isRequired        Boolean  @default(true) // Whether this step is mandatory
+  canSkip           Boolean  @default(false) // Whether this step can be skipped
+  canDelegate       Boolean  @default(true) // Whether this step can be delegated
+  // Conditional logic (JSON for flexibility)
+  conditions        Json?    // Conditions for this step (e.g., only for certain leave types, days, etc.)
+  // Step metadata
+  description       String?  // Human-readable description of this step
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  workflow          WorkflowDefinition @relation("WorkflowSteps", fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  @@unique([workflowId, stepOrder])
+  @@index([workflowId, stepOrder])
+  @@index([approverRole])
 }
 
 model Payslip {

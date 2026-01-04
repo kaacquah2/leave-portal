@@ -65,11 +65,10 @@ export async function GET(
     }
     
     // Check directorate-based permissions
+    // Note: regional_manager is mapped to DIRECTOR during normalization
     if (
       normalizedRole === 'DIRECTOR' || 
-      normalizedRole === 'DIVISION_HEAD' ||
       normalizedRole === 'directorate_head' || 
-      normalizedRole === 'division_head' ||
       normalizedRole === 'deputy_director'
     ) {
       if (userStaff?.directorate && staff.directorate === userStaff.directorate) {
@@ -77,11 +76,10 @@ export async function GET(
       }
     }
     
-    // Check regional permissions
-    if (normalizedRole === 'REGIONAL_MANAGER' || normalizedRole === 'regional_manager') {
-      if (userStaff?.dutyStation && 
-          (userStaff.dutyStation === 'Region' || userStaff.dutyStation === 'District') &&
-          (staff.dutyStation === 'Region' || staff.dutyStation === 'District')) {
+    // Check unit-based permissions
+    // Note: division_head is mapped to UNIT_HEAD during normalization
+    if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
+      if (userStaff?.unit && staff.unit === userStaff.unit) {
         return NextResponse.json(staff)
       }
     }
@@ -119,14 +117,13 @@ export async function PATCH(
     const normalizedRole = mapToMoFARole(user.role)
     
     // Ghana Government Compliance: Only HR roles can update staff records
-    // SYSTEM_ADMIN and SECURITY_ADMIN cannot edit staff (segregation of duties)
+    // SYSTEM_ADMIN cannot edit staff (segregation of duties)
     const { isHR } = await import('@/lib/auth-proxy')
     
-    // Explicitly exclude SYSTEM_ADMIN and SECURITY_ADMIN for compliance
+    // Explicitly exclude SYSTEM_ADMIN for compliance
     if (
       normalizedRole === 'SYSTEM_ADMIN' ||
       normalizedRole === 'SYS_ADMIN' ||
-      normalizedRole === 'SECURITY_ADMIN' ||
       normalizedRole === 'admin'
     ) {
       return NextResponse.json(

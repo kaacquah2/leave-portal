@@ -14,6 +14,10 @@ import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-lea
 import { createAuditLog } from '@/lib/audit-logger'
 import { HR_ROLES, AUDIT_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * POST /api/leave-policies/version
  * Create a new version of a leave policy (requires HR Director approval)

@@ -1,7 +1,7 @@
 /**
- * API Configuration for Electron and Web
+ * API Configuration for Tauri and Web
  * 
- * In Electron production builds, this allows pointing to a remote API server.
+ * In Tauri production builds, this allows pointing to a remote API server.
  * In development or web builds, uses relative URLs.
  * 
  * Refactored for:
@@ -46,13 +46,23 @@ interface ElectronApiResponse {
 // ============================================================================
 
 /**
- * Check if we're running in Electron
+ * Check if we're running in a desktop environment (Tauri)
  * Exported for use in other modules
  */
-export function isElectron(): boolean {
+export function isDesktop(): boolean {
   if (typeof window === 'undefined') return false;
+  // Check for Tauri
+  if ('__TAURI__' in window) return true;
+  // Legacy: Check for Electron (shouldn't exist anymore, but kept for compatibility)
   const win = window as unknown as WindowElectronAPI;
   return !!(win.electronAPI) || !!(win.__ELECTRON_API_URL__);
+}
+
+/**
+ * @deprecated Use isDesktop() instead
+ */
+export function isElectron(): boolean {
+  return isDesktop();
 }
 
 /**
@@ -134,84 +144,128 @@ function getApiBaseUrl(): string {
     return cachedApiBaseUrl;
   }
   
-  // Check if we're in Electron and have a configured API URL
+  // Check if we're in Tauri/Desktop environment
   if (typeof window !== 'undefined') {
     const win = window as unknown as WindowElectronAPI;
     
-    // Priority 1: Check if Electron injected the API URL (via preload script)
-    const electronApiUrl = win.__ELECTRON_API_URL__ || win.electronAPI?.apiUrl;
-    if (electronApiUrl && electronApiUrl.trim() !== '') {
-      cachedApiBaseUrl = normalizeUrl(electronApiUrl);
-      return cachedApiBaseUrl;
-    }
-    
-    // Priority 2: Check environment variable (set at build time)
+    // Priority 1: Check environment variable (set during build or runtime)
+    // In Tauri builds, this should point to the remote API server
     const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (envApiUrl && envApiUrl.trim() !== '') {
       cachedApiBaseUrl = normalizeUrl(envApiUrl);
       return cachedApiBaseUrl;
     }
     
-    // Priority 3: If in Electron but no API URL, check if we're loading from remote
-    if (isElectron() && window.location.protocol === 'https:') {
-      const origin = window.location.origin;
-      console.log('[API Config] Using current origin as API URL:', origin);
-      cachedApiBaseUrl = origin;
+    // Priority 2: Check if Tauri injected the API URL via window
+    // Tauri can inject this via the Rust backend
+    if ('__TAURI__' in window) {
+      // Try to get API URL from Tauri (if available)
+      // This would be set by the Tauri backend
+      const tauriApiUrl = (window as any).__TAURI_API_URL__;
+      if (tauriApiUrl && tauriApiUrl.trim() !== '') {
+        cachedApiBaseUrl = normalizeUrl(tauriApiUrl);
+        return cachedApiBaseUrl;
+      }
+    }
+    
+    // Priority 3: Legacy - Check if Electron injected the API URL (for backward compatibility)
+    const electronApiUrl = win.__ELECTRON_API_URL__ || win.electronAPI?.apiUrl;
+    if (electronApiUrl && electronApiUrl.trim() !== '') {
+      cachedApiBaseUrl = normalizeUrl(electronApiUrl);
       return cachedApiBaseUrl;
+    }
+    
+    // Priority 4: If in desktop but no API URL configured, use remote origin
+    // This is a fallback - in production Tauri builds, API URL should be explicitly configured
+    if (isDesktop()) {
+      if (window.location.protocol === 'https:') {
+        // Loading from remote HTTPS - use same origin
+        const origin = window.location.origin;
+        console.log('[API Config] Using current origin as API URL:', origin);
+        cachedApiBaseUrl = origin;
+        return cachedApiBaseUrl;
+      } else {
+        // Loading from file:// or app:// - need explicit API URL
+        // In Tauri static builds, API calls must go to remote server
+        console.warn('[API Config] Tauri detected but no API URL configured. API calls will fail.');
+        console.warn('[API Config] Set NEXT_PUBLIC_API_URL environment variable or configure in Tauri backend.');
+        // Return empty string - caller should handle this gracefully
+        cachedApiBaseUrl = '';
+        return cachedApiBaseUrl;
+      }
     }
   }
   
-  // Default: use relative URLs (same origin)
+  // Default: use relative URLs (same origin) - only for web builds
   cachedApiBaseUrl = '';
   return cachedApiBaseUrl;
 }
 
 export const API_BASE_URL = getApiBaseUrl();
 
+/**
+ * Export getApiBaseUrl for use in other modules
+ */
+export { getApiBaseUrl };
+
 // ============================================================================
 // Electron IPC Request Handler
 // ============================================================================
 
 /**
- * Handle API request via Electron IPC
+ * Handle API request via desktop API (Tauri or Electron)
  */
-async function handleElectronRequest(
+async function handleDesktopRequest(
   endpoint: string,
   options: RequestInit
 ): Promise<Response> {
-  const electronAPI = getElectronAPI();
-  if (!electronAPI?.api) {
-    throw new Error('Electron API not available');
+  // Try to use unified desktop API
+  try {
+    const { desktopAPI } = await import('./desktop-api');
+    if (desktopAPI.isDesktop) {
+      const result = await desktopAPI.api.request(endpoint, {
+        method: options.method || 'GET',
+        body: parseRequestBody(options.body),
+        headers: (options.headers as Record<string, string>) || {},
+      });
+      
+      return new Response(JSON.stringify(result.data || {}), {
+        status: result.status || (result.ok ? 200 : 500),
+        statusText: result.statusText || (result.ok ? 'OK' : 'Error'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+  } catch (error) {
+    console.warn('[API Request] Desktop API not available, falling back to fetch');
   }
   
-  try {
-    const body = parseRequestBody(options.body);
-    
-    const result = await electronAPI.api.request(endpoint, {
-      method: options.method || 'GET',
-      body,
-      headers: (options.headers as Record<string, string>) || {},
-    });
-    
-    // Convert Electron IPC result to Response-like object
-    return new Response(JSON.stringify(result.data || {}), {
-      status: result.status || (result.ok ? 200 : 500),
-      statusText: result.statusText || (result.ok ? 'OK' : 'Error'),
-      headers: {
-        'Content-Type': 'application/json',
-        ...(result.headers || {}),
-      },
-    });
-  } catch (error: any) {
-    console.error('[API Request] Electron IPC error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Request failed' }), {
-      status: 500,
-      statusText: 'Internal Server Error',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+  // Fallback: Try legacy Electron API
+  const electronAPI = getElectronAPI();
+  if (electronAPI?.api) {
+    try {
+      const body = parseRequestBody(options.body);
+      const result = await electronAPI.api.request(endpoint, {
+        method: options.method || 'GET',
+        body,
+        headers: (options.headers as Record<string, string>) || {},
+      });
+      
+      return new Response(JSON.stringify(result.data || {}), {
+        status: result.status || (result.ok ? 200 : 500),
+        statusText: result.statusText || (result.ok ? 'OK' : 'Error'),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(result.headers || {}),
+        },
+      });
+    } catch (error: any) {
+      console.error('[API Request] Legacy Electron IPC error:', error);
+    }
   }
+  
+  throw new Error('Desktop API not available');
 }
 
 // ============================================================================
@@ -220,6 +274,11 @@ async function handleElectronRequest(
 
 /**
  * Make an API request with the correct base URL
+ * 
+ * NOW WITH OFFLINE SUPPORT:
+ * - Online: Routes through desktop API or direct fetch, caches GET responses
+ * - Offline: GET returns cached data, write requests are queued
+ * 
  * In Electron: routes through main process via IPC (no CORS issues)
  * In Web: uses direct fetch with cookies (same-origin, no CORS)
  * 
@@ -232,47 +291,24 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  // ✅ CRITICAL: Check if we're in Electron and route through IPC
-  if (isElectron() && getElectronAPI()?.api) {
-    return handleElectronRequest(endpoint, options);
-  }
+  // Use the unified offline-capable API fetch wrapper
+  // This provides automatic offline support, caching, and queueing
+  const { apiFetch } = await import('./api-fetch');
   
-  // ✅ Web: Use direct fetch with cookies (same-origin, no CORS)
-  const method = options.method || 'GET';
-  
-  // Build full URL
-  let fullUrl: string;
-  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
-    fullUrl = endpoint;
-  } else {
-    const baseUrl = API_BASE_URL || '';
-    fullUrl = baseUrl 
-      ? `${baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`
-      : endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-  }
-  
-  // Log in development and Electron for debugging
-  if (process.env.NODE_ENV === 'development' || isElectron()) {
-    console.log('[API Request]', fullUrl, method);
-  }
-  
-  // Make the request
-  try {
-    const response = await fetch(fullUrl, {
-      ...options,
-      credentials: 'include', // Important for cookies/auth
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
-    
-    return response;
-  } catch (error: any) {
-    // Re-throw the error for the caller to handle
-    console.error('[API Request] Network/fetch error:', error.message);
-    throw error;
-  }
+  // Pass through to apiFetch with offline support
+  // apiFetch will handle:
+  // - Desktop API routing (if in Tauri/Electron)
+  // - Offline detection
+  // - Caching (for GET requests)
+  // - Queueing (for write requests when offline)
+  return await apiFetch<T>(endpoint, {
+    ...options,
+    credentials: 'include', // Important for cookies/auth
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
 }
 
 /**

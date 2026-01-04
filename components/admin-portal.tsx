@@ -11,9 +11,14 @@ import AdminUserManagement from '@/components/admin-user-management'
 import AdminPasswordResetRequests from '@/components/admin-password-reset-requests'
 import AdminAuditLogs from '@/components/admin-audit-logs'
 import AdminSystemSettings from '@/components/admin-system-settings'
+import AdminSyncMonitoring from '@/components/admin-sync-monitoring'
+import AdminDataManagement from '@/components/admin-data-management'
+import AdminNotificationManagement from '@/components/admin-notification-management'
+import AdminEmergencyOverrides from '@/components/admin-emergency-overrides'
 import ComplianceDashboard from '@/components/compliance-dashboard'
 import PolicyManagement from '@/components/policy-management'
 import EnhancedAuditLogViewer from '@/components/enhanced-audit-log-viewer'
+import AuditCoverageDashboard from '@/components/audit-coverage-dashboard'
 import PayrollManagement from '@/components/payroll-management'
 import AssetManagement from '@/components/asset-management'
 import TrainingManagement from '@/components/training-management'
@@ -60,6 +65,8 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
         return <AdminPasswordResetRequests />
       case 'audit-logs':
         return <EnhancedAuditLogViewer />
+      case 'audit-coverage':
+        return <AuditCoverageDashboard />
       case 'settings':
         return <AdminSystemSettings />
       case 'compliance':
@@ -72,6 +79,14 @@ export default function AdminPortal({ onLogout }: AdminPortalProps) {
         return <AssetManagement />
       case 'training':
         return <TrainingManagement />
+      case 'sync-monitoring':
+        return <AdminSyncMonitoring />
+      case 'data-management':
+        return <AdminDataManagement />
+      case 'notifications':
+        return <AdminNotificationManagement />
+      case 'emergency-overrides':
+        return <AdminEmergencyOverrides />
       default:
         return <AdminDashboard />
     }

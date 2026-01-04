@@ -4,6 +4,11 @@ import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { MOFA_UNITS, getUnitConfig } from '@/lib/mofa-unit-mapping'
 
 // POST bulk upload staff from CSV/Excel file
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {

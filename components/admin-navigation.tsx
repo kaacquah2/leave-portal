@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Shield, KeyRound, Menu, Lock, CheckCircle2, BookOpen, DollarSign, Package, GraduationCap } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Settings, LogOut, Shield, KeyRound, Menu, Lock, CheckCircle2, BookOpen, DollarSign, Package, GraduationCap, BarChart3, RefreshCw, Download, Bell, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
@@ -31,7 +31,12 @@ export default function AdminNavigation({ activeTab, setActiveTab, onLogout, use
     { id: 'users', label: 'User Management', icon: Users, permission: 'system:users:manage' },
     { id: 'password-resets', label: 'Password Resets', icon: KeyRound, permission: 'system:users:manage' },
     { id: 'audit-logs', label: 'Audit Logs', icon: FileText, permission: 'system:audit:view' },
+    { id: 'audit-coverage', label: 'Audit Coverage', icon: BarChart3, permission: 'system:audit:view' },
     { id: 'settings', label: 'System Settings', icon: Settings, permission: 'system:config:manage' },
+    { id: 'sync-monitoring', label: 'Sync Monitoring', icon: RefreshCw, permission: 'system:audit:view', section: 'monitoring' },
+    { id: 'data-management', label: 'Data Management', icon: Download, permission: 'system:config:manage', section: 'monitoring' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, permission: 'system:config:manage', section: 'monitoring' },
+    { id: 'emergency-overrides', label: 'Emergency Overrides', icon: AlertTriangle, permission: 'system:config:manage', section: 'monitoring' },
     { id: 'compliance', label: 'Compliance Dashboard', icon: Shield, permission: 'system:audit:view', section: 'compliance' },
     { id: 'policies', label: 'Policy Management', icon: BookOpen, permission: 'leave:policy:manage', section: 'compliance' },
     { id: 'payroll', label: 'Payroll Management', icon: DollarSign, permission: 'employee:salary:edit', section: 'compliance' },
@@ -94,6 +99,34 @@ export default function AdminNavigation({ activeTab, setActiveTab, onLogout, use
             )
           })}
         </div>
+
+        {/* Monitoring Section */}
+        {visibleItems.some(item => item.section === 'monitoring') && (
+          <div className="mb-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2 px-2">
+              Monitoring & Operations
+            </h3>
+            {visibleItems.filter(item => item.section === 'monitoring').map(item => {
+              const Icon = item.icon
+              const isActive = activeTab === item.id
+              return (
+                <Button
+                  key={item.id}
+                  variant={isActive ? 'default' : 'ghost'}
+                  className={`w-full justify-start gap-3 mb-1 ${
+                    isActive 
+                      ? 'bg-primary hover:bg-primary/90 text-white border-l-4 border-primary' 
+                      : 'text-foreground hover:bg-muted'
+                  }`}
+                  onClick={() => handleTabChange(item.id)}
+                >
+                  <Icon className="w-5 h-5" />
+                  {item.label}
+                </Button>
+              )
+            })}
+          </div>
+        )}
 
         {/* Compliance Section */}
         {visibleItems.some(item => item.section === 'compliance') && (

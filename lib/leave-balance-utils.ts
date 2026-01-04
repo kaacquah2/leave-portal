@@ -1,9 +1,11 @@
 /**
  * Leave Balance Utility Functions
  * Handles balance field mapping, deduction, restoration, and validation
+ * Implements optimistic locking to prevent concurrent modification conflicts
  */
 
 import { prisma } from './prisma'
+import { updateLeaveBalanceWithLock } from './optimistic-locking'
 
 import type { LeaveBalance } from '@prisma/client'
 
@@ -90,52 +92,55 @@ export async function deductLeaveBalance(
   }
   
   try {
-    // Use transaction to ensure atomicity
-    const result = await prisma.$transaction(async (tx) => {
-      // Get current balance with lock
-      const balance = await tx.leaveBalance.findUnique({
-        where: { staffId },
-      })
-      
-      if (!balance) {
-        throw new Error(`Leave balance not found for staff ${staffId}`)
-      }
-      
-      const currentBalance = (balance[fieldName as keyof LeaveBalance] as number) || 0
-      
-      if (currentBalance < days) {
-        throw new Error(`Insufficient balance: ${currentBalance} < ${days}`)
-      }
-      
-      const newBalance = currentBalance - days
-      
-      // Update balance
-      await tx.leaveBalance.update({
-        where: { staffId },
-        data: {
-          [fieldName]: newBalance,
-        },
-      })
-      
-      // Create accrual history record for deduction
-      await tx.leaveAccrualHistory.create({
-        data: {
-          staffId,
-          leaveType,
-          accrualDate: new Date(),
-          accrualPeriod: 'deduction',
-          daysAccrued: -days, // Negative for deduction
-          daysBefore: currentBalance,
-          daysAfter: newBalance,
-          notes: `Balance deducted for approved leave request`,
-          processedBy: 'system',
-        },
-      })
-      
-      return { newBalance, previousBalance: currentBalance }
-    })
+    // Use optimistic locking to prevent concurrent modification conflicts
+    const result = await updateLeaveBalanceWithLock(
+      staffId,
+      async (version, balance) => {
+        const currentBalance = (balance[fieldName as keyof LeaveBalance] as number) || 0
+        
+        if (currentBalance < days) {
+          throw new Error(`Insufficient balance: ${currentBalance} < ${days}`)
+        }
+        
+        const newBalance = currentBalance - days
+        
+        // Update balance (version will be incremented by updateLeaveBalanceWithLock)
+        await prisma.leaveBalance.update({
+          where: { staffId },
+          data: {
+            [fieldName]: newBalance,
+          },
+        })
+        
+        // Create accrual history record for deduction
+        await prisma.leaveAccrualHistory.create({
+          data: {
+            staffId,
+            leaveType,
+            accrualDate: new Date(),
+            accrualPeriod: 'deduction',
+            daysAccrued: -days, // Negative for deduction
+            daysBefore: currentBalance,
+            daysAfter: newBalance,
+            notes: `Balance deducted for approved leave request`,
+            processedBy: 'system',
+          },
+        })
+        
+        return { newBalance, previousBalance: currentBalance }
+      },
+      { maxRetries: 3, retryDelay: 100, exponentialBackoff: true }
+    )
     
-    return { success: true, newBalance: result.newBalance }
+    if (!result.success) {
+      return {
+        success: false,
+        newBalance: 0,
+        error: result.error || 'Failed to deduct balance',
+      }
+    }
+    
+    return { success: true, newBalance: result.data?.newBalance || 0 }
   } catch (error: any) {
     return { success: false, newBalance: 0, error: error.message }
   }
@@ -160,70 +165,83 @@ export async function restoreLeaveBalance(
   }
   
   try {
-    // Use transaction to ensure atomicity
-    const result = await prisma.$transaction(async (tx) => {
-      // Get current balance
-      const balance = await tx.leaveBalance.findUnique({
-        where: { staffId },
-      })
-      
-      if (!balance) {
-        // Create balance if it doesn't exist
-        const newBalance = await tx.leaveBalance.create({
-          data: {
-            staffId,
-            [fieldName]: days,
-          },
-        })
-        
-        // Create accrual history record
-        await tx.leaveAccrualHistory.create({
-          data: {
-            staffId,
-            leaveType,
-            accrualDate: new Date(),
-            accrualPeriod: 'restoration',
-            daysAccrued: days,
-            daysBefore: 0,
-            daysAfter: days,
-            notes: `Balance restored for cancelled/rejected leave request`,
-            processedBy: 'system',
-          },
-        })
-        
-        return { newBalance: days, previousBalance: 0 }
-      }
-      
-      const currentBalance = (balance[fieldName as keyof LeaveBalance] as number) || 0
-      const newBalance = currentBalance + days
-      
-      // Update balance
-      await tx.leaveBalance.update({
-        where: { staffId },
+    // Use optimistic locking to prevent concurrent modification conflicts
+    const balance = await prisma.leaveBalance.findUnique({
+      where: { staffId },
+    })
+    
+    if (!balance) {
+      // Create balance if it doesn't exist (no locking needed for new records)
+      const newBalance = await prisma.leaveBalance.create({
         data: {
-          [fieldName]: newBalance,
+          staffId,
+          [fieldName]: days,
+          version: 0,
         },
       })
       
       // Create accrual history record
-      await tx.leaveAccrualHistory.create({
+      await prisma.leaveAccrualHistory.create({
         data: {
           staffId,
           leaveType,
           accrualDate: new Date(),
           accrualPeriod: 'restoration',
           daysAccrued: days,
-          daysBefore: currentBalance,
-          daysAfter: newBalance,
+          daysBefore: 0,
+          daysAfter: days,
           notes: `Balance restored for cancelled/rejected leave request`,
           processedBy: 'system',
         },
       })
       
-      return { newBalance, previousBalance: currentBalance }
-    })
+      return { success: true, newBalance: days }
+    }
     
-    return { success: true, newBalance: result.newBalance }
+    // Use optimistic locking for existing balance
+    const result = await updateLeaveBalanceWithLock(
+      staffId,
+      async (version, currentBalance) => {
+        const balanceValue = (currentBalance[fieldName as keyof LeaveBalance] as number) || 0
+        const newBalance = balanceValue + days
+        
+        // Update balance (version will be incremented by updateLeaveBalanceWithLock)
+        await prisma.leaveBalance.update({
+          where: { staffId },
+          data: {
+            [fieldName]: newBalance,
+          },
+        })
+        
+        // Create accrual history record
+        await prisma.leaveAccrualHistory.create({
+          data: {
+            staffId,
+            leaveType,
+            accrualDate: new Date(),
+            accrualPeriod: 'restoration',
+            daysAccrued: days,
+            daysBefore: balanceValue,
+            daysAfter: newBalance,
+            notes: `Balance restored for cancelled/rejected leave request`,
+            processedBy: 'system',
+          },
+        })
+        
+        return { newBalance, previousBalance: balanceValue }
+      },
+      { maxRetries: 3, retryDelay: 100, exponentialBackoff: true }
+    )
+    
+    if (!result.success) {
+      return {
+        success: false,
+        newBalance: 0,
+        error: result.error || 'Failed to restore balance',
+      }
+    }
+    
+    return { success: true, newBalance: result.data?.newBalance || 0 }
   } catch (error: any) {
     return { success: false, newBalance: 0, error: error.message }
   }

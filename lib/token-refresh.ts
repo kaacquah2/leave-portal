@@ -56,25 +56,41 @@ function shouldRefreshToken(token: string | null): boolean {
  * Get current token (Electron or web)
  */
 async function getCurrentToken(): Promise<string | null> {
-  if (isElectron()) {
+  // Check if we're in desktop (Tauri or Electron)
+  const isDesktop = typeof window !== 'undefined' && 
+    (('__TAURI__' in window) || !!(window as any).electronAPI)
+  
+  if (isDesktop) {
     try {
-      const electronAPI = (window as any).electronAPI
-      if (electronAPI?.api?.hasToken) {
-        const result = await electronAPI.api.hasToken()
-        if (result.hasToken) {
+      // Try unified desktop API first
+      const { desktopAPI } = await import('./desktop-api');
+      if (desktopAPI.isDesktop) {
+        const hasToken = await desktopAPI.api.hasToken();
+        if (hasToken) {
           // Token exists but we can't read it directly (secure storage)
           // We'll need to check via API call
-          return 'exists' // Placeholder - actual token is in secure storage
+          return 'exists'; // Placeholder - actual token is in secure storage
         }
       }
     } catch (error) {
-      console.error('[Token Refresh] Error checking token:', error)
+      // Fallback to legacy Electron API
+      try {
+        const electronAPI = (window as any).electronAPI;
+        if (electronAPI?.api?.hasToken) {
+          const result = await electronAPI.api.hasToken();
+          if (result.hasToken) {
+            return 'exists';
+          }
+        }
+      } catch (fallbackError) {
+        console.error('[Token Refresh] Error checking token:', fallbackError);
+      }
     }
-    return null
+    return null;
   }
 
   // For web, we can't read httpOnly cookies, so we check via API
-  return 'exists' // Placeholder
+  return 'exists'; // Placeholder
 }
 
 /**

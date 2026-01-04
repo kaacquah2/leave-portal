@@ -17,6 +17,10 @@ import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { logDataAccess } from '@/lib/data-access-logger'
 import { mapToMoFARole } from '@/lib/role-mapping'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * GET /api/payroll/salary-structure
  * Get salary structures

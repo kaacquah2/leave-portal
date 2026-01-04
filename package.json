@@ -4,7 +4,6 @@
   "description": "HR Leave Portal Desktop Application",
   "author": "MOFA",
   "private": true,
-  "main": "electron/main.js",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
@@ -14,23 +13,10 @@
     "url": ""
   },
   "scripts": {
-    "build": "prisma generate && next build --webpack",
-    "build:electron": "cross-env ELECTRON=1 prisma generate && next build --webpack",
-    "build:electron:repos": "tsc -p tsconfig.electron.json",
+    "build": "node scripts/assert-static-safe.js && prisma generate && next build --webpack",
     "dev": "prisma generate && next dev --webpack",
     "lint": "eslint .",
     "start": "next start",
-    "electron": "electron .",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "cross-env ELECTRON=1 npm run build && cross-env ELECTRON_API_URL=${ELECTRON_API_URL:-} electron-builder",
-    "electron:build:win": "node scripts/build-electron.js",
-    "electron:build:mac": "cross-env ELECTRON=1 npm run build && cross-env ELECTRON_API_URL=${ELECTRON_API_URL:-} electron-builder --mac",
-    "electron:build:linux": "cross-env ELECTRON=1 npm run build && cross-env ELECTRON_API_URL=${ELECTRON_API_URL:-} electron-builder --linux",
-    "electron:build:vercel": "cross-env ELECTRON_API_URL=${ELECTRON_API_URL} npm_config_build_from_source=false electron-builder",
-    "electron:build:vercel:win": "cross-env ELECTRON_API_URL=${ELECTRON_API_URL} npm_config_build_from_source=false electron-builder --win",
-    "electron:build:vercel:mac": "cross-env ELECTRON_API_URL=${ELECTRON_API_URL} npm_config_build_from_source=false electron-builder --mac",
-    "electron:build:vercel:linux": "cross-env ELECTRON_API_URL=${ELECTRON_API_URL} npm_config_build_from_source=false electron-builder --linux",
-    "electron:rebuild": "@electron/rebuild -f -w better-sqlite3",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:fix": "tsx scripts/fix-migration-lock.ts",
@@ -41,6 +27,7 @@
     "db:test": "tsx scripts/test-db-connection.ts",
     "create-users": "tsx scripts/create-test-users.ts",
     "verify-users": "tsx scripts/verify-users.ts",
+    "migrate:remove-deprecated-roles": "tsx scripts/migrate-remove-deprecated-roles.ts",
     "setup:initial": "tsx scripts/setup-initial-data.ts",
     "accrual:monthly": "tsx scripts/scheduled-accrual.ts",
     "accrual:year-end": "tsx scripts/year-end-processing.ts",
@@ -53,8 +40,10 @@
     "mobile:android": "cd mobile && npm run android",
     "clean:cache": "tsx scripts/clear-cache.ts",
     "clean:all": "tsx scripts/clear-cache.ts --all",
-    "test:electron": "mocha tests/electron/**/*.test.js",
-    "test:electron:watch": "mocha tests/electron/**/*.test.js --watch"
+    "build:tauri": "node scripts/clean-next-cache.js && node scripts/disable-api-for-tauri.js && cross-env TAURI=1 next build --webpack && node scripts/verify-export.js",
+    "tauri": "tauri",
+    "tauri:dev": "cross-env TAURI=1 npm run dev & wait-on http://localhost:3000 && tauri dev",
+    "tauri:build": "npm run build:tauri && tauri build"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -96,14 +85,13 @@
     "@vercel/analytics": "^1.4.1",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.7.0",
     "bufferutil": "^4.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
-    "electron-is-dev": "^2.0.0",
     "embla-carousel-react": "8.5.1",
+    "exceljs": "^4.4.0",
     "input-otp": "1.4.1",
     "jose": "^5.9.6",
     "jspdf": "^3.0.4",
@@ -126,117 +114,31 @@
     "vaul": "^1.1.2",
     "web-push": "^3.6.7",
     "ws": "^8.18.3",
-    "exceljs": "^4.4.0",
-    "zod": "3.25.76",
-    "electron-updater": "^6.1.7"
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/cli": "^2.9.6",
     "@types/bcryptjs": "^2.4.6",
-    "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^22",
-    "@types/uuid": "^10.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.1",
     "cross-env": "^7.0.3",
     "dotenv": "^17.2.3",
-    "electron": "^39.2.7",
-    "@electron/rebuild": "^3.6.0",
     "postcss": "^8.5",
     "prisma": "^7.0.0",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.1.9",
     "tsx": "^4.19.2",
     "tw-animate-css": "1.3.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.0.3"
   },
   "overrides": {
     "hono": ">=4.10.3",
     "valibot": ">=1.2.0"
-  },
-  "build": {
-    "appId": "com.mofa.hr-leave-portal",
-    "productName": "HR Leave Portal",
-    "copyright": "Copyright © 2024 Ministry of Fisheries and Aquaculture",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "out/**/*",
-      "electron/**/*",
-      "electron/repositories-compiled/**/*",
-      "package.json",
-      "node_modules/electron-is-dev/**/*",
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/uuid/**/*",
-      "node_modules/electron-updater/**/*",
-      "!.next/**/*",
-      "!.electron-builderignore",
-      "!electron/repositories/**/*.ts"
-    ],
-    "fileAssociations": [],
-    "asar": true,
-    "asarUnpack": [
-      "out/**/*",
-      "electron/migrations/**/*",
-      "electron/repositories-compiled/**/*",
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/uuid/**/*",
-      "electron/splash.html"
-    ],
-    "npmRebuild": true,
-    "nodeGypRebuild": true,
-    "buildDependenciesFromSource": false,
-    "forceCodeSigning": false,
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "public/mofa.ico",
-      "artifactName": "${productName} Setup ${version}.${ext}",
-      "requestedExecutionLevel": "asInvoker",
-      "signAndEditExecutable": false
-    },
-    "mac": {
-      "target": [
-        "dmg"
-      ],
-      "icon": "public/icon.icns",
-      "category": "public.app-category.business",
-      "identity": "${env.APPLE_IDENTITY}",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "icon": "public/icon.png",
-      "category": "Office"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "HR Leave Portal",
-      "installerIcon": "public/mofa.ico",
-      "uninstallerIcon": "public/mofa.ico",
-      "installerHeaderIcon": "public/mofa.ico",
-      "deleteAppDataOnUninstall": false,
-      "perMachine": false,
-      "runAfterFinish": false,
-      "menuCategory": "Government",
-      "artifactName": "${productName} Setup ${version}.${ext}",
-      "installerLanguages": ["en_US"],
-      "include": "electron/installer-script.nsh",
-      "warningsAsErrors": false,
-      "differentialPackage": false,
-      "guid": "com.mofa.hr-leave-portal",
-      "installerSidebar": "public/mofa.ico",
-      "uninstallerSidebar": "public/mofa.ico"
-    }
   }
 }

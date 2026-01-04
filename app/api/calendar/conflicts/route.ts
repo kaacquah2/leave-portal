@@ -6,6 +6,9 @@ import { hasPermission } from '@/lib/permissions'
 import { calculateConflicts, DEFAULT_THRESHOLDS } from '@/lib/conflict-detection'
 import { eachDayOfInterval, format, parseISO } from 'date-fns'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 // GET conflict detection data
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {

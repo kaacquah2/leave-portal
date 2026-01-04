@@ -9,6 +9,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { prisma } from '@/lib/prisma'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {

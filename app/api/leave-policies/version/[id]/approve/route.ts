@@ -11,7 +11,6 @@ import { withAuth, type AuthContext, isHRDirector } from '@/lib/auth-proxy'
 import { createAuditLog } from '@/lib/audit-logger'
 
 // Force static export configuration (required for static export mode)
-
 // For static export, API routes are not generated but need generateStaticParams
 // Return a dummy value to satisfy Next.js static export requirements
 export function generateStaticParams() {

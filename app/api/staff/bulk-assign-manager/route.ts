@@ -4,6 +4,11 @@ import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
 
 // POST bulk assign manager to multiple staff members
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {

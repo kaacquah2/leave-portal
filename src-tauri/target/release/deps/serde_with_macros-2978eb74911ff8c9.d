@@ -1,0 +1,8 @@
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\serde_with_macros-2978eb74911ff8c9.d: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\apply.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\lazy_bool.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\utils.rs
+
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\serde_with_macros-2978eb74911ff8c9.dll: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\apply.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\lazy_bool.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\utils.rs
+
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\lib.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\apply.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\lazy_bool.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.16.1\src\utils.rs:

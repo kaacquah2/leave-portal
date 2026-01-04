@@ -1,0 +1,10 @@
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\time_core-e55738d26a65dc1a.d: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\convert.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\hint.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\util.rs
+
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\libtime_core-e55738d26a65dc1a.rlib: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\convert.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\hint.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\util.rs
+
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\libtime_core-e55738d26a65dc1a.rmeta: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\convert.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\hint.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\util.rs
+
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\lib.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\convert.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\hint.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\time-core-0.1.6\src\util.rs:

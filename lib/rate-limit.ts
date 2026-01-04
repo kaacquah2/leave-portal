@@ -7,24 +7,9 @@
 
 import { NextResponse } from 'next/server'
 
-interface RateLimitEntry {
-  count: number
-  resetTime: number
-}
-
-// In-memory store for rate limiting
-// In production, consider using Redis for distributed systems
-const rateLimitStore = new Map<string, RateLimitEntry>()
-
-// Clean up old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.resetTime < now) {
-      rateLimitStore.delete(key)
-    }
-  }
-}, 5 * 60 * 1000)
+// Using in-memory cache for rate limiting
+// Can be upgraded to Redis later without code changes
+import { RateLimiter } from './cache'
 
 export interface RateLimitConfig {
   readonly maxRequests: number // Maximum requests allowed
@@ -45,47 +30,20 @@ export interface RateLimitResult {
  * @param config - Rate limit configuration
  * @returns Rate limit result
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   identifier: string,
   config: RateLimitConfig
-): RateLimitResult {
-  const now = Date.now()
-  const key = `${identifier}:${config.windowMs}`
-  const entry = rateLimitStore.get(key)
-
-  // If no entry exists or window has expired, create new entry
-  if (!entry || entry.resetTime < now) {
-    const newEntry: RateLimitEntry = {
-      count: 1,
-      resetTime: now + config.windowMs,
-    }
-    rateLimitStore.set(key, newEntry)
-    return {
-      allowed: true,
-      remaining: config.maxRequests - 1,
-      resetTime: newEntry.resetTime,
-    }
-  }
-
-  // Check if limit exceeded
-  if (entry.count >= config.maxRequests) {
-    const retryAfter = Math.ceil((entry.resetTime - now) / 1000)
-    return {
-      allowed: false,
-      remaining: 0,
-      resetTime: entry.resetTime,
-      retryAfter,
-    }
-  }
-
-  // Increment count
-  entry.count++
-  rateLimitStore.set(key, entry)
-
+): Promise<RateLimitResult> {
+  const windowSeconds = Math.floor(config.windowMs / 1000)
+  const result = await RateLimiter.checkLimit(identifier, config.maxRequests, windowSeconds)
+  
+  const retryAfter = result.allowed ? undefined : Math.ceil((result.resetAt - Date.now()) / 1000)
+  
   return {
-    allowed: true,
-    remaining: config.maxRequests - entry.count,
-    resetTime: entry.resetTime,
+    allowed: result.allowed,
+    remaining: result.remaining,
+    resetTime: result.resetAt,
+    retryAfter,
   }
 }
 
@@ -160,7 +118,7 @@ export async function rateLimit(
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
   const identifier = getClientIdentifier(request)
-  return checkRateLimit(identifier, config)
+  return await checkRateLimit(identifier, config)
 }
 
 /**

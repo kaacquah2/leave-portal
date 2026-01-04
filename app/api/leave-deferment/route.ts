@@ -11,6 +11,11 @@ import { hasPermission } from '@/lib/permissions'
 import { sendNotification } from '@/lib/notification-service'
 
 // GET all deferment requests (filtered by role)
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const { searchParams } = new URL(request.url)

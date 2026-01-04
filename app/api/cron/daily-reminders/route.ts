@@ -27,18 +27,42 @@ import {
   notifyHRYearEndApproaching
 } from '@/lib/notification-service'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 export async function GET(request: NextRequest) {
-  try {
-    // Verify cron secret or Vercel Cron header
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-    
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      const cronHeader = request.headers.get('x-vercel-cron')
-      if (!cronHeader) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // During static export build, return early without accessing headers
+  const isBuild = typeof process !== 'undefined' && 
+                  process.env.ELECTRON === '1' && 
+                  (process.env.NEXT_PHASE === 'phase-production-build' || !globalThis.window)
+  
+  if (isBuild) {
+    return NextResponse.json({
+      success: true,
+      message: 'Static export build - daily reminders require runtime',
+      timestamp: new Date().toISOString(),
+      results: {
+        escalationReminders: { success: false, message: 'Requires runtime' },
+        leaveStartReminders: { success: false, sent: 0, errors: 0, total: 0 },
+        yearEndNotifications: { success: false, message: 'Requires runtime', daysUntilYearEnd: 0 },
+        yearEndProcessing: { success: false, message: 'Requires runtime', processed: false },
+      },
+    })
+  }
+  
+  // Wrap in runtime handler
+  const runtimeHandler = async () => {
+    try {
+      // Verify cron secret or Vercel Cron header
+      const authHeader = request.headers.get('authorization')
+      const cronSecret = process.env.CRON_SECRET
+      
+      if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+        const cronHeader = request.headers.get('x-vercel-cron')
+        if (!cronHeader) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
       }
-    }
 
     const today = new Date()
     const isYearEnd = today.getMonth() === 11 && today.getDate() === 31 // December 31st
@@ -445,7 +469,10 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     )
+    }
   }
+  
+  return runtimeHandler()
 }
 
 // Allow POST for manual triggering

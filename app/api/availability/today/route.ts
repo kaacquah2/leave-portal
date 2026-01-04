@@ -5,6 +5,9 @@ import { mapToMoFARole } from '@/lib/role-mapping'
 import { hasPermission } from '@/lib/permissions'
 import { format, startOfDay, endOfDay, parseISO } from 'date-fns'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 // GET who is on leave today
 export const GET = withAuth(async ({ user, request }: AuthContext): Promise<NextResponse<any>> => {
   try {
@@ -62,20 +65,14 @@ export const GET = withAuth(async ({ user, request }: AuthContext): Promise<Next
           ]
         }
       } else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
+        // Note: division_head is mapped to UNIT_HEAD during normalization
         if (userStaff?.unit) {
           staffWhere.unit = userStaff.unit
         }
-      } else if (normalizedRole === 'DIVISION_HEAD' || normalizedRole === 'division_head') {
-        if (userStaff?.directorate) {
-          staffWhere.directorate = userStaff.directorate
-        }
       } else if (normalizedRole === 'DIRECTOR' || normalizedRole === 'directorate_head' || normalizedRole === 'deputy_director') {
+        // Note: regional_manager is mapped to DIRECTOR during normalization
         if (userStaff?.directorate) {
           staffWhere.directorate = userStaff.directorate
-        }
-      } else if (normalizedRole === 'REGIONAL_MANAGER' || normalizedRole === 'regional_manager') {
-        if (userStaff?.dutyStation) {
-          staffWhere.dutyStation = { in: ['Region', 'District'] }
         }
       }
     } else if (canViewOwn) {

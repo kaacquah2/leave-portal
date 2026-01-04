@@ -1,0 +1,9 @@
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\windows_collections-0e7f23cc8e6da6be.d: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\bindings.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\../readme.md
+
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\libwindows_collections-0e7f23cc8e6da6be.rlib: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\bindings.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\../readme.md
+
+C:\Users\OSCARPACK\Downloads\Telegram Desktop\hr-staff-leave-portal\leave-portal\src-tauri\target\release\deps\libwindows_collections-0e7f23cc8e6da6be.rmeta: C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\lib.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\bindings.rs C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\../readme.md
+
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\lib.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\bindings.rs:
+C:\Users\OSCARPACK\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-collections-0.2.0\src\../readme.md:

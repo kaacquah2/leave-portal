@@ -135,19 +135,20 @@ export async function canViewLeaveRequest(
     }
 
     // Manager/Supervisor roles: Unit-based scoping
+    // Note: DIVISION_HEAD and REGIONAL_MANAGER are legacy roles that map to UNIT_HEAD and DIRECTOR
     if (
       role === 'SUPERVISOR' ||
       role === 'UNIT_HEAD' ||
-      role === 'DIVISION_HEAD' ||
       role === 'DIRECTOR' ||
-      role === 'REGIONAL_MANAGER' ||
       role === 'supervisor' ||
       role === 'unit_head' ||
-      role === 'division_head' ||
       role === 'directorate_head' ||
-      role === 'regional_manager' ||
       role === 'manager' ||
-      role === 'deputy_director'
+      role === 'deputy_director' ||
+      (role as string) === 'division_head' || // Legacy: maps to UNIT_HEAD (not in UserRole type)
+      (role as string) === 'regional_manager' || // Legacy: maps to DIRECTOR (not in UserRole type)
+      (role as string) === 'DIVISION_HEAD' || // Legacy role check (not in UserRole type)
+      (role as string) === 'REGIONAL_MANAGER' // Legacy role check (not in UserRole type)
     ) {
       // Check if user is in the approval chain
       const isInApprovalChain = await isUserInApprovalChain(context, leaveRequestId)
@@ -173,21 +174,22 @@ export async function canViewLeaveRequest(
         }
       }
 
-      if (role === 'DIVISION_HEAD' || role === 'division_head') {
-        // Division Head: Can view same division
+      if ((role as string) === 'division_head' || (role as string) === 'DIVISION_HEAD') {
+        // Division Head: Can view same division (maps to UNIT_HEAD but uses directorate scope)
         if (context.directorate && leave.staff.directorate === context.directorate) {
           return { allowed: true }
         }
       }
 
-      if (role === 'DIRECTOR' || role === 'directorate_head' || role === 'deputy_director') {
-        // Director: Can view same directorate
+      if (role === 'DIRECTOR' || role === 'directorate_head' || role === 'deputy_director' || 
+          (role as string) === 'regional_manager' || (role as string) === 'REGIONAL_MANAGER') {
+        // Director: Can view same directorate (REGIONAL_MANAGER maps to DIRECTOR)
         if (context.directorate && leave.staff.directorate === context.directorate) {
           return { allowed: true }
         }
       }
 
-      if (role === 'REGIONAL_MANAGER' || role === 'regional_manager') {
+      if ((role as string) === 'regional_manager' || (role as string) === 'REGIONAL_MANAGER') {
         // Regional Manager: Can view regional/district staff
         if (
           context.dutyStation &&
@@ -267,7 +269,7 @@ export async function canApproveLeaveRequest(
       }
     }
 
-    // SYSTEM_ADMIN, SECURITY_ADMIN: Cannot approve leaves (system management only)
+    // SYSTEM_ADMIN: Cannot approve leaves (system management only)
     // Ghana Government Compliance: System admins cannot approve leave (segregation of duties)
     if (!canApproveLeave(context.role)) {
       return {
@@ -369,8 +371,8 @@ export async function canApproveLeaveRequest(
     if (
       context.role === 'SUPERVISOR' ||
       context.role === 'UNIT_HEAD' ||
-      context.role === 'DIVISION_HEAD' ||
-      context.role === 'DIRECTOR'
+      context.role === 'DIRECTOR' ||
+      (context.role as string) === 'DIVISION_HEAD' // Legacy role check
     ) {
       const scopeCheck = await checkUnitScope(context, leave.staff)
       if (!scopeCheck.allowed) {
@@ -430,7 +432,7 @@ async function checkUnitScope(
     }
   }
 
-  if (context.role === 'DIVISION_HEAD' || context.role === 'division_head') {
+  if ((context.role as string) === 'division_head' || (context.role as string) === 'DIVISION_HEAD') {
     // Division Head: Must be in same division
     if (context.directorate && staffInfo.directorate === context.directorate) {
       return { allowed: true }

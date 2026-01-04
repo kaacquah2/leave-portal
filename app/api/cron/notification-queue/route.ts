@@ -14,8 +14,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { processNotificationQueue, getQueueStatistics } from '@/lib/notification-queue'
 import { getServerSession, authOptions } from '@/lib/auth'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function GET(request: NextRequest) {
-  try {
+  // During static export build, return early without accessing headers
+  const isBuild = typeof process !== 'undefined' && 
+                  process.env.ELECTRON === '1' && 
+                  (process.env.NEXT_PHASE === 'phase-production-build' || !globalThis.window)
+  
+  if (isBuild) {
+    return NextResponse.json({
+      success: true,
+      message: 'Static export build - notification queue requires runtime',
+      timestamp: new Date().toISOString(),
+    })
+  }
+  
+  // Wrap in runtime handler
+  const runtimeHandler = async () => {
+    try {
     // Verify authorization - either via cron secret or admin session
     const authHeader = request.headers.get('authorization')
     const hasCronSecret = process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
@@ -63,7 +80,10 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     )
+    }
   }
+  
+  return runtimeHandler()
 }
 
 // Also support POST for external cron services that prefer POST

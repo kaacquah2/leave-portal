@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +36,8 @@ interface TeamMember {
 }
 
 export default function ManagerTeamView({ managerStaffId }: ManagerTeamViewProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [filteredMembers, setFilteredMembers] = useState<TeamMember[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -272,14 +275,11 @@ export default function ManagerTeamView({ managerStaffId }: ManagerTeamViewProps
                     size="sm"
                     className="w-full"
                     onClick={() => {
-                      // Navigate to leave approval for this team member
-                      // Use router for navigation instead of window.location
-                      if (typeof window !== 'undefined' && (window as any).__ELECTRON_API_URL__) {
-                        // In Electron, use current origin
-                        window.location.href = `${window.location.origin}/portal?tab=leave&staffId=${member.staffId}`
-                      } else {
-                        window.location.href = `/portal?tab=leave&staffId=${member.staffId}`
-                      }
+                      // Navigate to leave approval for this team member using Next.js router
+                      const params = new URLSearchParams(searchParams.toString())
+                      params.set('tab', 'leave')
+                      params.set('staffId', member.staffId)
+                      router.push(`/portal?${params.toString()}`, { scroll: false })
                     }}
                   >
                     View Leaves

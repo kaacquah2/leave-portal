@@ -3,17 +3,26 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { getStaffHistory } from '@/lib/staff-versioning'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions, request)
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const history = await getStaffHistory(params.id)
+    const history = await getStaffHistory(id)
 
     const formatted = history.map(entry => ({
       id: entry.id,

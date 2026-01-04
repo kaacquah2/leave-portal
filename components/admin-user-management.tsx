@@ -762,10 +762,56 @@ export default function AdminUserManagement() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setFormData({
+                        email: user.email,
+                        password: '',
+                        role: user.role,
+                        active: user.active,
+                        staffId: user.staffId || '',
+                        firstName: user.staff?.firstName || '',
+                        lastName: user.staff?.lastName || '',
+                        phone: '',
+                        department: user.staff?.department || '',
+                        position: '',
+                        grade: '',
+                        level: '',
+                        joinDate: '',
+                      })
+                      setShowAddDialog(true)
+                    }}
+                  >
                     <Edit className="w-4 h-4" />
                   </Button>
-                  <Button variant="destructive" size="sm">
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={async () => {
+                      if (!confirm(`Are you sure you want to delete user ${user.email}? This action cannot be undone.`)) {
+                        return
+                      }
+                      try {
+                        const { apiRequest } = await import('@/lib/api-config')
+                        const response = await apiRequest(`/api/admin/users/${user.id}`, {
+                          method: 'DELETE',
+                        })
+                        if (response.ok) {
+                          setSuccessMessage(`User ${user.email} has been deleted successfully`)
+                          fetchUsers()
+                          setTimeout(() => setSuccessMessage(''), 5000)
+                        } else {
+                          const error = await response.json()
+                          setError(error.error || 'Failed to delete user')
+                        }
+                      } catch (error) {
+                        console.error('Error deleting user:', error)
+                        setError('An error occurred while deleting the user')
+                      }
+                    }}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>

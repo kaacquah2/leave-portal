@@ -24,10 +24,10 @@ export default function UnifiedLeaveManagement({ store, userRole, staffId }: Uni
   const isHRRole = userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'HR_OFFICER' || userRole === 'HR_DIRECTOR'
   const isManagerRole = userRole === 'manager' || userRole === 'deputy_director' || 
                         normalizedRole === 'SUPERVISOR' || normalizedRole === 'supervisor' ||
-                        userRole === 'UNIT_HEAD' || userRole === 'DIVISION_HEAD' || 
-                        userRole === 'DIRECTOR' || userRole === 'REGIONAL_MANAGER' ||
-                        userRole === 'unit_head' || userRole === 'division_head' ||
-                        userRole === 'directorate_head' || userRole === 'regional_manager'
+                        userRole === 'UNIT_HEAD' || userRole === 'DIRECTOR' ||
+                        userRole === 'unit_head' || userRole === 'directorate_head' ||
+                        (userRole as string) === 'DIVISION_HEAD' || (userRole as string) === 'REGIONAL_MANAGER' ||
+                        (userRole as string) === 'division_head' || (userRole as string) === 'regional_manager'
   
   const showManagement = isHRRole || isManagerRole
   const showCalendar = isHRRole || isManagerRole

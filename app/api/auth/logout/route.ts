@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 // Handle OPTIONS preflight requests
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreflight(request) || new NextResponse(null, { status: 204 })
 }

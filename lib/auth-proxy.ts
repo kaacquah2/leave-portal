@@ -21,11 +21,10 @@ export type ApiResponse<T = any> = NextResponse<T> | NextResponse<{ error: strin
  * Maps various role formats to their canonical equivalent sets
  */
 const ROLE_EQUIVALENTS: Record<string, Set<string>> = {
-  // Admin roles - all consolidated to SYSTEM_ADMIN (including SECURITY_ADMIN for admin checks)
-  'system_admin': new Set(['system_admin', 'sys_admin', 'admin', 'security_admin']),
-  'sys_admin': new Set(['system_admin', 'sys_admin', 'admin', 'security_admin']),
-  'admin': new Set(['system_admin', 'sys_admin', 'admin', 'security_admin']),
-  'security_admin': new Set(['system_admin', 'sys_admin', 'admin', 'security_admin']),
+  // Admin roles - all consolidated to SYSTEM_ADMIN
+  'system_admin': new Set(['system_admin', 'sys_admin', 'admin']),
+  'sys_admin': new Set(['system_admin', 'sys_admin', 'admin']),
+  'admin': new Set(['system_admin', 'sys_admin', 'admin']),
   
   // HR roles
   'hr': new Set(['hr', 'hr_officer', 'hr_assistant']),
@@ -295,8 +294,7 @@ export function hasRole(user: AuthUser, allowedRoles: string[]): boolean {
  * Helper functions for common role checks (with normalization)
  */
 export function isAdmin(user: AuthUser): boolean {
-  // SECURITY_ADMIN is included as it has admin-level access for audit/compliance
-  return hasMatchingRole(user.role, ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin', 'SECURITY_ADMIN'])
+  return hasMatchingRole(user.role, ['SYSTEM_ADMIN', 'SYS_ADMIN', 'admin'])
 }
 
 export function isHR(user: AuthUser): boolean {

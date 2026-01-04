@@ -168,13 +168,6 @@ export default function AdminSystemSettings() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Two-Factor Authentication</p>
-              <p className="text-sm text-muted-foreground">Enable 2FA for all users</p>
-            </div>
-            <input type="checkbox" />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
               <p className="font-medium">Password Complexity</p>
               <p className="text-sm text-muted-foreground">Require strong passwords</p>
             </div>

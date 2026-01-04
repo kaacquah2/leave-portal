@@ -9,6 +9,42 @@ HR Leave Portal Desktop Application for the Ministry of Fisheries and Aquacultur
 - PostgreSQL database
 - SMTP server for email notifications
 
+### Electron Build Requirements
+
+#### Option 1: GitHub Actions (Recommended - No Local Setup)
+
+The easiest way to build the Electron app is using GitHub Actions, which has Visual Studio Build Tools pre-installed:
+
+1. Push the workflow file (already included): `.github/workflows/build-electron.yml`
+2. Go to **Actions** tab → **Build Electron App** → **Run workflow**
+3. Download the built installer from the **Artifacts** section
+
+See [docs/GITHUB-ACTIONS-BUILD.md](docs/GITHUB-ACTIONS-BUILD.md) for detailed instructions.
+
+#### Option 2: Local Build (Windows)
+
+To build locally on Windows, you need:
+
+- **Visual Studio Build Tools** with "Desktop development with C++" workload
+  - Download: https://visualstudio.microsoft.com/downloads/
+  - Select "Build Tools for Visual Studio" (smaller download)
+  - During installation, check "Desktop development with C++" workload
+
+**Why?** The `better-sqlite3` native module must be compiled for Electron's Node.js version, which requires C++ build tools on Windows.
+
+**Important for VS 2024 (version 18) users:** If you have Visual Studio Build Tools 2024 installed, run the setup script first to configure the environment:
+
+```powershell
+.\scripts\setup-vs-env.ps1
+```
+
+Then run the build:
+```bash
+npm run electron:build:win
+```
+
+For detailed build requirements and troubleshooting, see [docs/BUILD-REQUIREMENTS.md](docs/BUILD-REQUIREMENTS.md).
+
 ## Installation
 
 1. **Install Dependencies**:

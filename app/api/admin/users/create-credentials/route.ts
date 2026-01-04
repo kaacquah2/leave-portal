@@ -7,6 +7,9 @@ import { validatePasswordComplexity, addPasswordToHistory, setPasswordExpiry } f
 import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
 import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 /**
  * POST /api/admin/users/create-credentials
  * Create login credentials for an existing staff member

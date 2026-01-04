@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession, authOptions } from '@/lib/auth'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
+// Generate static params for dynamic route (empty array = skip static generation)
+export function generateStaticParams() {
+  return [{ id: 'dummy' }]
+}
+
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions, request)
     if (!session?.user) {
@@ -30,7 +39,7 @@ export async function DELETE(
     }
 
     const appointment = await prisma.actingAppointment.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!appointment) {
@@ -41,7 +50,7 @@ export async function DELETE(
     }
 
     await prisma.actingAppointment.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     // Create audit log

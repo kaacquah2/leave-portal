@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Force static export configuration (required for static export mode)
 // Generate static params for dynamic route
 export function generateStaticParams() {
   return [{ staffId: 'dummy' }]

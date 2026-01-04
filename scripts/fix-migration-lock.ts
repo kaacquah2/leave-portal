@@ -4,6 +4,24 @@
  */
 
 import 'dotenv/config';
+import { neonConfig } from '@neondatabase/serverless'
+import { PrismaNeon } from '@prisma/adapter-neon'
+import ws from 'ws'
+
+// Pre-load bufferutil to ensure it's available when ws needs it
+try {
+  require('bufferutil')
+} catch (e) {
+  // bufferutil is optional - ws will fall back to JS implementation
+}
+try {
+  require('utf-8-validate')
+} catch (e) {
+  // utf-8-validate is optional - ws will fall back to JS implementation
+}
+
+// Configure Neon for Node.js environment
+neonConfig.webSocketConstructor = ws
 
 // Use dynamic import to handle Prisma Client generation
 let prisma: any;
@@ -12,7 +30,19 @@ async function getPrismaClient() {
   if (!prisma) {
     try {
       const { PrismaClient } = await import('@prisma/client');
-      prisma = new PrismaClient();
+      
+      // Get database connection string
+      const connectionString = process.env.DATABASE_URL
+      if (!connectionString) {
+        throw new Error('DATABASE_URL environment variable is not set')
+      }
+
+      // Create Prisma client with Neon adapter
+      const adapter = new PrismaNeon({ connectionString })
+      prisma = new PrismaClient({
+        adapter,
+        log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+      });
     } catch (error: any) {
       if (error.message?.includes('Cannot find module') || error.code === 'MODULE_NOT_FOUND') {
         console.error('❌ Prisma Client not generated. Please run: npx prisma generate');

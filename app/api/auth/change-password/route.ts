@@ -19,6 +19,9 @@ import {
   isSeededUser
 } from '@/lib/password-policy'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()

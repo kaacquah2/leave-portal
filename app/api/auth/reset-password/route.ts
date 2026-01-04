@@ -12,6 +12,8 @@ import { validatePasswordComplexity, isPasswordInHistory, addPasswordToHistory, 
 import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limit'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function POST(request: NextRequest) {
   // Handle CORS preflight requests
   const preflightResponse = handleCorsPreflight(request)

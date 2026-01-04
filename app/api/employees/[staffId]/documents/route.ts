@@ -18,7 +18,6 @@ import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
 import { logDataAccess } from '@/lib/data-access-logger'
 
 // Force static export configuration (required for static export mode)
-
 // Generate static params for dynamic route (empty array = skip static generation)
 export function generateStaticParams() {
   return [{ staffId: 'dummy' }]

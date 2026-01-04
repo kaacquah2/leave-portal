@@ -12,6 +12,9 @@ import { rateLimit, RATE_LIMITS, createRateLimitResponse } from '@/lib/rate-limi
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 // Handle OPTIONS preflight requests
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreflight(request) || new NextResponse(null, { status: 204 })
 }

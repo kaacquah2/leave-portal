@@ -20,11 +20,10 @@ import type { AuthUser } from './auth-proxy'
 export function canApproveLeave(role: string | UserRole): boolean {
   const normalized = mapToMoFARole(role)
   
-  // SYSTEM_ADMIN and SECURITY_ADMIN cannot approve leave
+  // SYSTEM_ADMIN cannot approve leave
   if (
     normalized === 'SYSTEM_ADMIN' ||
     normalized === 'SYS_ADMIN' ||
-    normalized === 'SECURITY_ADMIN' ||
     normalized === 'admin'
   ) {
     return false
@@ -50,11 +49,10 @@ export function canApproveLeave(role: string | UserRole): boolean {
 export function canEditStaffRecords(role: string | UserRole): boolean {
   const normalized = mapToMoFARole(role)
   
-  // SYSTEM_ADMIN and SECURITY_ADMIN cannot edit staff records
+  // SYSTEM_ADMIN cannot edit staff records
   if (
     normalized === 'SYSTEM_ADMIN' ||
     normalized === 'SYS_ADMIN' ||
-    normalized === 'SECURITY_ADMIN' ||
     normalized === 'admin'
   ) {
     return false
@@ -173,8 +171,7 @@ export function isReadOnlyRole(role: string | UserRole): boolean {
   
   return (
     normalized === 'AUDITOR' ||
-    normalized === 'internal_auditor' ||
-    normalized === 'SECURITY_ADMIN'
+    normalized === 'internal_auditor'
   )
 }
 

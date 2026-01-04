@@ -10,6 +10,10 @@ import { prisma } from '@/lib/prisma'
 import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {

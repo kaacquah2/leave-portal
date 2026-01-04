@@ -3,6 +3,10 @@ import { withAuth, type AuthContext, isHR, isHRDirector, isChiefDirector } from 
 import { processYearEndForAllStaff, processYearEndLeave } from '@/lib/leave-rules'
 import { prisma } from '@/lib/prisma'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * Year-End Leave Processing API Endpoint
  * 

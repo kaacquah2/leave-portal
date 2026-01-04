@@ -37,20 +37,22 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    RENDERER PROCESS (React)                   │
 │  - UI Components                                              │
+> **⚠️ Note:** This document references Electron architecture. The application has been migrated to Tauri. For current architecture, see `docs/TAURI-MIGRATION-GUIDE.md`.
+
 │  - User Interactions                                           │
 │  - NO direct network access                                   │
 └───────────────────────┬───────────────────────────────────────┘
-                        │ IPC (contextBridge)
+                        │ Tauri Commands (invoke)
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    PRELOAD SCRIPT                            │
-│  - Exposes secure IPC methods                                │
-│  - window.electronAPI.repository.*                         │
+│                    TAURI CORE (Rust)                       │
+│  - Exposes secure commands                                  │
+│  - desktopAPI.repository.* (via Tauri commands)            │
 └───────────────────────┬───────────────────────────────────────┘
-                        │ IPC (ipcRenderer.invoke)
+                        │ Native Rust Functions
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    MAIN PROCESS                              │
+│                    TAURI MAIN PROCESS                       │
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │  Bootstrap Service                                    │  │
 │  │  - First-run initialization                          │  │

@@ -1,8 +1,10 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from 'lucide-react'
+import { apiRequest } from '@/lib/api-config'
 
 interface LeaveCalendarViewProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -11,12 +13,55 @@ interface LeaveCalendarViewProps {
 }
 
 export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCalendarViewProps) {
-  // Get leaves based on role
-  let leaves = store.leaves
+  const [calendarLeaves, setCalendarLeaves] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const currentYear = new Date().getFullYear()
+  const yearStart = new Date(currentYear, 0, 1)
+  const yearEnd = new Date(currentYear, 11, 31)
+
+  // Fetch calendar data from API for better accuracy
+  useEffect(() => {
+    const fetchCalendarData = async () => {
+      try {
+        setLoading(true)
+        const params = new URLSearchParams({
+          startDate: yearStart.toISOString().split('T')[0],
+          endDate: yearEnd.toISOString().split('T')[0],
+        })
+        
+        // Add role-based filters
+        if (userRole === 'employee' && staffId) {
+          params.append('staffId', staffId)
+        } else if (userRole === 'manager' && staffId) {
+          // Manager sees team leaves - API will filter based on permissions
+        }
+
+        const response = await apiRequest(`/api/calendar/leave-calendar?${params.toString()}`)
+        if (response.ok) {
+          const data = await response.json()
+          setCalendarLeaves(data.leaves || [])
+        } else {
+          // Fallback to store data
+          setCalendarLeaves(store.leaves || [])
+        }
+      } catch (error) {
+        console.error('Error fetching calendar data:', error)
+        // Fallback to store data
+        setCalendarLeaves(store.leaves || [])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCalendarData()
+  }, [userRole, staffId, currentYear])
+
+  // Get leaves based on role (use API data if available, otherwise fallback to store)
+  let leaves = calendarLeaves.length > 0 ? calendarLeaves : store.leaves
   if (userRole === 'employee' && staffId) {
     leaves = leaves.filter((l: any) => l.staffId === staffId)
   } else if (userRole === 'manager') {
-    // In production, filter by manager's team
+    // Filter by manager's team (API should handle this, but filter here as fallback)
     leaves = leaves.filter((l: any) => l.status === 'pending' || l.status === 'approved')
   }
 
@@ -31,7 +76,6 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
   })
 
   // Get holidays for the year and deduplicate
-  const currentYear = new Date().getFullYear()
   const holidayMap = new Map<string, any>()
   
   // Process holidays and deduplicate by date

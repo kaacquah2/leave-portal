@@ -12,7 +12,8 @@ import { UserRole } from '@/lib/permissions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Download, Eye, FileText, Shield } from 'lucide-react'
+import { Download, Eye, FileText, Shield, BarChart3 } from 'lucide-react'
+import AuditCoverageDashboard from '@/components/audit-coverage-dashboard'
 
 interface AuditorPortalProps {
   userRole: UserRole
@@ -89,6 +90,7 @@ export default function AuditorPortal({ userRole, onLogout }: AuditorPortalProps
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
+            <TabsTrigger value="audit-coverage">Audit Coverage</TabsTrigger>
             <TabsTrigger value="leave-records">Leave Records</TabsTrigger>
             <TabsTrigger value="compliance-reports">Compliance Reports</TabsTrigger>
           </TabsList>
@@ -145,6 +147,10 @@ export default function AuditorPortal({ userRole, onLogout }: AuditorPortalProps
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="audit-coverage">
+            <AuditCoverageDashboard />
           </TabsContent>
 
           <TabsContent value="leave-records">

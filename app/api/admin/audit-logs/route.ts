@@ -3,8 +3,30 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isAdmin } from '@/lib/auth-proxy'
 import { ADMIN_ROLES } from '@/lib/role-utils'
 
-// GET audit logs (admin only, including SECURITY_ADMIN)
-export const GET = withAuth(async ({ user, request }: AuthContext) => {
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
+// GET audit logs (admin only)
+export async function GET(request: NextRequest) {
+  // During static export build, return early without accessing cookies
+  const isBuild = typeof process !== 'undefined' && 
+                  process.env.ELECTRON === '1' && 
+                  (process.env.NEXT_PHASE === 'phase-production-build' || !globalThis.window)
+  
+  if (isBuild) {
+    return NextResponse.json({
+      logs: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+      note: 'Static export build - audit logs require runtime',
+    })
+  }
+
+  // At runtime, dynamically import withAuth to avoid static analysis detection
+  const runtimeHandler = async () => {
+    const { withAuth, isAdmin } = await import('@/lib/auth-proxy')
+    return withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only admin can access this route
     if (!isAdmin(user)) {
@@ -67,5 +89,9 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       { status: 500 }
     )
   }
-}, { allowedRoles: ADMIN_ROLES })
+    }, { allowedRoles: ADMIN_ROLES })(request)
+  }
+  
+  return runtimeHandler()
+}
 

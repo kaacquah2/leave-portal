@@ -14,6 +14,9 @@ import { createHash } from 'crypto'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 // Export control matrix by role
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 const EXPORT_PERMISSIONS: Record<string, string[]> = {
   HR_DIRECTOR: ['staff', 'leave', 'payroll', 'audit', 'custom'],
   HR_OFFICER: ['staff', 'leave', 'payroll'],
@@ -178,6 +181,20 @@ export async function POST(request: NextRequest) {
         },
       },
     })
+
+    // Comprehensive audit logging
+    const { logDataExport } = await import('@/lib/comprehensive-audit')
+    await logDataExport(
+      session.user.id,
+      userRole,
+      session.user.email,
+      exportType,
+      dataType || exportType,
+      recordCount,
+      { watermark, filters, dateRange },
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+      request.headers.get('user-agent') || undefined
+    )
 
     // Add watermark to data
     const watermarkedData = {

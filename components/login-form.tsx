@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { APP_CONFIG } from '@/lib/app-config'
+import { getRoleRoute, mapToMoFARole } from '@/lib/role-mapping'
 
 interface LoginFormProps {
   onLoginSuccess?: (role: 'hr' | 'manager' | 'employee' | 'admin', staffId?: string) => void
@@ -96,19 +97,19 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
       }
 
       // Redirect to appropriate portal based on role
-      const role = data.user.role as 'hr' | 'manager' | 'employee' | 'admin'
-      const roleRoutes: Record<string, string> = {
-        admin: '/admin',
-        hr: '/hr',
-        manager: '/manager',
-        employee: '/employee',
-      }
-      
-      const redirectPath = roleRoutes[role] || '/'
+      // Map role to MoFA role format and get the correct route
+      const userRole = data.user.role as string
+      const moFARole = mapToMoFARole(userRole)
+      const redirectPath = getRoleRoute(moFARole)
       
       // Call callback if provided (for backward compatibility)
+      // Use legacy role format for callback compatibility
       if (onLoginSuccess) {
-        onLoginSuccess(role, data.user.staffId || undefined)
+        const legacyRole = userRole === 'HR_OFFICER' || userRole === 'hr_officer' || userRole === 'hr' || userRole === 'hr_assistant' ? 'hr' :
+                          userRole === 'SUPERVISOR' || userRole === 'supervisor' || userRole === 'manager' ? 'manager' :
+                          userRole === 'EMPLOYEE' || userRole === 'employee' ? 'employee' :
+                          userRole === 'SYSTEM_ADMIN' || userRole === 'SYS_ADMIN' || userRole === 'admin' ? 'admin' : 'employee'
+        onLoginSuccess(legacyRole as 'hr' | 'manager' | 'employee' | 'admin', data.user.staffId || undefined)
       }
       
       router.push(redirectPath)

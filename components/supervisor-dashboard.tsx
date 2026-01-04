@@ -28,6 +28,7 @@ import {
 import { useDataStore } from '@/lib/data-store'
 import { type UserRole } from '@/lib/permissions'
 import { apiRequest } from '@/lib/api-config'
+import RoleQuickActions from '@/components/role-quick-actions'
 
 interface SupervisorDashboardProps {
   staffId?: string
@@ -58,49 +59,153 @@ export default function SupervisorDashboard({
     try {
       setLoading(true)
       
-      // Fetch pending leave requests for direct reports
-      const leavesResponse = await apiRequest('/api/leaves?status=pending')
-      if (leavesResponse.ok) {
-        const allLeaves = await leavesResponse.json()
-        // Filter for direct reports (this would be enhanced with actual team filtering)
-        const directReportsLeaves = allLeaves.filter((leave: any) => {
-          // In a full implementation, check if leave.staff.immediateSupervisorId === staffId
-          return leave.status === 'pending'
-        })
-        setPendingLeaves(directReportsLeaves.slice(0, 5)) // Show top 5
+      if (!staffId) {
+        console.warn('Supervisor dashboard: No staffId provided')
+        setLoading(false)
+        return
       }
 
-      // Calculate team statistics
-      const teamMembers = store.staff.filter((s: any) => {
-        // In full implementation, filter by immediateSupervisorId === staffId
-        return s.active
-      })
-      
-      const thisMonth = new Date().getMonth()
-      const thisYear = new Date().getFullYear()
-      
-      const approvedLeaves = store.leaves.filter((l: any) => {
-        if (l.status !== 'approved') return false
-        const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
-        return approvalDate && 
-               approvalDate.getMonth() === thisMonth && 
-               approvalDate.getFullYear() === thisYear
-      })
-      
-      const rejectedLeaves = store.leaves.filter((l: any) => {
-        if (l.status !== 'rejected') return false
-        const rejectionDate = l.updatedAt ? new Date(l.updatedAt) : null
-        return rejectionDate && 
-               rejectionDate.getMonth() === thisMonth && 
-               rejectionDate.getFullYear() === thisYear
-      })
+      // Fetch pending leave requests for direct reports using supervisor-specific endpoint
+      try {
+        const pendingResponse = await apiRequest('/api/leaves/pending/supervisor')
+        if (pendingResponse.ok) {
+          const data = await pendingResponse.json()
+          const supervisorLeaves = data.leaves || data || []
+          setPendingLeaves(supervisorLeaves.slice(0, 5))
+        } else {
+          // Fallback to general endpoint and filter
+          const leavesResponse = await apiRequest('/api/leaves?status=pending')
+          if (leavesResponse.ok) {
+            const allLeaves = await leavesResponse.json()
+            // Filter for direct reports
+            const directReportsLeaves = allLeaves.filter((leave: any) => {
+              return leave.status === 'pending' && 
+                     leave.staff?.immediateSupervisorId === staffId
+            })
+            setPendingLeaves(directReportsLeaves.slice(0, 5))
+          }
+        }
+      } catch (leavesError) {
+        console.error('Error fetching pending leaves:', leavesError)
+      }
 
-      setTeamStats({
-        totalTeamMembers: teamMembers.length,
-        pendingApprovals: pendingLeaves.length,
-        approvedThisMonth: approvedLeaves.length,
-        rejectedThisMonth: rejectedLeaves.length,
-      })
+      // Fetch team members from API
+      try {
+        const teamResponse = await apiRequest(`/api/staff?supervisorId=${staffId}`)
+        let teamMembers: any[] = []
+        if (teamResponse.ok) {
+          teamMembers = await teamResponse.json()
+        } else {
+          // Fallback to store filtering
+          teamMembers = store.staff.filter((s: any) => {
+            return s.active && (s.immediateSupervisorId === staffId || s.managerId === staffId)
+          })
+        }
+
+        // Calculate statistics from API
+        const thisMonth = new Date().getMonth()
+        const thisYear = new Date().getFullYear()
+        const monthStart = new Date(thisYear, thisMonth, 1)
+        const monthEnd = new Date(thisYear, thisMonth + 1, 0)
+        const teamStaffIds = teamMembers.map((m: any) => m.staffId || m.id)
+        
+        // Fetch approved leaves for this month from API
+        let approvedLeaves: any[] = []
+        try {
+          const approvedResponse = await apiRequest(
+            `/api/leaves?status=approved&startDate=${monthStart.toISOString().split('T')[0]}&endDate=${monthEnd.toISOString().split('T')[0]}`
+          )
+          if (approvedResponse.ok) {
+            const allApproved = await approvedResponse.json()
+            approvedLeaves = allApproved.filter((l: any) => {
+              if (!teamStaffIds.includes(l.staffId)) return false
+              const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+              return approvalDate && 
+                     approvalDate.getMonth() === thisMonth && 
+                     approvalDate.getFullYear() === thisYear
+            })
+          } else {
+            // Fallback to store
+            approvedLeaves = store.leaves.filter((l: any) => {
+              if (l.status !== 'approved') return false
+              if (!teamStaffIds.includes(l.staffId)) return false
+              const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+              return approvalDate && 
+                     approvalDate.getMonth() === thisMonth && 
+                     approvalDate.getFullYear() === thisYear
+            })
+          }
+        } catch (approvedError) {
+          console.error('Error fetching approved leaves:', approvedError)
+          // Fallback to store
+          approvedLeaves = store.leaves.filter((l: any) => {
+            if (l.status !== 'approved') return false
+            if (!teamStaffIds.includes(l.staffId)) return false
+            const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+            return approvalDate && 
+                   approvalDate.getMonth() === thisMonth && 
+                   approvalDate.getFullYear() === thisYear
+          })
+        }
+        
+        // Fetch rejected leaves for this month from API
+        let rejectedLeaves: any[] = []
+        try {
+          const rejectedResponse = await apiRequest(
+            `/api/leaves?status=rejected&startDate=${monthStart.toISOString().split('T')[0]}&endDate=${monthEnd.toISOString().split('T')[0]}`
+          )
+          if (rejectedResponse.ok) {
+            const allRejected = await rejectedResponse.json()
+            rejectedLeaves = allRejected.filter((l: any) => {
+              if (!teamStaffIds.includes(l.staffId)) return false
+              const rejectionDate = l.updatedAt ? new Date(l.updatedAt) : null
+              return rejectionDate && 
+                     rejectionDate.getMonth() === thisMonth && 
+                     rejectionDate.getFullYear() === thisYear
+            })
+          } else {
+            // Fallback to store
+            rejectedLeaves = store.leaves.filter((l: any) => {
+              if (l.status !== 'rejected') return false
+              if (!teamStaffIds.includes(l.staffId)) return false
+              const rejectionDate = l.updatedAt ? new Date(l.updatedAt) : null
+              return rejectionDate && 
+                     rejectionDate.getMonth() === thisMonth && 
+                     rejectionDate.getFullYear() === thisYear
+            })
+          }
+        } catch (rejectedError) {
+          console.error('Error fetching rejected leaves:', rejectedError)
+          // Fallback to store
+          rejectedLeaves = store.leaves.filter((l: any) => {
+            if (l.status !== 'rejected') return false
+            if (!teamStaffIds.includes(l.staffId)) return false
+            const rejectionDate = l.updatedAt ? new Date(l.updatedAt) : null
+            return rejectionDate && 
+                   rejectionDate.getMonth() === thisMonth && 
+                   rejectionDate.getFullYear() === thisYear
+          })
+        }
+
+        setTeamStats({
+          totalTeamMembers: teamMembers.length,
+          pendingApprovals: pendingLeaves.length,
+          approvedThisMonth: approvedLeaves.length,
+          rejectedThisMonth: rejectedLeaves.length,
+        })
+      } catch (teamError) {
+        console.error('Error fetching team data:', teamError)
+        // Use store as fallback
+        const teamMembers = store.staff.filter((s: any) => {
+          return s.active && (s.immediateSupervisorId === staffId || s.managerId === staffId)
+        })
+        setTeamStats({
+          totalTeamMembers: teamMembers.length,
+          pendingApprovals: pendingLeaves.length,
+          approvedThisMonth: 0,
+          rejectedThisMonth: 0,
+        })
+      }
     } catch (error) {
       console.error('Error fetching supervisor dashboard data:', error)
     } finally {
@@ -236,10 +341,21 @@ export default function SupervisorDashboard({
       </Card>
 
       {/* Quick Actions */}
+      <RoleQuickActions userRole={userRole} onAction={(action) => {
+        if (onNavigate) {
+          if (action === 'View Team Calendar') {
+            onNavigate('calendar')
+          } else if (action.includes('Approve') || action.includes('Reject')) {
+            onNavigate('leave')
+          }
+        }
+      }} />
+      
+      {/* Legacy Quick Actions (if needed) */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>Additional Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {onNavigate && (

@@ -5,6 +5,10 @@ import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-lea
 import { createAuditLog } from '@/lib/audit-logger'
 import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * GET all leave policies - All authenticated users can view policies
  * 

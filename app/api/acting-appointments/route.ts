@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession, authOptions } from '@/lib/auth'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions, request)

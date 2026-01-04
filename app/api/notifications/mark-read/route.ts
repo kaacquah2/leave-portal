@@ -4,6 +4,11 @@ import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
 
 
 // POST mark all notifications as read
+
+// Force dynamic - this route uses cookies via getTokenFromRequest and cannot be statically pre-rendered
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export async function POST(request: NextRequest) {
   try {
     const token = getTokenFromRequest(request)

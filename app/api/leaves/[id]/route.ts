@@ -8,13 +8,17 @@ import { createStaffSnapshot } from '@/lib/staff-versioning'
 import { calculateApprovalStatus, areParallelApprovalsComplete, getNextApprovers } from '@/lib/approval-workflow'
 import { validateLeaveBalance, deductLeaveBalance, restoreLeaveBalance, getBalanceFieldName } from '@/lib/leave-balance-utils'
 import { 
-  calculateMoFAApprovalStatus, 
+  calculateCivilServiceApprovalStatus, 
   validateApproverNotSelf, 
-  getNextMoFAApprovers,
+  getNextCivilServiceApprovers,
   updateApprovalStep,
   getApprovalSteps 
-} from '@/lib/mofa-approval-workflow'
+} from '@/lib/ghana-civil-service-approval-workflow'
+import { createApprovalSteps } from '@/lib/ghana-civil-service-approval-workflow-db'
+import { requiresExternalClearance } from '@/lib/ghana-civil-service-approval-workflow'
+import { validateBeforeApproval } from '@/lib/ghana-civil-service-compliance'
 
+// Force static export configuration (required for static export mode)
 // Generate static params for dynamic route
 export function generateStaticParams() {
   return [{ id: 'dummy' }]
@@ -84,6 +88,25 @@ export async function PATCH(
   return withAuth(async ({ user }: AuthContext) => {
     try {
     const body = await request.json()
+    
+    // Use optimistic locking for concurrent approval handling
+    const { updateLeaveRequestWithLock, detectConcurrentApproval } = await import('@/lib/optimistic-locking')
+    
+    // Detect potential concurrent approval conflicts
+    const conflictCheck = await detectConcurrentApproval(id)
+    if (conflictCheck.hasConflict) {
+      return NextResponse.json({
+        error: 'Concurrent approval detected',
+        errorCode: 'CONCURRENT_APPROVAL_CONFLICT',
+        conflictDetails: conflictCheck.conflictDetails,
+        troubleshooting: [
+          'Another approver may be processing this leave request',
+          'Please refresh and try again',
+          'If the issue persists, contact HR',
+        ],
+      }, { status: 409 }) // 409 Conflict
+    }
+    
     const leave = await prisma.leaveRequest.findUnique({
       where: { id },
     })
@@ -121,6 +144,26 @@ export async function PATCH(
           },
           { status: 403 }
         )
+      }
+
+      // Ghana Civil Service Compliance: Validate before approval
+      if (body.status === 'approved' && user.staffId) {
+        const complianceCheck = await validateBeforeApproval(id, user.staffId)
+        if (!complianceCheck.valid) {
+          return NextResponse.json(
+            {
+              error: 'Compliance validation failed',
+              errorCode: 'COMPLIANCE_VALIDATION_FAILED',
+              errors: complianceCheck.errors,
+              troubleshooting: [
+                'One or more compliance rules were not met',
+                ...complianceCheck.errors,
+                'Contact HR for assistance',
+              ],
+            },
+            { status: 400 }
+          )
+        }
       }
     
       // Ghana Government Compliance: Check for retroactive approval
@@ -229,10 +272,25 @@ export async function PATCH(
       // Recalculate status from ApprovalSteps
       const updatedSteps = await getApprovalSteps(id)
       const stepStatuses = updatedSteps.map((s) => s.status)
+      
+      // Check if this is Chief Director leave
+      const leaveStaff = await prisma.staffMember.findUnique({
+        where: { staffId: leave.staffId },
+        select: { position: true, grade: true },
+      })
+      const isChiefDirectorLeave = leaveStaff && 
+        (leaveStaff.position?.toLowerCase().includes('chief director') || 
+         leaveStaff.grade?.toLowerCase().includes('chief director'))
+      
       if (stepStatuses.some((s) => s === 'rejected')) {
         status = 'rejected'
       } else if (stepStatuses.every((s) => s === 'approved' || s === 'skipped')) {
-        status = 'approved'
+        // For Chief Director leave, status is "recorded" not "approved"
+        if (isChiefDirectorLeave) {
+          status = 'recorded'
+        } else {
+          status = 'approved'
+        }
       } else {
         status = 'pending'
       }
@@ -264,8 +322,17 @@ export async function PATCH(
         return al
       })
 
-      // Use MoFA workflow engine to calculate status
-      status = calculateMoFAApprovalStatus(approvalLevels)
+      // Use Ghana Civil Service workflow engine to calculate status
+      // Check if this is Chief Director leave
+      const leaveStaff = await prisma.staffMember.findUnique({
+        where: { staffId: leave.staffId },
+        select: { position: true, grade: true },
+      })
+      const isChiefDirectorLeave = leaveStaff && 
+        (leaveStaff.position?.toLowerCase().includes('chief director') || 
+         leaveStaff.grade?.toLowerCase().includes('chief director'))
+      
+      status = calculateCivilServiceApprovalStatus(approvalLevels, isChiefDirectorLeave ?? false)
     }
 
     // MoFA Compliance: Create comprehensive audit log and approval history
@@ -308,9 +375,9 @@ export async function PATCH(
 
     // CRITICAL FIX: Deduct balance when approved, restore when rejected/cancelled
     const previousStatus = leave.status
-    const isNewlyApproved = status === 'approved' && previousStatus !== 'approved'
+    const isNewlyApproved = (status === 'approved' || status === 'recorded') && previousStatus !== 'approved' && previousStatus !== 'recorded'
     const isNewlyRejected = status === 'rejected' && previousStatus !== 'rejected'
-    const isNewlyCancelled = status === 'cancelled' && previousStatus === 'approved'
+    const isNewlyCancelled = status === 'cancelled' && (previousStatus === 'approved' || previousStatus === 'recorded')
     
     // Deduct balance when newly approved
     if (isNewlyApproved) {
@@ -389,12 +456,13 @@ export async function PATCH(
       }
     }
 
-    // MoFA Compliance: Lock record after final approval
-    const isFinalApproval = status === 'approved' && leave.status !== 'approved'
+    // MoFA Compliance: Lock record after final approval or recorded status
+    const isFinalApproval = (status === 'approved' || status === 'recorded') && 
+                            leave.status !== 'approved' && leave.status !== 'recorded'
     const shouldLock = isFinalApproval
 
     // Create staff snapshot at final approval (audit requirement)
-    if (isFinalApproval && status === 'approved') {
+    if (isFinalApproval && (status === 'approved' || status === 'recorded')) {
       try {
         await createStaffSnapshot(
           leave.staffId,
@@ -408,42 +476,87 @@ export async function PATCH(
       }
     }
 
-    const updated = await prisma.leaveRequest.update({
-      where: { id },
-      data: {
-        status,
-        approvedBy: body.approvedBy || leave.approvedBy,
-        approvalDate: status !== 'pending' ? new Date() : leave.approvalDate,
-        approvalLevels: approvalLevels || null,
-        locked: shouldLock ? true : leave.locked, // Lock after final approval
-      },
-      include: {
-        staff: {
+    // Use optimistic locking to prevent concurrent modification conflicts
+    const updateResult = await updateLeaveRequestWithLock(
+      id,
+      async (currentVersion) => {
+        // Verify version hasn't changed
+        const currentLeave = await prisma.leaveRequest.findUnique({
+          where: { id },
+          select: { version: true, status: true },
+        })
+
+        if (!currentLeave) {
+          throw new Error('Leave request not found')
+        }
+
+        if (currentLeave.version !== currentVersion) {
+          throw new Error(`Version conflict: expected ${currentVersion}, got ${currentLeave.version}`)
+        }
+
+        // Perform the update
+        return await prisma.leaveRequest.update({
+          where: { id },
+          data: {
+            status,
+            approvedBy: body.approvedBy || leave.approvedBy,
+            approvalDate: status !== 'pending' ? new Date() : leave.approvalDate,
+            approvalLevels: approvalLevels || null,
+            locked: shouldLock ? true : leave.locked, // Lock after final approval
+            version: { increment: 1 }, // Increment version for optimistic locking
+          },
           include: {
-            user: {
-              select: { id: true },
+            staff: {
+              include: {
+                user: {
+                  select: { id: true },
+                },
+              },
             },
           },
-        },
+        })
       },
-    })
+      { maxRetries: 3, retryDelay: 100, exponentialBackoff: true }
+    )
+
+    if (!updateResult.success) {
+      if (updateResult.conflict) {
+        return NextResponse.json({
+          error: 'Concurrent modification detected',
+          errorCode: 'CONCURRENT_MODIFICATION_CONFLICT',
+          troubleshooting: [
+            'Another user may be updating this leave request',
+            'Please refresh the page and try again',
+            'If the issue persists, contact HR',
+          ],
+        }, { status: 409 }) // 409 Conflict
+      }
+      return NextResponse.json({
+        error: updateResult.error || 'Failed to update leave request',
+        errorCode: 'UPDATE_FAILED',
+      }, { status: 500 })
+    }
+
+    const updated = updateResult.data
 
     // MoFA Notification Service: Send multi-channel notification if status changed
-    if (status !== 'pending' && status !== leave.status && (status === 'approved' || status === 'rejected')) {
+    if (status !== 'pending' && status !== leave.status && (status === 'approved' || status === 'rejected' || status === 'recorded')) {
+      // For "recorded" status (Chief Director leave), treat as approved for notification
+      const notificationStatus = status === 'recorded' ? 'approved' : status as 'approved' | 'rejected'
       await notifyLeaveDecision({
         leaveRequestId: id,
         staffId: leave.staffId,
         staffName: leave.staffName,
         leaveType: leave.leaveType,
         days: leave.days,
-        status: status as 'approved' | 'rejected',
+        status: notificationStatus,
         approverName: approverName,
         comments: body.comments,
       })
 
-      // If approved and there are more levels, notify next approvers
-      if (status === 'approved' && approvalLevels && approvalLevels.length > 0) {
-        const nextApprovers = getNextMoFAApprovers(approvalLevels)
+      // If approved/recorded and there are more levels, notify next approvers
+      if ((status === 'approved' || status === 'recorded') && approvalLevels && approvalLevels.length > 0) {
+        const nextApprovers = getNextCivilServiceApprovers(approvalLevels)
         if (nextApprovers.length > 0) {
           const approverUserIds: string[] = []
           for (const approver of nextApprovers) {

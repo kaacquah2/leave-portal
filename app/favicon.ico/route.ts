@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 /**
  * Favicon route handler
  * Serves the icon-192x192.png as favicon.ico to fix 404 errors

@@ -12,6 +12,10 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { createAuditLog } from '@/lib/audit-logger'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * POST /api/privacy/acknowledge
  * Acknowledge privacy notice (required on first login)

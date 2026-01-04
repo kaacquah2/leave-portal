@@ -1,10 +1,17 @@
 /**
  * Database Backup Script
- * Creates a backup of the database
+ * Creates a backup of the database with optional cloud storage upload
  * 
  * Usage:
  * - Run manually: tsx scripts/backup-database.ts
  * - Add to cron: 0 2 * * * (runs daily at 2 AM)
+ * 
+ * Environment Variables:
+ * - DATABASE_URL: PostgreSQL connection string (required)
+ * - BACKUP_DIR: Local backup directory (default: ./backups)
+ * - BACKUP_CLOUD_PROVIDER: 's3' or 'azure' (optional)
+ * - AWS_S3_BACKUP_BUCKET: S3 bucket name (if using S3)
+ * - AWS_REGION: AWS region (default: us-east-1)
  */
 
 // Load environment variables
@@ -77,10 +84,119 @@ async function main() {
     fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2))
 
     console.log('✅ Backup manifest created')
+
+    // Upload to cloud storage if configured
+    if (process.env.BACKUP_CLOUD_PROVIDER) {
+      try {
+        console.log(`☁️  Uploading to ${process.env.BACKUP_CLOUD_PROVIDER.toUpperCase()}...`)
+        const cloudResult = await uploadToCloud(backupFile, manifestFile)
+        if (cloudResult.success) {
+          console.log(`✅ Cloud upload successful: ${cloudResult.location}`)
+        } else {
+          console.warn('⚠️  Cloud upload failed, but local backup succeeded')
+        }
+      } catch (error: any) {
+        console.warn(`⚠️  Cloud upload failed: ${error.message}`)
+        console.warn('   Local backup is still available')
+        // Don't fail the backup if cloud upload fails
+      }
+    }
   } catch (error: any) {
     console.error('❌ Backup failed:', error.message)
     process.exit(1)
   }
+}
+
+/**
+ * Upload backup to cloud storage
+ */
+async function uploadToCloud(
+  backupFile: string,
+  manifestFile: string
+): Promise<{ success: boolean; location?: string }> {
+  const provider = process.env.BACKUP_CLOUD_PROVIDER?.toLowerCase()
+
+  switch (provider) {
+    case 's3':
+      return await uploadToS3(backupFile, manifestFile)
+    case 'azure':
+      return await uploadToAzure(backupFile, manifestFile)
+    default:
+      throw new Error(`Unsupported cloud provider: ${provider}`)
+  }
+}
+
+/**
+ * Upload to AWS S3
+ */
+async function uploadToS3(
+  backupFile: string,
+  manifestFile: string
+): Promise<{ success: boolean; location?: string }> {
+  try {
+    // Dynamic import to avoid loading AWS SDK if not needed
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3' as any)
+    const { readFileSync } = await import('fs')
+
+    const s3Client = new S3Client({
+      region: process.env.AWS_REGION || 'us-east-1',
+    })
+
+    const bucket = process.env.AWS_S3_BACKUP_BUCKET
+    if (!bucket) {
+      throw new Error('AWS_S3_BACKUP_BUCKET environment variable is required')
+    }
+
+    const timestamp = path.basename(backupFile, '.sql')
+    const backupKey = `backups/${timestamp}.sql`
+    const manifestKey = `backups/${timestamp}.json`
+
+    // Upload backup file
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: backupKey,
+        Body: readFileSync(backupFile),
+        ContentType: 'application/octet-stream',
+        ServerSideEncryption: 'AES256',
+      })
+    )
+
+    // Upload manifest
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: manifestKey,
+        Body: readFileSync(manifestFile),
+        ContentType: 'application/json',
+      })
+    )
+
+    return {
+      success: true,
+      location: `s3://${bucket}/${backupKey}`,
+    }
+  } catch (error: any) {
+    if (error.code === 'MODULE_NOT_FOUND' || error.message?.includes('@aws-sdk/client-s3')) {
+      console.error('[Backup] AWS SDK not installed. Install with: npm install @aws-sdk/client-s3')
+      return {
+        success: false,
+      }
+    }
+    throw error
+  }
+}
+
+/**
+ * Upload to Azure Blob Storage
+ */
+async function uploadToAzure(
+  backupFile: string,
+  manifestFile: string
+): Promise<{ success: boolean; location?: string }> {
+  // Azure Blob Storage upload would go here
+  // Requires @azure/storage-blob package
+  throw new Error('Azure Blob Storage upload not yet implemented. Install @azure/storage-blob package.')
 }
 
 function cleanupOldBackups(backupDir: string, keepDays: number) {

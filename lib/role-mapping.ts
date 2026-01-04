@@ -6,17 +6,15 @@
 import { UserRole } from './permissions'
 
 /**
- * Map legacy role to MoFA exact role code
+ * Map legacy role to Ghana Civil Service role code
  */
 export function mapToMoFARole(role: string): UserRole {
   const mapping: Record<string, UserRole> = {
-    // Legacy to MoFA
+    // Legacy to Ghana Civil Service
     'employee': 'EMPLOYEE',
     'supervisor': 'SUPERVISOR',
     'unit_head': 'UNIT_HEAD',
-    'division_head': 'DIVISION_HEAD',
     'directorate_head': 'DIRECTOR',
-    'regional_manager': 'REGIONAL_MANAGER',
     'hr_officer': 'HR_OFFICER',
     'hr_director': 'HR_DIRECTOR',
     'chief_director': 'CHIEF_DIRECTOR',
@@ -27,6 +25,18 @@ export function mapToMoFARole(role: string): UserRole {
     'hr_assistant': 'HR_OFFICER',
     'manager': 'SUPERVISOR',
     'deputy_director': 'DIRECTOR',
+    // Head of Department mappings
+    'head_of_department': 'HEAD_OF_DEPARTMENT',
+    'hod': 'HEAD_OF_DEPARTMENT',
+    // Directors are also HoDs (for Core Directorates)
+    'director': 'HEAD_OF_DEPARTMENT', // Director acts as HoD for their directorate
+    // Head of Independent Unit mappings
+    'head_of_independent_unit': 'HEAD_OF_INDEPENDENT_UNIT',
+    // Legacy division and regional roles (deprecated, mapped to closest equivalent)
+    'DIVISION_HEAD': 'UNIT_HEAD',
+    'division_head': 'UNIT_HEAD',
+    'REGIONAL_MANAGER': 'DIRECTOR',
+    'regional_manager': 'DIRECTOR',
   }
   
   return (mapping[role] || role) as UserRole
@@ -38,24 +48,21 @@ export function mapToMoFARole(role: string): UserRole {
 export function getRoleDisplayName(role: UserRole): string {
   const names: Record<UserRole, string> = {
     'EMPLOYEE': 'Employee',
-    'SUPERVISOR': 'Supervisor',
+    'SUPERVISOR': 'Immediate Supervisor',
     'UNIT_HEAD': 'Unit Head',
-    'DIVISION_HEAD': 'Division Head',
+    'HEAD_OF_DEPARTMENT': 'Head of Department (HoD)',
+    'HEAD_OF_INDEPENDENT_UNIT': 'Head of Independent Unit',
     'DIRECTOR': 'Director',
-    'REGIONAL_MANAGER': 'Regional Manager',
     'HR_OFFICER': 'HR Officer',
     'HR_DIRECTOR': 'HR Director',
     'CHIEF_DIRECTOR': 'Chief Director',
     'AUDITOR': 'Internal Auditor',
     'SYSTEM_ADMIN': 'System Administrator',
-    'SECURITY_ADMIN': 'Security Administrator',
     // Legacy
     'employee': 'Employee',
     'supervisor': 'Supervisor',
     'unit_head': 'Unit Head',
-    'division_head': 'Division Head',
     'directorate_head': 'Director',
-    'regional_manager': 'Regional Manager',
     'hr_officer': 'HR Officer',
     'hr_director': 'HR Director',
     'chief_director': 'Chief Director',
@@ -66,6 +73,9 @@ export function getRoleDisplayName(role: UserRole): string {
     'hr_assistant': 'HR Assistant',
     'manager': 'Manager',
     'deputy_director': 'Deputy Director',
+    'head_of_department': 'Head of Department (HoD)',
+    'hod': 'Head of Department (HoD)',
+    'head_of_independent_unit': 'Head of Independent Unit',
   }
   
   return names[role] || role
@@ -79,22 +89,19 @@ export function getRoleRoute(role: UserRole): string {
     'EMPLOYEE': '/employee',
     'SUPERVISOR': '/supervisor',
     'UNIT_HEAD': '/unit-head',
-    'DIVISION_HEAD': '/division-head',
+    'HEAD_OF_DEPARTMENT': '/hod',
+    'HEAD_OF_INDEPENDENT_UNIT': '/head-independent-unit',
     'DIRECTOR': '/director',
-    'REGIONAL_MANAGER': '/regional-manager',
     'HR_OFFICER': '/hr',
     'HR_DIRECTOR': '/hr-director',
     'CHIEF_DIRECTOR': '/chief-director',
     'AUDITOR': '/auditor',
     'SYSTEM_ADMIN': '/admin',
-    'SECURITY_ADMIN': '/admin',
     // Legacy routes
     'employee': '/employee',
     'supervisor': '/supervisor',
     'unit_head': '/unit-head',
-    'division_head': '/division-head',
     'directorate_head': '/director',
-    'regional_manager': '/regional-manager',
     'hr_officer': '/hr',
     'hr_director': '/hr-director',
     'chief_director': '/chief-director',
@@ -105,6 +112,9 @@ export function getRoleRoute(role: UserRole): string {
     'hr_assistant': '/hr',
     'manager': '/supervisor',
     'deputy_director': '/director',
+    'head_of_department': '/hod',
+    'hod': '/hod',
+    'head_of_independent_unit': '/head-independent-unit',
   }
   
   return routes[role] || '/employee'
@@ -115,9 +125,10 @@ export function getRoleRoute(role: UserRole): string {
  */
 export function isApproverRole(role: UserRole): boolean {
   const approverRoles: UserRole[] = [
-    'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER',
+    'SUPERVISOR', 'UNIT_HEAD', 'HEAD_OF_DEPARTMENT', 'HEAD_OF_INDEPENDENT_UNIT', 'DIRECTOR',
     'HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR',
-    'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager',
+    'supervisor', 'unit_head', 'head_of_department', 'hod', 'HEAD_OF_INDEPENDENT_UNIT', 'head_of_independent_unit',
+    'directorate_head',
     'hr_officer', 'hr_director', 'chief_director', 'hr', 'manager', 'deputy_director',
   ]
   

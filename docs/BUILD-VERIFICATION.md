@@ -1,53 +1,42 @@
-# Build Verification - Offline Functionality
+# Build Verification - Tauri Desktop Application
 
-## Fixed Issues
+> **Note:** This document has been updated for Tauri. For historical Electron build information, see `docs/archive/electron/`.
 
-### 1. NSIS Installer Error
-**Problem**: `VIProductVersion already defined!` error during build
-**Solution**: Removed `VIProductVersion` from `electron/installer-script.nsh` since electron-builder automatically sets it
+## Current Build System
 
-### 2. TypeScript Repositories
-**Status**: ✅ Compiled successfully (5 files)
-- `base-repository.js`
-- `employee-repository.js`
-- `leave-request-repository.js`
-- `leave-balance-repository.js`
-- `audit-log-repository.js`
+The application now uses **Tauri** for desktop builds. All Electron code has been migrated.
 
-## Files Included in Build
+## Tauri Build Process
 
-### Core Electron Files ✅
-- `electron/main.js` - Main process entry point
-- `electron/preload.js` - Preload script
-- `electron/logger.js` - Logging utility
-- `electron/error-reporter.js` - Error reporting
-- `electron/utils.js` - Utility functions
-- `electron/security.js` - Security utilities
-- `electron/window-manager.js` - Window management
-- `electron/ipc-handlers.js` - IPC communication
-- `electron/protocol-handler.js` - Custom protocol handler
-- `electron/splash.html` - Splash screen
+### 1. Next.js Static Export
+- Builds static files to `out/` directory
+- Triggered by `TAURI=1` environment variable
+- Command: `npm run build:tauri`
 
-### Offline Functionality ✅
-- `electron/database-encrypted.js` - Encrypted SQLite database
-- `electron/sync-engine.js` - Background sync engine
-- `electron/background-sync.js` - Automatic sync when online
-- `electron/offline-session.js` - Offline session management
-- `electron/offline-approvals.js` - Offline approval handling
-- `electron/conflict-resolver.js` - Conflict resolution
-- `electron/bootstrap.js` - First-run initialization
-- `electron/disaster-recovery.js` - Backup and recovery
-- `electron/token-expiry-enforcer.js` - Token expiry monitoring
-- `electron/auto-updater.js` - Auto-update functionality
-- `electron/ipc-repository-handlers.js` - Repository IPC handlers
-- `electron/auth-storage.js` - Authentication storage
-- `electron/incremental-sync.js` - Incremental sync
-- `electron/sync-compression.js` - Sync compression
+### 2. Tauri Build
+- Packages static files with Tauri Rust backend
+- Creates native desktop application
+- Command: `npm run tauri:build`
 
-### Database Migrations ✅
-- `electron/migrations/001_initial_schema.sql`
-- `electron/migrations/002_complete_offline_schema.sql`
-- `electron/migrations/003_seed_static_data.sql`
+## Files Included in Tauri Build
+
+### Tauri Core Files ✅
+- `src-tauri/src/main.rs` - Main Rust entry point
+- `src-tauri/src/database.rs` - Database module (rusqlite)
+- `src-tauri/src/commands/` - All Tauri commands
+  - `api.rs` - API commands
+  - `repository.rs` - Repository commands
+  - `filesystem.rs` - File system commands
+
+### Static Files ✅
+- `out/**/*` - Next.js static export
+- All HTML, CSS, JavaScript bundles
+- Static assets (images, fonts, etc.)
+
+### Database
+- Database initialized at runtime using rusqlite
+- Migrations run automatically on first launch
+- Database file: `hr-portal-encrypted.db` in app data directory
 
 ### Compiled Repositories ✅
 - `electron/repositories-compiled/base-repository.js`

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Toaster } from '@/components/ui/toaster'
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
 import { ConditionalAnalytics } from '@/components/conditional-analytics'
+import { OfflineStatus } from '@/components/offline-status'
 import { APP_CONFIG } from '@/lib/app-config'
 import './globals.css'
 
@@ -54,12 +55,30 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="HR Portal" />
+        {/* CSP meta tag for Electron builds (static export doesn't support headers()) */}
+        {/* This is evaluated at build time when ELECTRON=1, so it's safe to use process.env */}
+        {typeof process !== 'undefined' && process.env.ELECTRON === '1' && (
+          <meta
+            httpEquiv="Content-Security-Policy"
+            content={
+              "default-src 'self' app:; " +
+              "script-src 'self' app: 'unsafe-inline'; " +
+              "style-src 'self' app: 'unsafe-inline'; " +
+              "style-src-elem 'self' app: 'unsafe-inline'; " +
+              "img-src 'self' app: data: https:; " +
+              "font-src 'self' app: data: https:; " +
+              "connect-src 'self' https:; " +
+              "manifest-src 'self' app: https:;"
+            }
+          />
+        )}
       </head>
       <body className={`font-sans antialiased`}>
         {children}
         <PWAInstallPrompt />
         <Toaster />
         <ConditionalAnalytics />
+        <OfflineStatus />
       </body>
     </html>
   )

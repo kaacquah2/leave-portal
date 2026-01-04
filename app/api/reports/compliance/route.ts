@@ -9,10 +9,15 @@ import { withAuth, type AuthContext, hasRole } from '@/lib/auth-proxy'
 import { AUDIT_ROLES } from '@/lib/role-utils'
 
 // GET compliance reports
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only authorized roles can access reports
-    const allowedRoles = ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'SYSTEM_ADMIN', 'SECURITY_ADMIN',
+    const allowedRoles = ['HR_OFFICER', 'HR_DIRECTOR', 'CHIEF_DIRECTOR', 'AUDITOR', 'SYS_ADMIN', 'SYSTEM_ADMIN',
       'hr_officer', 'hr_director', 'chief_director', 'auditor', 'internal_auditor', 'admin', 'hr', 'hr_assistant']
     
     if (!hasRole(user, allowedRoles)) {

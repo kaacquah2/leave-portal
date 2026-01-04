@@ -59,29 +59,38 @@ export function validatePasswordComplexity(password: string): {
  */
 export function isSeededUser(email: string): boolean {
   // Seeded users have specific email patterns for testing/demo purposes
-  const seededEmailPatterns = [
-    /^employee@mofa\.gov\.gh$/i,
-    /^supervisor@mofa\.gov\.gh$/i,
-    /^unithead@mofa\.gov\.gh$/i,
-    /^divisionhead@mofa\.gov\.gh$/i,
-    /^director@mofa\.gov\.gh$/i,
-    /^regionalmanager@mofa\.gov\.gh$/i,
-    /^hrofficer@mofa\.gov\.gh$/i,
-    /^hrdirector@mofa\.gov\.gh$/i,
-    /^chiefdirector@mofa\.gov\.gh$/i,
-    /^auditor@mofa\.gov\.gh$/i,
-    /^sysadmin@mofa\.gov\.gh$/i,
-    // Legacy role patterns
-    /^employee\.legacy@mofad\.gov\.gh$/i,
-    /^supervisor\.legacy@mofad\.gov\.gh$/i,
-    /^manager\.legacy@mofad\.gov\.gh$/i,
-    /^hr\.legacy@mofad\.gov\.gh$/i,
-    /^admin\.legacy@mofad\.gov\.gh$/i,
-    /^hrassistant@mofad\.gov\.gh$/i,
-    /^deputydirector@mofad\.gov\.gh$/i,
+  // All comprehensive role-based seed data uses @mofa.gov.gh domain with descriptive patterns
+  
+  // Check if email is from mofa.gov.gh domain (all seeded users use this)
+  if (!email.toLowerCase().endsWith('@mofa.gov.gh')) {
+    // Check legacy mofad.gov.gh patterns
+    const legacyPatterns = [
+      /^employee\.legacy@mofad\.gov\.gh$/i,
+      /^supervisor\.legacy@mofad\.gov\.gh$/i,
+      /^manager\.legacy@mofad\.gov\.gh$/i,
+      /^hr\.legacy@mofad\.gov\.gh$/i,
+      /^admin\.legacy@mofad\.gov\.gh$/i,
+      /^hrassistant@mofad\.gov\.gh$/i,
+      /^deputydirector@mofad\.gov\.gh$/i,
+    ]
+    return legacyPatterns.some(pattern => pattern.test(email))
+  }
+  
+  // All @mofa.gov.gh emails from seed data follow these patterns:
+  // - Simple: employee@, supervisor@, director@, etc.
+  // - Descriptive: director.ppbme@, hr.hrmd01@, unithead.policy@, etc.
+  // - Comprehensive: employee.policy01@, supervisor.monitoring01@, etc.
+  // - Independent units: head.audit@, head.legal@, etc.
+  
+  // Match common seeded user prefixes
+  const seededPrefixes = [
+    'employee', 'supervisor', 'unithead', 'subunithead', 'divisionhead',
+    'director', 'regionalmanager', 'hrofficer', 'hrdirector', 'chiefdirector',
+    'auditor', 'sysadmin', 'hr', 'head'
   ]
   
-  return seededEmailPatterns.some(pattern => pattern.test(email))
+  const emailPrefix = email.toLowerCase().split('@')[0]
+  return seededPrefixes.some(prefix => emailPrefix.startsWith(prefix))
 }
 
 /**

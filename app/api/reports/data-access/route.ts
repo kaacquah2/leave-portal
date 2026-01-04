@@ -13,13 +13,17 @@ import { withAuth, type AuthContext, isAuditor, isHRDirector, isAdmin } from '@/
 import { getDataAccessLogs } from '@/lib/data-access-logger'
 import { AUDIT_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * GET /api/reports/data-access
  * Generate data access report (Data Protection Act 843)
  */
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
-    // Only AUDITOR, HR Director, and Security Admin can view data access reports
+    // Only AUDITOR, HR Director, and System Admin can view data access reports
     if (!isAuditor(user) && !isHRDirector(user) && !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions to view data access reports' },

@@ -7,7 +7,7 @@ import LoginForm from '@/components/login-form'
 import Portal from '@/components/portal'
 
 import { UserRole } from '@/lib/permissions'
-import { mapToMoFARole } from '@/lib/role-mapping'
+import { mapToMoFARole, getRoleRoute } from '@/lib/role-mapping'
 
 function PortalWrapper({ userRole, onLogout, staffId }: { userRole: UserRole, onLogout: () => void, staffId?: string }) {
   const moFARole = mapToMoFARole(userRole)
@@ -121,17 +121,11 @@ export default function Page() {
           console.log('[App] Authentication successful, role:', role);
           
           // Redirect to role-specific page if on root
-          if ((role === 'hr' || role === 'hr_assistant') && window.location.pathname === '/') {
-            router.push('/hr')
-            return
-          } else if ((role === 'manager' || role === 'deputy_director') && window.location.pathname === '/') {
-            router.push('/manager')
-            return
-          } else if (role === 'admin' && window.location.pathname === '/') {
-            router.push('/admin')
-            return
-          } else if (role === 'employee' && window.location.pathname === '/') {
-            router.push('/employee')
+          // Use getRoleRoute to handle all MoFA roles properly
+          if (window.location.pathname === '/') {
+            const moFARole = mapToMoFARole(role)
+            const rolePath = getRoleRoute(moFARole)
+            router.push(rolePath)
             return
           }
           
@@ -256,16 +250,10 @@ export default function Page() {
     if (id) setStaffId(id)
     setStage('portal')
     
-    // Redirect to role-specific page after login
-    if (role === 'hr') {
-      router.push('/hr')
-    } else if (role === 'manager') {
-      router.push('/manager')
-    } else if (role === 'admin') {
-      router.push('/admin')
-    } else if (role === 'employee') {
-      router.push('/employee')
-    }
+    // Redirect to role-specific page after login using getRoleRoute
+    const moFARole = mapToMoFARole(mappedRole)
+    const rolePath = getRoleRoute(moFARole)
+    router.push(rolePath)
   }
 
   const handleLogout = async () => {

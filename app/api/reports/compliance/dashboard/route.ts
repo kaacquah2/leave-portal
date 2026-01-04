@@ -12,6 +12,10 @@ import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-lea
 import { COMPLIANCE_STATUS } from '@/lib/ghana-statutory-constants'
 import { AUDIT_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * GET /api/reports/compliance/dashboard
  * Get compliance dashboard data

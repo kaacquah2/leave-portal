@@ -29,9 +29,12 @@ import HROfficerDashboard from '@/components/hr-officer-dashboard'
 import HRDirectorDashboard from '@/components/hr-director-dashboard'
 import ChiefDirectorDashboard from '@/components/chief-director-dashboard'
 import LeaveDefermentRequest from '@/components/leave-deferment-request'
+import DefermentManagement from '@/components/deferment-management'
 import LeaveEncashmentManagement from '@/components/leave-encashment-management'
 import TeamLeaveCalendar from '@/components/team-leave-calendar'
 import WorkforceAvailabilityDashboard from '@/components/workforce-availability-dashboard'
+import HRValidationPage from '@/components/role-pages/hr-validation-page'
+import PendingApprovalsPage from '@/components/role-pages/pending-approvals-page'
 import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
 import { Card, CardContent } from '@/components/ui/card'
 import UnauthorizedMessage from '@/components/unauthorized-message'
@@ -136,21 +139,42 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
 
     switch (activeTab) {
       case 'dashboard':
-        // Route to role-specific dashboards for MoFA roles
+        // Route to role-specific dashboards for MoFA roles - NO GENERIC DASHBOARDS
         if (normalizedRole === 'SUPERVISOR' || normalizedRole === 'supervisor') {
           return <SupervisorDashboard staffId={staffId} userRole={userRole} onNavigate={setActiveTab} />
         } else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
           return <UnitHeadDashboard staffId={staffId} userRole={userRole} unit={currentStaff?.unit || null} onNavigate={setActiveTab} />
+        } else if (normalizedRole === 'HEAD_OF_INDEPENDENT_UNIT') {
+          return <UnitHeadDashboard staffId={staffId} userRole={userRole} unit={currentStaff?.unit || null} onNavigate={setActiveTab} />
+        } else if ((normalizedRole as string) === 'DIVISION_HEAD' || (normalizedRole as string) === 'division_head') {
+          // Division Head uses Director dashboard (similar scope)
+          return <DirectorDashboard staffId={staffId} userRole={userRole} directorate={currentStaff?.directorate || null} onNavigate={setActiveTab} />
         } else if (normalizedRole === 'DIRECTOR' || normalizedRole === 'directorate_head' || normalizedRole === 'deputy_director') {
           return <DirectorDashboard staffId={staffId} userRole={userRole} directorate={currentStaff?.directorate || null} onNavigate={setActiveTab} />
-        } else if (normalizedRole === 'HR_OFFICER' || normalizedRole === 'hr_officer' || userRole === 'hr') {
+        } else if ((normalizedRole as string) === 'REGIONAL_MANAGER' || (normalizedRole as string) === 'regional_manager') {
+          // Regional Manager uses Director dashboard (similar approval level)
+          return <DirectorDashboard staffId={staffId} userRole={userRole} directorate={currentStaff?.directorate || null} onNavigate={setActiveTab} />
+        } else if (normalizedRole === 'HR_OFFICER' || normalizedRole === 'hr_officer' || userRole === 'hr' || userRole === 'hr_assistant') {
           return <HROfficerDashboard staffId={staffId} userRole={userRole} onNavigate={setActiveTab} />
         } else if (normalizedRole === 'HR_DIRECTOR' || normalizedRole === 'hr_director') {
           return <HRDirectorDashboard staffId={staffId} userRole={userRole} onNavigate={setActiveTab} />
         } else if (normalizedRole === 'CHIEF_DIRECTOR' || normalizedRole === 'chief_director') {
           return <ChiefDirectorDashboard staffId={staffId} userRole={userRole} onNavigate={setActiveTab} />
+        } else if (normalizedRole === 'EMPLOYEE' || normalizedRole === 'employee') {
+          // Employees use EmployeePortal which has its own dashboard
+          if (!staffId) {
+            return <div className="p-8">Error: Staff ID is required for employee portal</div>
+          }
+          return <EmployeePortal staffId={staffId} userRole={userRole} onLogout={onLogout} />
+        } else if ((normalizedRole as string) === 'SYSTEM_ADMIN' || (normalizedRole as string) === 'SYS_ADMIN' || (normalizedRole as string) === 'admin' || (userRole as string) === 'SYSTEM_ADMIN' || (userRole as string) === 'SYS_ADMIN' || (userRole as string) === 'admin') {
+          // System Admin uses AdminPortal
+          return <AdminPortal onLogout={onLogout} />
+        } else if (normalizedRole === 'AUDITOR' || normalizedRole === 'internal_auditor') {
+          // Auditor uses AuditorPortal
+          return <AuditorPortal userRole={userRole} onLogout={onLogout} />
         }
-        // Fallback to default dashboard for other roles
+        // Last resort fallback - should not happen for MoFA roles
+        console.warn(`No specific dashboard found for role: ${userRole}, using generic dashboard`)
         return <Dashboard store={store} userRole={userRole} onNavigate={setActiveTab} />
       
       case 'staff':
@@ -162,7 +186,7 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
           )
         }
         // All supervisor/manager roles see team view
-        const isManagerRole = ['SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER',
+        const isManagerRole = ['SUPERVISOR', 'UNIT_HEAD', 'HEAD_OF_INDEPENDENT_UNIT', 'DIVISION_HEAD', 'DIRECTOR', 'REGIONAL_MANAGER',
           'supervisor', 'unit_head', 'division_head', 'directorate_head', 'regional_manager',
           'manager', 'deputy_director'].includes(normalizedRole)
         if (isManagerRole) {
@@ -233,12 +257,29 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
       
       case 'deferment':
         // Employees can view/create their own deferment requests
-        // Supervisors/HR can view team/all deferment requests
-        if (userRole === 'EMPLOYEE' || userRole === 'employee') {
-          return <LeaveDefermentRequest staffId={staffId} />
+        // Supervisors, Unit Heads, Directors, HR can view team/all deferment requests
+        const defermentNormalizedRole = (userRole || '').toUpperCase()
+        const userRoleStr = String(userRole || '')
+        if (defermentNormalizedRole === 'EMPLOYEE' || userRoleStr === 'employee') {
+          return <LeaveDefermentRequest staffId={staffId || ''} />
         }
-        // For supervisors/HR, show list view (to be implemented)
-        return <div>Deferment Management (Supervisor/HR View - To be implemented)</div>
+        // For supervisors, unit heads, directors, HR roles, show management view
+        if (
+          defermentNormalizedRole === 'SUPERVISOR' || userRoleStr === 'supervisor' ||
+          defermentNormalizedRole === 'UNIT_HEAD' || userRoleStr === 'unit_head' ||
+          defermentNormalizedRole === 'HEAD_OF_INDEPENDENT_UNIT' ||
+          defermentNormalizedRole === 'DIVISION_HEAD' || userRoleStr.toLowerCase() === 'division_head' ||
+          defermentNormalizedRole === 'DIRECTOR' || userRoleStr === 'directorate_head' || userRoleStr === 'deputy_director' ||
+          defermentNormalizedRole === 'REGIONAL_MANAGER' || userRoleStr.toLowerCase() === 'regional_manager' ||
+          defermentNormalizedRole === 'HR_OFFICER' || userRoleStr === 'hr_officer' || userRoleStr === 'hr' || userRoleStr === 'hr_assistant' ||
+          defermentNormalizedRole === 'HR_DIRECTOR' || userRoleStr === 'hr_director' ||
+          defermentNormalizedRole === 'CHIEF_DIRECTOR' || userRoleStr === 'chief_director' ||
+          userRoleStr === 'manager'
+        ) {
+          return <DefermentManagement userRole={userRole} staffId={staffId} />
+        }
+        // Default: show request view for employees
+        return <LeaveDefermentRequest staffId={staffId || ''} />
       
       case 'encashment':
         // Only HR Director or Chief Director
@@ -279,6 +320,16 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
             userDirectorate={currentStaff?.directorate || undefined}
           />
         )
+      
+      case 'hr-validation':
+        // Only HR Officer can access HR validation
+        if (normalizedRole !== 'HR_OFFICER' && normalizedRole !== 'hr_officer' && userRole !== 'hr' && userRole !== 'hr_assistant') {
+          return renderUnauthorized(
+            "You don't have permission to access HR validation.",
+            'HR Officer access required'
+          )
+        }
+        return <HRValidationPage />
       
       case 'calendar':
         if (!hasPermission(userRole as UserRole, 'calendar:view:own') && 
@@ -336,9 +387,12 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
       return 'bg-gradient-to-br from-blue-50/50 via-background to-blue-50/30'
     }
     // Manager/Supervisor roles
-    if (role === 'SUPERVISOR' || role === 'UNIT_HEAD' || role === 'DIVISION_HEAD' || role === 'DIRECTOR' || 
-        role === 'REGIONAL_MANAGER' || role === 'supervisor' || role === 'unit_head' || role === 'division_head' ||
-        role === 'directorate_head' || role === 'regional_manager' || role === 'manager' || role === 'deputy_director') {
+    // Note: DIVISION_HEAD and REGIONAL_MANAGER are legacy roles (not in UserRole type but may exist in DB)
+    if (role === 'SUPERVISOR' || role === 'UNIT_HEAD' || role === 'DIRECTOR' || 
+        role === 'supervisor' || role === 'unit_head' ||
+        role === 'directorate_head' || role === 'manager' || role === 'deputy_director' ||
+        (role as string) === 'DIVISION_HEAD' || (role as string) === 'REGIONAL_MANAGER' ||
+        (role as string) === 'division_head' || (role as string) === 'regional_manager') {
       return 'bg-gradient-to-br from-amber-50/50 via-background to-amber-50/30'
     }
     return 'bg-background'

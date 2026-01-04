@@ -192,25 +192,42 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
                           className="gap-2"
                           onClick={async () => {
                             try {
-                              const response = await fetch(`/api/leaves/${leave.id}/approval-letter`, {
+                              const { apiRequest } = await import('@/lib/api-config')
+                              const response = await apiRequest(`/api/leaves/${leave.id}/approval-letter`, {
                                 credentials: 'include'
                               })
 
                               if (response.ok) {
-                                const data = await response.json()
-                                // Create a new window with the letter content for printing/downloading
-                                const printWindow = window.open('', '_blank')
-                                if (printWindow) {
-                                  printWindow.document.write(data.letterContent)
-                                  printWindow.document.close()
-                                  printWindow.focus()
-                                  // Wait a bit then trigger print dialog
-                                  setTimeout(() => {
-                                    printWindow.print()
-                                  }, 250)
+                                // Check if response is PDF (blob) or JSON
+                                const contentType = response.headers.get('content-type')
+                                if (contentType?.includes('application/pdf')) {
+                                  // Handle PDF blob
+                                  const blob = await response.blob()
+                                  const url = window.URL.createObjectURL(blob)
+                                  const a = document.createElement('a')
+                                  a.href = url
+                                  a.download = `leave-approval-${leave.id}.pdf`
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  window.URL.revokeObjectURL(url)
+                                  document.body.removeChild(a)
+                                } else {
+                                  // Handle JSON response (legacy)
+                                  const data = await response.json()
+                                  if (data.letterContent) {
+                                    const printWindow = window.open('', '_blank')
+                                    if (printWindow) {
+                                      printWindow.document.write(data.letterContent)
+                                      printWindow.document.close()
+                                      printWindow.focus()
+                                      setTimeout(() => {
+                                        printWindow.print()
+                                      }, 250)
+                                    }
+                                  }
                                 }
                               } else {
-                                const error = await response.json()
+                                const error = await response.json().catch(() => ({ error: 'Failed to download approval letter' }))
                                 alert(error.error || 'Failed to download approval letter')
                               }
                             } catch (error) {

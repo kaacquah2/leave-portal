@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 
 interface UseOfflineReturn {
   isOffline: boolean
@@ -10,17 +10,21 @@ interface UseOfflineReturn {
 
 /**
  * Custom hook for tracking online/offline status
- * Useful for PWA and web applications to show offline indicators
  * 
- * Note: Electron apps don't use this hook as they handle offline differently
- * through the offline-service module
+ * Detects network status via navigator.onLine and window events.
+ * Provides wasOffline flag to detect when connection is restored.
  * 
  * @example
  * ```tsx
- * const { isOffline, isOnline } = useOffline()
+ * const { isOffline, isOnline, wasOffline } = useOffline()
  * 
  * if (isOffline) {
  *   return <OfflineBanner />
+ * }
+ * 
+ * if (wasOffline) {
+ *   // Connection just restored - trigger sync
+ *   sync()
  * }
  * ```
  */
@@ -35,12 +39,14 @@ export function useOffline(): UseOfflineReturn {
     }
 
     const handleOnline = () => {
-      if (isOffline) {
+      const wasOfflineBefore = isOffline
+      setIsOffline(false)
+      
+      if (wasOfflineBefore) {
         setWasOffline(true)
         // Reset wasOffline after a short delay
-        setTimeout(() => setWasOffline(false), 1000)
+        setTimeout(() => setWasOffline(false), 2000)
       }
-      setIsOffline(false)
     }
 
     const handleOffline = () => {

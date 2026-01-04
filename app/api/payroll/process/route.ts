@@ -21,6 +21,11 @@ import { hasPermission } from '@/lib/permissions'
 import { mapToMoFARole } from '@/lib/role-mapping'
 
 // GRA Tax Brackets (same as tax-calculate route)
+
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 const GRA_TAX_BRACKETS = [
   { min: 0, max: 365, rate: 0 },
   { min: 365, max: 475, rate: 5 },

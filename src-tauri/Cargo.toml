@@ -1,0 +1,33 @@
+[package]
+name = "hr-leave-portal"
+version = "0.1.0"
+description = "HR Leave Portal Desktop Application"
+authors = ["MOFA"]
+license = ""
+repository = ""
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+regex = "1.10"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+base64 = { version = "0.22", features = ["alloc"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[features]
+# This feature is used for production builds or when `devPath` points to the filesystem
+custom-protocol = ["tauri/custom-protocol"]
+

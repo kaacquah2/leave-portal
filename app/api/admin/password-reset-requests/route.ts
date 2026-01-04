@@ -13,6 +13,9 @@ import { prisma } from '@/lib/prisma'
 import { createPasswordResetToken } from '@/lib/auth'
 import { sendEmail, generatePasswordResetEmail, getAppUrl } from '@/lib/email'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 // GET - List password reset requests
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {

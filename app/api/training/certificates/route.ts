@@ -14,6 +14,10 @@ import { logDataAccess } from '@/lib/data-access-logger'
 import { hasPermission } from '@/lib/permissions'
 import { mapToMoFARole } from '@/lib/role-mapping'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * GET /api/training/certificates
  * Get training certificates

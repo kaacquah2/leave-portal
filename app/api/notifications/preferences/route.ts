@@ -14,6 +14,10 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext } from '@/lib/auth-proxy'
 import { logDataAccess } from '@/lib/data-access-logger'
 
+// Force static export configuration (required for static export mode)
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * GET /api/notifications/preferences
  * Get user notification preferences

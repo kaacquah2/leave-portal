@@ -13,9 +13,14 @@ import { withAuth, type AuthContext, isHR, isHRDirector, isChiefDirector, isAudi
 import { validateLeavePolicyAgainstStatutoryMinimums, getStatutoryMinimum } from '@/lib/statutory-leave-validation'
 import { AUDIT_ROLES } from '@/lib/role-utils'
 
+// Force dynamic - this route uses cookies via withAuth and cannot be statically pre-rendered
+
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
 /**
  * GET /api/reports/compliance/statutory
  * Generate statutory compliance report
+ * Note: Uses cookies via withAuth, will be skipped during static export (works at runtime)
  */
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {

@@ -2,13 +2,27 @@ name: MoFA HR System Cron Jobs
 
 on:
   schedule:
-    # Escalation Check - Daily at 9 AM UTC (adjust timezone as needed)
+    # Escalation Check - Daily at 9 AM UTC
     - cron: '0 9 * * *'
     # Notification Queue - Every 5 minutes
-    - cron: '*/5 * * * *'
+    - cron: '*/5 * * * *'  # Runs every 5 minutes
     # Data Retention - Monthly on 1st at 2 AM UTC
     - cron: '0 2 1 * *'
-  workflow_dispatch: # Allow manual trigger from GitHub UI
+    # Database Backup - Daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run (escalation, notification-queue, data-retention, backup, or all)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - escalation
+          - notification-queue
+          - data-retention
+          - backup
   push:
     branches:
       - main
@@ -17,29 +31,47 @@ on:
       - '.github/workflows/cron-jobs.yml'
 
 env:
-  APP_URL: ${{ secrets.APP_URL || 'https://your-domain.vercel.app' }}
+  APP_URL: ${{ secrets.APP_URL }}
   CRON_SECRET: ${{ secrets.CRON_SECRET }}
 
 jobs:
   escalation:
     name: Escalation Check
     runs-on: ubuntu-latest
-    # Only run on schedule or manual trigger (not on every push)
     if: |
-      github.event_name == 'schedule' || 
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'escalation')) ||
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[cron:escalation]'))
+    timeout-minutes: 10
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Validate environment
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "::error::APP_URL secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          echo "✓ Environment validated"
 
       - name: Run Escalation Job
         run: |
           echo "Running escalation check job..."
-          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.APP_URL }}/api/cron/escalation" \
-            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
-            -H "Content-Type: application/json")
+          set +e
+          response=$(curl -s -w "\n%{http_code}" --max-time 300 -X GET "${APP_URL}/api/cron/escalation" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" 2>&1)
+          exit_code=$?
+          set -e
+          
+          if [ $exit_code -ne 0 ]; then
+            echo "::error::curl failed with exit code $exit_code"
+            echo "Response: $response"
+            exit 1
+          fi
           
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
@@ -48,31 +80,54 @@ jobs:
           echo "Response Body: $body"
           
           if [ "$http_code" -ne 200 ]; then
-            echo "Error: Job failed with HTTP $http_code"
+            echo "::error::Job failed with HTTP $http_code"
+            if [ "$http_code" == "401" ]; then
+              echo "::error::Unauthorized - Check that CRON_SECRET matches between GitHub and your API"
+            elif [ "$http_code" == "404" ]; then
+              echo "::error::Not Found - Check that APP_URL is correct and the /api/cron/escalation endpoint exists"
+            fi
             exit 1
           fi
           
-          echo "Escalation job completed successfully"
+          echo "✓ Escalation job completed successfully"
 
   notification-queue:
     name: Notification Queue Processing
     runs-on: ubuntu-latest
-    # Run on schedule, manual trigger, or specific commit message
     if: |
-      github.event_name == 'schedule' || 
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'notification-queue')) ||
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[cron:notification-queue]'))
+    timeout-minutes: 5
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Validate environment
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "::error::APP_URL secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          echo "✓ Environment validated"
 
       - name: Run Notification Queue Job
         run: |
           echo "Running notification queue job..."
-          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.APP_URL }}/api/cron/notification-queue" \
-            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
-            -H "Content-Type: application/json")
+          set +e
+          response=$(curl -s -w "\n%{http_code}" --max-time 180 -X GET "${APP_URL}/api/cron/notification-queue" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" 2>&1)
+          exit_code=$?
+          set -e
+          
+          if [ $exit_code -ne 0 ]; then
+            echo "::error::curl failed with exit code $exit_code"
+            echo "Response: $response"
+            exit 1
+          fi
           
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
@@ -81,31 +136,54 @@ jobs:
           echo "Response Body: $body"
           
           if [ "$http_code" -ne 200 ]; then
-            echo "Error: Job failed with HTTP $http_code"
+            echo "::error::Job failed with HTTP $http_code"
+            if [ "$http_code" == "401" ]; then
+              echo "::error::Unauthorized - Check that CRON_SECRET matches between GitHub and your API"
+            elif [ "$http_code" == "404" ]; then
+              echo "::error::Not Found - Check that APP_URL is correct and the /api/cron/notification-queue endpoint exists"
+            fi
             exit 1
           fi
           
-          echo "Notification queue job completed successfully"
+          echo "✓ Notification queue job completed successfully"
 
   data-retention:
     name: Data Retention
     runs-on: ubuntu-latest
-    # Only run on schedule or manual trigger (not on every push)
     if: |
-      github.event_name == 'schedule' || 
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'data-retention')) ||
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[cron:data-retention]'))
+    timeout-minutes: 30
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Validate environment
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "::error::APP_URL secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          echo "✓ Environment validated"
 
       - name: Run Data Retention Job
         run: |
           echo "Running data retention job..."
-          response=$(curl -s -w "\n%{http_code}" -X GET "${{ env.APP_URL }}/api/cron/data-retention" \
-            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
-            -H "Content-Type: application/json")
+          set +e
+          response=$(curl -s -w "\n%{http_code}" --max-time 1800 -X GET "${APP_URL}/api/cron/data-retention" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" 2>&1)
+          exit_code=$?
+          set -e
+          
+          if [ $exit_code -ne 0 ]; then
+            echo "::error::curl failed with exit code $exit_code"
+            echo "Response: $response"
+            exit 1
+          fi
           
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
@@ -114,46 +192,134 @@ jobs:
           echo "Response Body: $body"
           
           if [ "$http_code" -ne 200 ]; then
-            echo "Error: Job failed with HTTP $http_code"
+            echo "::error::Job failed with HTTP $http_code"
+            if [ "$http_code" == "401" ]; then
+              echo "::error::Unauthorized - Check that CRON_SECRET matches between GitHub and your API"
+            elif [ "$http_code" == "404" ]; then
+              echo "::error::Not Found - Check that APP_URL is correct and the /api/cron/data-retention endpoint exists"
+            fi
             exit 1
           fi
           
-          echo "Data retention job completed successfully"
+          echo "✓ Data retention job completed successfully"
+
+  backup:
+    name: Daily Database Backup
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == 'backup')) ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[cron:backup]'))
+    timeout-minutes: 60
+    
+    steps:
+      - name: Validate environment
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "::error::APP_URL secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          echo "✓ Environment validated"
+
+      - name: Run Backup Job
+        run: |
+          echo "Running database backup job..."
+          set +e
+          response=$(curl -s -w "\n%{http_code}" --max-time 3600 -X GET "${APP_URL}/api/cron/backup" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" 2>&1)
+          exit_code=$?
+          set -e
+          
+          if [ $exit_code -ne 0 ]; then
+            echo "::error::curl failed with exit code $exit_code"
+            echo "Response: $response"
+            echo "This might indicate network issues or the API endpoint is not accessible"
+            exit 1
+          fi
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response Code: $http_code"
+          echo "Response Body: $body"
+          
+          if [ "$http_code" -ne 200 ]; then
+            echo "::error::Backup job failed with HTTP $http_code"
+            if [ "$http_code" == "401" ]; then
+              echo "::error::Unauthorized - Check that CRON_SECRET matches between GitHub and your API"
+            elif [ "$http_code" == "404" ]; then
+              echo "::error::Not Found - Check that APP_URL is correct and the /api/cron/backup endpoint exists"
+            fi
+            exit 1
+          fi
+          
+          echo "✓ Backup job completed successfully"
 
   # Combined job for manual testing
   test-all-jobs:
     name: Test All Cron Jobs
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'all' || github.event.inputs.job == '')
+    timeout-minutes: 15
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Validate environment
+        run: |
+          if [ -z "${{ secrets.APP_URL }}" ]; then
+            echo "::error::APP_URL secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET secret is not set in GitHub repository settings"
+            exit 1
+          fi
+          echo "✓ Environment validated"
 
       - name: Test Escalation Job
+        continue-on-error: true
         run: |
           echo "Testing escalation job..."
-          curl -X GET "${{ env.APP_URL }}/api/cron/escalation" \
-            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+          curl -X GET "${APP_URL}/api/cron/escalation" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
             -w "\nHTTP Status: %{http_code}\n" \
+            --max-time 60 \
             -f || echo "Escalation job test completed (may have failed)"
 
       - name: Test Notification Queue Job
+        continue-on-error: true
         run: |
           echo "Testing notification queue job..."
-          curl -X GET "${{ env.APP_URL }}/api/cron/notification-queue" \
-            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+          curl -X GET "${APP_URL}/api/cron/notification-queue" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
             -w "\nHTTP Status: %{http_code}\n" \
+            --max-time 60 \
             -f || echo "Notification queue job test completed (may have failed)"
 
       - name: Test Data Retention Job
+        continue-on-error: true
         run: |
           echo "Testing data retention job..."
-          curl -X GET "${{ env.APP_URL }}/api/cron/data-retention" \
-            -H "Authorization: Bearer ${{ env.CRON_SECRET }}" \
+          curl -X GET "${APP_URL}/api/cron/data-retention" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
             -w "\nHTTP Status: %{http_code}\n" \
+            --max-time 60 \
             -f || echo "Data retention job test completed (may have failed)"
 
+      - name: Test Backup Job
+        continue-on-error: true
+        run: |
+          echo "Testing backup job..."
+          curl -X GET "${APP_URL}/api/cron/backup" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            -w "\nHTTP Status: %{http_code}\n" \
+            --max-time 300 \
+            -f || echo "Backup job test completed (may have failed)"

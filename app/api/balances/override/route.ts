@@ -13,6 +13,9 @@ import { withAuth, type AuthContext, isHROfficer, isHRDirector } from '@/lib/aut
 import { createAuditLog } from '@/lib/audit-logger'
 import { HR_ROLES } from '@/lib/role-utils'
 
+// Force static export configuration (required for static export mode)
+export const dynamic = 'force-static'
+
 /**
  * POST /api/balances/override
  * Request a leave balance override (requires HR Director approval)

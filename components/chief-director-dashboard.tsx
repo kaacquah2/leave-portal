@@ -79,42 +79,164 @@ export default function ChiefDirectorDashboard({
         setPendingLeaves(seniorStaffLeaves.slice(0, 5))
       }
 
-      // Calculate executive statistics
-      const totalStaff = store.staff.filter((s: any) => s.active).length
-      const thisMonth = new Date().getMonth()
-      const thisYear = new Date().getFullYear()
-      
-      const approvedLeaves = store.leaves.filter((l: any) => {
-        if (l.status !== 'approved') return false
-        const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
-        return approvalDate && 
-               approvalDate.getMonth() === thisMonth && 
-               approvalDate.getFullYear() === thisYear
-      })
+      // Fetch staff statistics from API
+      try {
+        const staffResponse = await apiRequest('/api/staff')
+        let totalStaff = 0
+        let uniqueDirectorates = new Set<string>()
+        let uniqueUnits = new Set<string>()
+        
+        if (staffResponse.ok) {
+          const allStaff = await staffResponse.json()
+          totalStaff = allStaff.filter((s: any) => s.active).length
+          allStaff.forEach((s: any) => {
+            if (s.directorate) uniqueDirectorates.add(s.directorate)
+            if (s.unit) uniqueUnits.add(s.unit)
+          })
+        } else {
+          // Fallback to store
+          totalStaff = store.staff.filter((s: any) => s.active).length
+          store.staff.forEach((s: any) => {
+            if (s.directorate) uniqueDirectorates.add(s.directorate)
+            if (s.unit) uniqueUnits.add(s.unit)
+          })
+        }
 
-      const onLeave = store.leaves.filter((l: any) => {
+        // Fetch approved leaves for this month from API
+        const thisMonth = new Date().getMonth()
+        const thisYear = new Date().getFullYear()
+        const monthStart = new Date(thisYear, thisMonth, 1)
+        const monthEnd = new Date(thisYear, thisMonth + 1, 0)
+        
+        try {
+          const approvedResponse = await apiRequest(
+            `/api/leaves?status=approved&startDate=${monthStart.toISOString().split('T')[0]}&endDate=${monthEnd.toISOString().split('T')[0]}`
+          )
+          let approvedLeaves: any[] = []
+          if (approvedResponse.ok) {
+            approvedLeaves = await approvedResponse.json()
+            approvedLeaves = approvedLeaves.filter((l: any) => {
+              const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+              return approvalDate && 
+                     approvalDate.getMonth() === thisMonth && 
+                     approvalDate.getFullYear() === thisYear
+            })
+          } else {
+            // Fallback to store
+            approvedLeaves = store.leaves.filter((l: any) => {
+              if (l.status !== 'approved') return false
+              const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+              return approvalDate && 
+                     approvalDate.getMonth() === thisMonth && 
+                     approvalDate.getFullYear() === thisYear
+            })
+          }
+
+          // Fetch currently on leave from API
+          const today = new Date()
+          try {
+            const onLeaveResponse = await apiRequest(
+              `/api/leaves?status=approved&startDate=${today.toISOString().split('T')[0]}&endDate=${today.toISOString().split('T')[0]}`
+            )
+            let onLeave: any[] = []
+            if (onLeaveResponse.ok) {
+              const allApproved = await onLeaveResponse.json()
+              onLeave = allApproved.filter((l: any) => {
+                return new Date(l.startDate) <= today &&
+                       new Date(l.endDate) >= today
+              })
+            } else {
+              // Fallback to store
+              onLeave = store.leaves.filter((l: any) => {
+                return l.status === 'approved' &&
+                       new Date(l.startDate) <= today &&
+                       new Date(l.endDate) >= today
+              })
+            }
+
+            setExecutiveStats({
+              totalStaff,
+              pendingSeniorApprovals: pendingLeaves.length,
+              approvedThisMonth: approvedLeaves.length,
+              onLeave: onLeave.length,
+              directorates: uniqueDirectorates.size,
+              units: uniqueUnits.size,
+            })
+          } catch (onLeaveError) {
+            console.error('Error fetching on-leave data:', onLeaveError)
+            // Use store fallback
+            const today = new Date()
+            const onLeave = store.leaves.filter((l: any) => {
+              return l.status === 'approved' &&
+                     new Date(l.startDate) <= today &&
+                     new Date(l.endDate) >= today
+            })
+            setExecutiveStats({
+              totalStaff,
+              pendingSeniorApprovals: pendingLeaves.length,
+              approvedThisMonth: approvedLeaves.length,
+              onLeave: onLeave.length,
+              directorates: uniqueDirectorates.size,
+              units: uniqueUnits.size,
+            })
+          }
+        } catch (approvedError) {
+          console.error('Error fetching approved leaves:', approvedError)
+          // Use store fallback
+          const thisMonth = new Date().getMonth()
+          const thisYear = new Date().getFullYear()
+          const approvedLeaves = store.leaves.filter((l: any) => {
+            if (l.status !== 'approved') return false
+            const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+            return approvalDate && 
+                   approvalDate.getMonth() === thisMonth && 
+                   approvalDate.getFullYear() === thisYear
+          })
+          const today = new Date()
+          const onLeave = store.leaves.filter((l: any) => {
+            return l.status === 'approved' &&
+                   new Date(l.startDate) <= today &&
+                   new Date(l.endDate) >= today
+          })
+          setExecutiveStats({
+            totalStaff,
+            pendingSeniorApprovals: pendingLeaves.length,
+            approvedThisMonth: approvedLeaves.length,
+            onLeave: onLeave.length,
+            directorates: uniqueDirectorates.size,
+            units: uniqueUnits.size,
+          })
+        }
+      } catch (staffError) {
+        console.error('Error fetching staff data:', staffError)
+        // Use store fallback
+        const totalStaff = store.staff.filter((s: any) => s.active).length
+        const uniqueDirectorates = new Set(store.staff.map((s: any) => s.directorate).filter(Boolean))
+        const uniqueUnits = new Set(store.staff.map((s: any) => s.unit).filter(Boolean))
+        const thisMonth = new Date().getMonth()
+        const thisYear = new Date().getFullYear()
+        const approvedLeaves = store.leaves.filter((l: any) => {
+          if (l.status !== 'approved') return false
+          const approvalDate = l.approvalDate ? new Date(l.approvalDate) : null
+          return approvalDate && 
+                 approvalDate.getMonth() === thisMonth && 
+                 approvalDate.getFullYear() === thisYear
+        })
         const today = new Date()
-        return l.status === 'approved' &&
-               new Date(l.startDate) <= today &&
-               new Date(l.endDate) >= today
-      })
-
-      // Count organizational structure
-      const uniqueDirectorates = new Set(
-        store.staff.map((s: any) => s.directorate).filter(Boolean)
-      )
-      const uniqueUnits = new Set(
-        store.staff.map((s: any) => s.unit).filter(Boolean)
-      )
-
-      setExecutiveStats({
-        totalStaff,
-        pendingSeniorApprovals: pendingLeaves.length,
-        approvedThisMonth: approvedLeaves.length,
-        onLeave: onLeave.length,
-        directorates: uniqueDirectorates.size,
-        units: uniqueUnits.size,
-      })
+        const onLeave = store.leaves.filter((l: any) => {
+          return l.status === 'approved' &&
+                 new Date(l.startDate) <= today &&
+                 new Date(l.endDate) >= today
+        })
+        setExecutiveStats({
+          totalStaff,
+          pendingSeniorApprovals: pendingLeaves.length,
+          approvedThisMonth: approvedLeaves.length,
+          onLeave: onLeave.length,
+          directorates: uniqueDirectorates.size,
+          units: uniqueUnits.size,
+        })
+      }
     } catch (error) {
       console.error('Error fetching chief director dashboard data:', error)
     } finally {
