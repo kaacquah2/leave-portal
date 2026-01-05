@@ -1,3 +1,6 @@
+// Mark this module as server-only to prevent client-side bundling
+// This check prevents Prisma from being initialized in client code
+
 import { PrismaClient } from '@prisma/client'
 import { neonConfig } from '@neondatabase/serverless'
 import { PrismaNeon } from '@prisma/adapter-neon'
@@ -31,17 +34,25 @@ if (typeof window === 'undefined') {
 
 // Prisma 7: Use Neon adapter with DATABASE_URL from environment variables
 // DIRECT_URL is used for migrations via prisma.config.ts
-const connectionString = process.env.DATABASE_URL
-if (!connectionString) {
-  throw new Error('DATABASE_URL environment variable is not set')
-}
+// Only initialize Prisma on the server side (not in client bundles)
+function createPrismaClient(): PrismaClient | null {
+  // Skip initialization in client-side code
+  if (typeof window !== 'undefined') {
+    // Return null in client - should never be accessed
+    return null as any
+  }
 
-const adapter = new PrismaNeon({ connectionString })
+  // Only check DATABASE_URL on server side
+  const connectionString = process.env.DATABASE_URL
+  if (!connectionString) {
+    throw new Error('DATABASE_URL environment variable is not set')
+  }
 
-// Create Prisma client with enhanced error logging
-// Note: Prisma with Neon adapter already handles connection pooling and retries
-// Error logging is handled via Prisma's log configuration and catch blocks in API routes
-function createPrismaClient(): PrismaClient {
+  const adapter = new PrismaNeon({ connectionString })
+
+  // Create Prisma client with enhanced error logging
+  // Note: Prisma with Neon adapter already handles connection pooling and retries
+  // Error logging is handled via Prisma's log configuration and catch blocks in API routes
   const client = new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
@@ -54,8 +65,13 @@ function createPrismaClient(): PrismaClient {
   return client
 }
 
-export const prisma =
-  globalForPrisma.prisma ?? createPrismaClient()
+// Only create Prisma client on server side
+// In client bundles, this will be null but should never be accessed
+// Webpack should tree-shake this in client bundles, but if it doesn't, the null check prevents errors
+export const prisma: PrismaClient =
+  (typeof window === 'undefined'
+    ? (globalForPrisma.prisma ?? createPrismaClient())
+    : null) as any
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 

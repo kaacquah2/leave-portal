@@ -180,6 +180,28 @@ const nextConfig = {
     // Ensure node_modules are properly resolved
     config.resolve.modules = ['node_modules', ...(config.resolve.modules || [])]
     
+    // Exclude Prisma and related packages from client bundles
+    // These should only be used in server-side code (API routes, server components)
+    if (!isServer) {
+      if (!config.plugins) {
+        config.plugins = []
+      }
+      // IgnorePlugin prevents webpack from bundling Prisma packages in client code
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^@prisma\/.*$|^@neondatabase\/serverless$|^ws$|^@prisma\/adapter-neon$/
+        })
+      )
+      
+      // Replace lib/prisma imports with a client-safe stub
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(
+          /^@\/lib\/prisma$/,
+          resolve(__dirname, 'lib', 'prisma-client-stub.ts')
+        )
+      )
+    }
+    
     // Ensure proper module resolution for server-side packages
     if (isServer) {
       // Ensure bcryptjs and jose are properly resolved and bundled
