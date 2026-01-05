@@ -14,8 +14,9 @@ import {
 } from '@/lib/workflow-engine'
 import { HR_DIRECTOR, SYSTEM_ADMIN } from '@/lib/roles'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// Force dynamic execution (required for Prisma database access)
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs' // Explicitly set to nodejs runtime
 
 const ALLOWED_ROLES = [HR_DIRECTOR, SYSTEM_ADMIN, 'HR_DIRECTOR', 'hr_director', 'SYSTEM_ADMIN', 'admin', 'SYS_ADMIN']
 

@@ -3,10 +3,9 @@ import { runHealthChecks } from '@/lib/monitoring'
 import { HR_ROLES, ADMIN_ROLES } from '@/lib/roles'
 import type { AuthContext } from '@/lib/auth'
 
-// Force static export configuration (required for static export mode)
-// Note: This route uses cookies via withAuth, but is marked as force-static
-// During static export build, it will return a placeholder response
-export const dynamic = 'force-static'
+// Force dynamic execution (required for Prisma database access)
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs' // Explicitly set to nodejs runtime
 
 // GET system health status
 export async function GET(request: NextRequest) {

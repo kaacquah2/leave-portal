@@ -9,7 +9,9 @@ import { activateWorkflowVersion } from '@/lib/workflow-engine'
 import { HR_DIRECTOR, SYSTEM_ADMIN } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// Force dynamic execution (required for Prisma database access)
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs' // Explicitly set to nodejs runtime
 
 // Generate static params for dynamic route (required for static export)
 export function generateStaticParams() {

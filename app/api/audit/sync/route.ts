@@ -7,8 +7,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, type AuthContext } from '@/lib/auth'
 import { logSyncOperation } from '@/lib/comprehensive-audit'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// Force dynamic execution (required for Prisma database access)
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs' // Explicitly set to nodejs runtime
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user, request: req }: AuthContext) => {
     try {

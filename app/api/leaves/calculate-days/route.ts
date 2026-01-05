@@ -3,10 +3,9 @@ import { withAuth, type AuthContext } from '@/lib/auth'
 import { calculateLeaveDays } from '@/lib/leave-calculation-utils'
 import { READ_ONLY_ROLES } from '@/lib/roles'
 
-// Force static export configuration (required for static export mode)
-
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// Force dynamic execution (required for Prisma database access)
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs' // Explicitly set to nodejs runtime
 export async function GET(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {

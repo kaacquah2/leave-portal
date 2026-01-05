@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { getStaffDataAtTime } from '@/lib/staff-versioning'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// Force dynamic execution (required for Prisma database access)
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs' // Explicitly set to nodejs runtime
 
 // Generate static params for dynamic route (empty array = skip static generation)
 export function generateStaticParams() {
