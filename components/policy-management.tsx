@@ -23,9 +23,11 @@ import {
   RefreshCw,
   Download
 } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 import { toast } from 'sonner'
 import { getStatutoryMinimum, hasStatutoryMinimum, validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-leave-validation'
+import { useAuth } from '@/hooks/use-auth'
+import { hasPermission, type UserRole } from '@/lib/permissions'
 
 interface LeavePolicy {
   id: string
@@ -63,12 +65,16 @@ interface ComplianceReport {
 }
 
 export default function PolicyManagement() {
+  const { user } = useAuth()
   const [policies, setPolicies] = useState<LeavePolicy[]>([])
   const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPolicy, setEditingPolicy] = useState<LeavePolicy | null>(null)
+  
+  // Permission check for managing policies
+  const canManagePolicies = user?.role ? hasPermission(user.role as UserRole, 'leave:policy:manage') : false
   const [formData, setFormData] = useState({
     leaveType: '',
     maxDays: '',
@@ -461,22 +467,24 @@ export default function PolicyManagement() {
                         )}
                       </div>
 
-                      <div className="flex gap-2 ml-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenDialog(policy)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(policy.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      {canManagePolicies && (
+                        <div className="flex gap-2 ml-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenDialog(policy)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(policy.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )

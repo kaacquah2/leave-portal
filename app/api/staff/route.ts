@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { mapToMoFARole } from '@/lib/role-mapping'
-import { hasPermission } from '@/lib/permissions'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { mapToMoFARole, hasPermission } from '@/lib/roles'
 import { MOFA_UNITS, getUnitConfig, getDirectorateForUnit } from '@/lib/mofa-unit-mapping'
 import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
+import { buildStaffWhereClause } from '@/lib/data-scoping-utils'
+import { parsePaginationParams, createPaginatedResponse, validatePaginationParams } from '@/lib/pagination-utils'
 
 // Force static export configuration (required for static export mode)
 // GET all staff members
@@ -13,90 +14,46 @@ import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
 export const dynamic = 'force-static'
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
-    // Normalize role to MoFA role code
-    const normalizedRole = mapToMoFARole(user.role)
+    const searchParams = request.nextUrl.searchParams
     
-    // Get user's staff record for organizational info
-    let userStaff = null
-    if (user.staffId) {
-      userStaff = await prisma.staffMember.findUnique({
-        where: { staffId: user.staffId },
-        select: {
-          unit: true,
-          directorate: true,
-          dutyStation: true,
-          staffId: true,
-        },
-      })
+    // Parse pagination parameters with defaults
+    const paginationParams = parsePaginationParams(searchParams)
+    const validation = validatePaginationParams(paginationParams)
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error || 'Invalid pagination parameters' },
+        { status: 400 }
+      )
     }
     
-    let where: any = {}
-    
-    // HR roles, HR Director, Chief Director, SYS_ADMIN, and AUDITOR can view all
-    if (
-      hasPermission(normalizedRole, 'employee:view:all') ||
-      hasPermission(normalizedRole, 'org:view:all')
-    ) {
-      // No filter - view all staff
-    }
-    // Employees can only view their own record
-    else if (normalizedRole === 'EMPLOYEE' || normalizedRole === 'employee') {
-      if (user.staffId) {
-        where.staffId = user.staffId
-      } else {
-        // No staffId - return empty
-        return NextResponse.json([])
-      }
-    }
-    // Director: Filter by directorate
-    // Note: regional_manager is mapped to DIRECTOR during normalization
-    else if (
-      normalizedRole === 'DIRECTOR' || 
-      normalizedRole === 'directorate_head' || 
-      normalizedRole === 'deputy_director'
-    ) {
-      if (userStaff?.directorate) {
-        where.directorate = userStaff.directorate
-      } else {
-        // No directorate - return empty
-        return NextResponse.json([])
-      }
-    }
-    // Unit Head: Filter by unit
-    // Note: division_head is mapped to UNIT_HEAD during normalization
-    else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
-      if (userStaff?.unit) {
-        where.unit = userStaff.unit
-      } else {
-        return NextResponse.json([])
-      }
-    }
-    // Supervisor: Filter by direct reports (managerId or immediateSupervisorId)
-    else if (
-      normalizedRole === 'SUPERVISOR' || 
-      normalizedRole === 'supervisor' || 
-      normalizedRole === 'manager'
-    ) {
-      if (user.staffId) {
-        where.OR = [
-          { managerId: user.staffId },
-          { immediateSupervisorId: user.staffId },
-        ]
-      } else {
-        return NextResponse.json([])
-      }
-    }
-    // Default: return empty if no permission
-    else {
-      return NextResponse.json([])
-    }
-
-    const staff = await prisma.staffMember.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
+    // Build where clause based on user role with proper data scoping
+    const { where, hasAccess } = await buildStaffWhereClause({
+      id: user.id,
+      role: user.role,
+      staffId: user.staffId,
     })
     
-    return NextResponse.json(staff)
+    if (!hasAccess) {
+      return NextResponse.json(createPaginatedResponse([], 0, paginationParams))
+    }
+
+    // PERFORMANCE FIX: Add pagination to reduce payload size
+    const [staff, total] = await Promise.all([
+      prisma.staffMember.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: paginationParams.limit,
+        skip: paginationParams.offset,
+      }),
+      prisma.staffMember.count({ where }),
+    ])
+    
+    const response = NextResponse.json(createPaginatedResponse(staff, total, paginationParams))
+    
+    // Add cache headers for GET requests (5 minutes)
+    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600')
+    
+    return response
   } catch (error) {
     console.error('Error fetching staff:', error)
     return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 })

@@ -54,6 +54,7 @@ export type AuditAction =
   
   // Leave Operations (already logged, but included for completeness)
   | 'leave_submitted'
+  | 'leave_resubmitted'
   | 'leave_approved'
   | 'leave_rejected'
   | 'leave_cancelled'

@@ -7,9 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { AUDIT_ROLES } from '@/lib/role-utils'
-import { mapToMoFARole } from '@/lib/role-mapping'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { canViewAuditLogs, mapToMoFARole, AUDIT_ROLES } from '@/lib/roles'
 import { getRoleComplianceRestrictions } from '@/lib/compliance-utils'
 
 // Force static export configuration (required for static export mode)
@@ -28,7 +27,7 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     const normalizedRole = mapToMoFARole(user.role)
     
     // Only auditors and system admins can access review reports
-    if (!AUDIT_ROLES.includes(normalizedRole)) {
+    if (!canViewAuditLogs(normalizedRole)) {
       return NextResponse.json(
         { error: 'Forbidden - Only auditors and system administrators can access review reports' },
         { status: 403 }

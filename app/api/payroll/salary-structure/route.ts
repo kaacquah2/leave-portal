@@ -13,9 +13,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth'
 import { logDataAccess } from '@/lib/data-access-logger'
-import { mapToMoFARole } from '@/lib/role-mapping'
+import { mapToMoFARole } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 

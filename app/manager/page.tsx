@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Portal from '@/components/portal'
 import { useAuth } from '@/hooks/use-auth'
 import { AuthLoadingSkeleton } from '@/components/loading-skeletons'
-import { type UserRole } from '@/lib/permissions'
+import { type UserRole } from '@/lib/roles'
 
 function PortalWrapper({ onLogout, staffId, userRole }: { onLogout: () => void, staffId?: string, userRole: string }) {
   return <Portal userRole={userRole as any} onLogout={onLogout} staffId={staffId} />
@@ -15,8 +15,8 @@ export default function ManagerPage() {
   const router = useRouter()
   const { user, loading, isAuthenticated, logout, hasRole } = useAuth()
 
-  // Accept manager, supervisor, and SUPERVISOR roles
-  const allowedRoles: UserRole[] = ['manager', 'supervisor', 'SUPERVISOR', 'UNIT_HEAD', 'DIVISION_HEAD', 'DIRECTOR'] as UserRole[]
+  // Accept only manager and deputy_director roles (other roles have their own dedicated pages)
+  const allowedRoles: UserRole[] = ['manager', 'deputy_director'] as UserRole[]
 
   // Redirect if not authenticated or not manager
   if (!loading && (!isAuthenticated || !hasRole(allowedRoles))) {

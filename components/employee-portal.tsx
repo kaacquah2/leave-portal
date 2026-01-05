@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useDataStore } from '@/lib/data-store'
 import { useRealtime } from '@/lib/use-realtime'
@@ -15,8 +15,8 @@ import LeaveForm from '@/components/leave-form'
 import EmployeeProfileView from '@/components/employee-profile-view'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import UnauthorizedMessage from '@/components/unauthorized-message'
-import { type UserRole } from '@/lib/permissions'
-import { hasPermission } from '@/lib/permissions'
+import { type UserRole } from '@/lib/roles'
+import { hasPermission } from '@/lib/roles'
 
 interface EmployeePortalProps {
   staffId: string
@@ -79,10 +79,11 @@ export default function EmployeePortal({ staffId, userRole, onLogout }: Employee
     }
   }, [])
 
-  // Listen for real-time events
+  // Listen for real-time events - use refreshCritical directly to avoid store dependency
+  const refreshCritical = store.refreshCritical
   useEffect(() => {
     const handleBalanceUpdate = () => {
-      store.refreshCritical()
+      refreshCritical()
     }
     const handleNotification = () => {
       // Notifications component handles its own polling
@@ -95,9 +96,13 @@ export default function EmployeePortal({ staffId, userRole, onLogout }: Employee
       window.removeEventListener('realtime:balance-updated', handleBalanceUpdate)
       window.removeEventListener('realtime:notification', handleNotification)
     }
-  }, [store])
+  }, [refreshCritical]) // ✅ Only depends on function reference
   
-  const currentStaff = store.staff.find(s => s.staffId === staffId)
+  // Memoize currentStaff lookup to avoid O(n) search on every render
+  const currentStaff = useMemo(() => 
+    staffId ? store.staff.find(s => s.staffId === staffId) : null,
+    [staffId, store.staff]
+  )
 
   // Show loading state while data is being fetched
   if (store.loading && !store.initialized) {

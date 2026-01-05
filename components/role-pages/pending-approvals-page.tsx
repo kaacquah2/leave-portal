@@ -18,8 +18,8 @@ import {
   User,
   Building2
 } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
-import { type UserRole } from '@/lib/permissions'
+import { apiRequest } from '@/lib/api'
+import { type UserRole, PermissionChecks } from '@/lib/roles'
 
 interface PendingApprovalsPageProps {
   userRole: UserRole
@@ -41,6 +41,10 @@ export default function PendingApprovalsPage({
   const [leaves, setLeaves] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Permission checks for approve/reject buttons
+  const canApprove = PermissionChecks.canApproveLeaveAll(userRole) || 
+                    PermissionChecks.canApproveLeaveTeam(userRole)
 
   useEffect(() => {
     fetchPendingApprovals()
@@ -188,23 +192,27 @@ export default function PendingApprovalsPage({
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleApprove(leave.id)}
-                      className="flex-1"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleReject(leave.id)}
-                      className="flex-1"
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject
-                    </Button>
+                    {canApprove && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => handleApprove(leave.id)}
+                          className="flex-1"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleReject(leave.id)}
+                          className="flex-1"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                      </>
+                    )}
                     {onView && (
                       <Button
                         size="sm"

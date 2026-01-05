@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { handleCorsPreflight } from '@/lib/cors'
 
 // Force static export configuration (required for static export mode)
@@ -25,6 +25,8 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
             department: true,
             position: true,
             photoUrl: true,
+            unit: true,
+            directorate: true,
           },
         },
       },

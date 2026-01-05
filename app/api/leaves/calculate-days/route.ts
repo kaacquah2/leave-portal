@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { calculateLeaveDays } from '@/lib/leave-calculation-utils'
-import { READ_ONLY_ROLES } from '@/lib/role-utils'
+import { READ_ONLY_ROLES } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 

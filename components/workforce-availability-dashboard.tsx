@@ -14,8 +14,8 @@ import {
   Clock,
   BarChart3,
 } from 'lucide-react'
-import { type UserRole } from '@/lib/permissions'
-import { apiRequest } from '@/lib/api-config'
+import { type UserRole } from '@/lib/roles'
+import { apiRequest } from '@/lib/api'
 import { format, subDays, addDays, parseISO } from 'date-fns'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Search, Users, FileText, BarChart3, UserCheck, Shield, Clock, CheckCircle, AlertCircle, TrendingUp, Calendar, Activity } from 'lucide-react'
-import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
+import { hasPermission, type UserRole, type Permission } from '@/lib/roles'
 import { PermissionGate } from '@/components/permission-gate'
 
 interface DashboardProps {

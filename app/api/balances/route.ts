@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isEmployee, isManager, isHR, isAdmin } from '@/lib/auth-proxy'
-import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext, isEmployee, isManager, isHR, isAdmin } from '@/lib/auth'
+import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/roles'
+import { parsePaginationParams, createPaginatedResponse, validatePaginationParams } from '@/lib/pagination-utils'
+import { buildStaffWhereClause } from '@/lib/data-scoping-utils'
 
 // Force static export configuration (required for static export mode)
 export const dynamic = 'force-static'
@@ -9,30 +11,89 @@ export const dynamic = 'force-static'
 // GET all leave balances
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
-    // HR and admin can view all balances
-    // Employees and managers can only view their own balance
-    let where: any = {}
+    const searchParams = request.nextUrl.searchParams
     
-    const userIsEmployee = isEmployee(user)
-    const userIsManager = isManager(user)
-    const userIsHR = isHR(user) || isAdmin(user)
-    
-    if (userIsEmployee && user.staffId) {
-      where.staffId = user.staffId
-    } else if (userIsManager && user.staffId) {
-      // Managers and deputy directors see their team/directorate balances
-      // In a full implementation, this would filter by team/directorate
-      // For now, they see all (can be enhanced later)
+    // Parse pagination parameters
+    const paginationParams = parsePaginationParams(searchParams)
+    const validation = validatePaginationParams(paginationParams)
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error || 'Invalid pagination parameters' },
+        { status: 400 }
+      )
     }
-    // HR, HR Assistant, and admin see all (no where clause)
-
-    const balances = await prisma.leaveBalance.findMany({
-      where,
-      include: {
-        staff: true,
-      },
+    
+    // SECURITY FIX: Use centralized scoping utilities for consistent role-based filtering
+    const { where: staffWhere, hasAccess } = await buildStaffWhereClause({
+      id: user.id,
+      role: user.role,
+      staffId: user.staffId,
     })
-    return NextResponse.json(balances)
+    
+    if (!hasAccess) {
+      return NextResponse.json(createPaginatedResponse([], 0, paginationParams))
+    }
+    
+    // Get staff IDs user can access
+    const accessibleStaff = await prisma.staffMember.findMany({
+      where: staffWhere,
+      select: { staffId: true },
+    })
+    const staffIds = accessibleStaff.map(s => s.staffId)
+    
+    if (staffIds.length === 0) {
+      return NextResponse.json(createPaginatedResponse([], 0, paginationParams))
+    }
+
+    // PERFORMANCE FIX: Add pagination and reduce overfetching
+    const [balances, total] = await Promise.all([
+      prisma.leaveBalance.findMany({
+        where: { staffId: { in: staffIds } },
+        select: {
+          id: true,
+          staffId: true,
+          annual: true,
+          sick: true,
+          unpaid: true,
+          specialService: true,
+          training: true,
+          study: true,
+          maternity: true,
+          paternity: true,
+          compassionate: true,
+          lastAccrualDate: true,
+          accrualPeriod: true,
+          annualCarryForward: true,
+          sickCarryForward: true,
+          specialServiceCarryForward: true,
+          trainingCarryForward: true,
+          studyCarryForward: true,
+          annualExpiresAt: true,
+          sickExpiresAt: true,
+          specialServiceExpiresAt: true,
+          trainingExpiresAt: true,
+          studyExpiresAt: true,
+          createdAt: true,
+          updatedAt: true,
+          staff: {
+            select: {
+              staffId: true,
+              firstName: true,
+              lastName: true,
+              department: true,
+              position: true,
+              // Removed email and other sensitive fields
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: paginationParams.limit,
+        skip: paginationParams.offset,
+      }),
+      prisma.leaveBalance.count({ where: { staffId: { in: staffIds } } }),
+    ])
+    
+    return NextResponse.json(createPaginatedResponse(balances, total, paginationParams))
   } catch (error) {
     console.error('Error fetching balances:', error)
     return NextResponse.json({ error: 'Failed to fetch balances' }, { status: 500 })

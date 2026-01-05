@@ -141,7 +141,7 @@ function clearCacheEntryWeb(key: string): void {
 }
 
 /**
- * Get cached response
+ * Get cached response (returns response data only)
  */
 export async function getCachedResponse(
   method: string,
@@ -162,6 +162,33 @@ export async function getCachedResponse(
   const entry = getCacheEntryWeb(key);
   if (entry && !isExpired(entry)) {
     return entry.response;
+  }
+  
+  return null;
+}
+
+/**
+ * Get cached entry (returns full entry with metadata)
+ */
+export async function getCachedEntry(
+  method: string,
+  path: string,
+  query?: string
+): Promise<CacheEntry | null> {
+  const key = generateCacheKey(method, path, query);
+  
+  // Try Tauri first
+  if (isDesktop()) {
+    const entry = await getCacheEntryTauri(key);
+    if (entry && !isExpired(entry)) {
+      return entry;
+    }
+  }
+  
+  // Fallback to web storage
+  const entry = getCacheEntryWeb(key);
+  if (entry && !isExpired(entry)) {
+    return entry;
   }
   
   return null;

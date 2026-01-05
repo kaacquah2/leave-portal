@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // GET - List candidates

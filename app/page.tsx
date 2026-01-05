@@ -6,8 +6,8 @@ import Landing from '@/components/landing'
 import LoginForm from '@/components/login-form'
 import Portal from '@/components/portal'
 
-import { UserRole } from '@/lib/permissions'
-import { mapToMoFARole, getRoleRoute } from '@/lib/role-mapping'
+import { UserRole } from '@/lib/roles'
+import { mapToMoFARole, getRoleRoute } from '@/lib/roles'
 
 function PortalWrapper({ userRole, onLogout, staffId }: { userRole: UserRole, onLogout: () => void, staffId?: string }) {
   const moFARole = mapToMoFARole(userRole)

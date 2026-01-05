@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext, isHR, isHRDirector, isChiefDirector } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isHRDirector } from '@/lib/auth'
 import { processYearEndForAllStaff, processYearEndLeave } from '@/lib/leave-rules'
 import { prisma } from '@/lib/prisma'
 
@@ -27,15 +27,17 @@ export const dynamic = 'force-static'
 export async function POST(request: NextRequest) {
   return withAuth(async ({ user }: AuthContext) => {
     try {
-      // Only HR roles can trigger year-end processing
-      if (!isHR(user) && !isHRDirector(user) && !isChiefDirector(user)) {
+      // Only HR Officer or HR Director can trigger year-end processing
+      // Chief Director access removed - only HR roles can process year-end
+      if (!isHR(user) && !isHRDirector(user)) {
         return NextResponse.json(
           {
-            error: 'Forbidden - HR access required',
+            error: 'Forbidden - HR Officer or HR Director access required',
             errorCode: 'PERMISSION_DENIED',
             troubleshooting: [
-              'Only HR Officers, HR Directors, and Chief Directors can process year-end leave',
-              'Contact your system administrator if you need access',
+              'Only HR Officers and HR Directors can process year-end leave',
+              'This is a sensitive operation that requires HR authorization',
+              'Contact your HR Director if you need access',
             ],
           },
           { status: 403 }
@@ -195,12 +197,9 @@ export async function POST(request: NextRequest) {
     allowedRoles: [
       'HR_OFFICER',
       'HR_DIRECTOR',
-      'CHIEF_DIRECTOR',
       'hr',
       'hr_officer',
       'hr_director',
-      'hr_assistant',
-      'chief_director'
     ]
   })(request)
 }

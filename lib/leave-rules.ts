@@ -97,7 +97,14 @@ export async function processYearEndLeave(staffId: string): Promise<YearEndProce
   })
 
   if (!balance) {
-    throw new Error(`Leave balance not found for staff ${staffId}`)
+    // Skip staff without leave balance instead of throwing error
+    // This can happen for system accounts or newly created staff
+    console.warn(`[Year-End] Leave balance not found for staff ${staffId}, skipping...`)
+    return {
+      staffId,
+      results: [],
+      processedAt: new Date(),
+    }
   }
 
   const results: LeaveCarryForwardResult[] = []

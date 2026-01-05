@@ -5,7 +5,7 @@
  */
 
 import { UserRole } from './permissions'
-import { VALID_USER_ROLES } from './role-utils'
+import { VALID_USER_ROLES } from './roles/role-utils'
 
 export interface WorkflowIntegrationConfig {
   selfApprovalBlocked: boolean
@@ -49,7 +49,7 @@ export function integrateLeaveWorkflow(
 export function applyWorkflowIntegrationToAllRoles(): Record<UserRole, WorkflowIntegrationConfig> {
   const integrations: Record<string, WorkflowIntegrationConfig> = {}
 
-  VALID_USER_ROLES.forEach((role) => {
+  VALID_USER_ROLES.forEach((role: UserRole) => {
     integrations[role] = integrateLeaveWorkflow(role)
   })
 

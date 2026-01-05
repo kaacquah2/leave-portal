@@ -1,6 +1,5 @@
-// Temporarily enable console in release mode for debugging
-// TODO: Remove this after fixing the crash issue
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// Disable console window in release builds for production
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
 mod database;
@@ -32,6 +31,11 @@ fn main() {
     // Initialize app state with API base URL from environment
     // Option A: Tauri = UI only, Backend = remote server
     // API base URL is set from NEXT_PUBLIC_API_URL environment variable
+    // 
+    // Priority order:
+    // 1. NEXT_PUBLIC_API_URL (primary - set in .env or build-time)
+    // 2. TAURI_API_URL (fallback - alternative env var)
+    // 3. Hardcoded default (production fallback - can be changed via config file in future)
     let api_base_url = std::env::var("NEXT_PUBLIC_API_URL")
         .or_else(|_| std::env::var("TAURI_API_URL"))
         .unwrap_or_else(|_| "https://hr-leave-portal.vercel.app".to_string());
@@ -52,6 +56,24 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .manage(Mutex::new(app_state))
         .setup(|app| {
+            // Load persisted authentication token on startup
+            match commands::api::load_auth_token(app.handle()) {
+                Ok(Some(token)) => {
+                    // Restore token to app state
+                    if let Ok(mut state) = app.state::<Mutex<commands::api::AppState>>().try_lock() {
+                        state.auth_token = Some(token);
+                        eprintln!("[Tauri] Restored authentication token from persistent storage");
+                    }
+                }
+                Ok(None) => {
+                    eprintln!("[Tauri] No persisted authentication token found");
+                }
+                Err(e) => {
+                    eprintln!("[Tauri] Warning: Failed to load persisted auth token: {}", e);
+                    // Continue without persisted token - user will need to login
+                }
+            }
+            
             // Initialize database (kept for backward compatibility, but not used in Option A)
             // In Option A, all data operations go to remote API, not local database
             // Make database initialization non-fatal - log error but don't crash

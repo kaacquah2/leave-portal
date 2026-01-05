@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendPushNotification } from '@/lib/send-push-notification'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { READ_ONLY_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { READ_ONLY_ROLES } from '@/lib/roles'
 import { sendEmail, generateLeaveRequestApprovedEmail, generateLeaveRequestRejectedEmail } from '@/lib/email'
 import { createStaffSnapshot } from '@/lib/staff-versioning'
 import { calculateApprovalStatus, areParallelApprovalsComplete, getNextApprovers } from '@/lib/approval-workflow'
@@ -25,7 +25,8 @@ export function generateStaticParams() {
 }
 import { logLeaveApproval, logLeaveRejection, logBalanceDeduction, logBalanceRestoration } from '@/lib/audit-logger'
 import { notifyLeaveDecision, notifyLeaveSubmission } from '@/lib/notification-service'
-import { getUserRBACContext, canApproveLeaveRequest, canViewLeaveRequest } from '@/lib/mofa-rbac-middleware'
+import { getUserRBACContext, canApproveLeaveRequest, canViewLeaveRequest } from '@/lib/roles'
+import { validateWorkflowTransition } from '@/lib/workflow-state-validator'
 
 // GET single leave request
 export async function GET(
@@ -109,6 +110,11 @@ export async function PATCH(
     
     const leave = await prisma.leaveRequest.findUnique({
       where: { id },
+      include: {
+        approvalSteps: {
+          orderBy: { level: 'asc' },
+        },
+      },
     })
     
     if (!leave) {
@@ -126,6 +132,26 @@ export async function PATCH(
     
     // RBAC: Check if user can approve this leave request
     if (body.status && ['approved', 'rejected'].includes(body.status)) {
+      // Validate workflow transition
+      const currentStep = leave.approvalSteps?.find((s: any) => s.level === body.level)
+      const transitionValidation = validateWorkflowTransition(
+        leave.status as any,
+        body.status as any,
+        currentStep?.status as any,
+        body.status as any
+      )
+
+      if (!transitionValidation.valid) {
+        return NextResponse.json(
+          {
+            error: 'Invalid workflow transition',
+            errors: transitionValidation.errors,
+            errorCode: 'INVALID_TRANSITION',
+          },
+          { status: 400 }
+        )
+      }
+
       const rbacContext = await getUserRBACContext(user)
       if (!rbacContext) {
         return NextResponse.json(
@@ -558,16 +584,30 @@ export async function PATCH(
       if ((status === 'approved' || status === 'recorded') && approvalLevels && approvalLevels.length > 0) {
         const nextApprovers = getNextCivilServiceApprovers(approvalLevels)
         if (nextApprovers.length > 0) {
+          // PERFORMANCE FIX: Batch query - get all approver roles at once
+          const approverRoles = [...new Set(nextApprovers.map(a => a.approverRole))]
+          const approverUsers = await prisma.user.findMany({
+            where: {
+              role: { in: approverRoles },
+              active: true,
+            },
+            select: { id: true, role: true },
+          })
+          
+          // Map users by role for efficient lookup
+          const usersByRole = new Map<string, string[]>()
+          for (const user of approverUsers) {
+            if (!usersByRole.has(user.role)) {
+              usersByRole.set(user.role, [])
+            }
+            usersByRole.get(user.role)!.push(user.id)
+          }
+          
+          // Collect all approver user IDs
           const approverUserIds: string[] = []
           for (const approver of nextApprovers) {
-            const approverUsers = await prisma.user.findMany({
-              where: {
-                role: approver.approverRole,
-                active: true,
-              },
-              select: { id: true },
-            })
-            approverUserIds.push(...approverUsers.map(u => u.id))
+            const userIds = usersByRole.get(approver.approverRole) || []
+            approverUserIds.push(...userIds)
           }
 
           if (approverUserIds.length > 0) {

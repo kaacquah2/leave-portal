@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import Portal from '@/components/portal'
 import { useAuth } from '@/hooks/use-auth'
 import { AuthLoadingSkeleton } from '@/components/loading-skeletons'
+import { type UserRole } from '@/lib/roles'
 
-function PortalWrapper({ onLogout }: { onLogout: () => void }) {
-  return <Portal userRole="hr" onLogout={onLogout} />
+function PortalWrapper({ onLogout, staffId, userRole }: { onLogout: () => void, staffId?: string, userRole: string }) {
+  return <Portal userRole={userRole as any} onLogout={onLogout} staffId={staffId} />
 }
 
 export default function HRPage() {
@@ -30,7 +31,11 @@ export default function HRPage() {
 
   return (
     <Suspense fallback={<AuthLoadingSkeleton />}>
-      <PortalWrapper onLogout={logout} />
+      <PortalWrapper 
+        onLogout={logout} 
+        staffId={user?.staffId || undefined} 
+        userRole={user?.role || 'HR_OFFICER'} 
+      />
     </Suspense>
   )
 }

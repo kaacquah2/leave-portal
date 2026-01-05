@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { HR_ROLES, ADMIN_ROLES, READ_ONLY_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { HR_ROLES, ADMIN_ROLES, READ_ONLY_ROLES } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 // GET all notifications for current user

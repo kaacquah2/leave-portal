@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Target, Users, TrendingUp, Award, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 import { toast } from 'sonner'
 
 interface PerformanceGoal {

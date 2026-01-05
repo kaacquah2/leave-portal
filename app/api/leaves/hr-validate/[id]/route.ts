@@ -5,8 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { getUserRBACContext, canApproveLeaveRequest } from '@/lib/mofa-rbac-middleware'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { getUserRBACContext, canApproveLeaveRequest } from '@/lib/roles'
 import { updateApprovalStep, getApprovalSteps } from '@/lib/ghana-civil-service-approval-workflow-db'
 import { validateBeforeApproval } from '@/lib/ghana-civil-service-compliance'
 

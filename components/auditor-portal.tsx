@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react'
 import { useDataStore } from '@/lib/data-store'
 import Header from '@/components/header'
-import { UserRole } from '@/lib/permissions'
+import { UserRole } from '@/lib/roles'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'

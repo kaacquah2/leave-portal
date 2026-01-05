@@ -18,8 +18,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/components/ui/use-toast'
 import { DollarSign, AlertTriangle, CheckCircle, XCircle, Plus } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 import { format } from 'date-fns'
+import { useAuth } from '@/hooks/use-auth'
 
 interface EncashmentRequest {
   id: string
@@ -44,11 +45,18 @@ interface EncashmentRequest {
 
 export default function LeaveEncashmentManagement() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [encashments, setEncashments] = useState<EncashmentRequest[]>([])
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [selectedEncashment, setSelectedEncashment] = useState<EncashmentRequest | null>(null)
+  
+  // Only HR_DIRECTOR and CHIEF_DIRECTOR can approve encashment requests
+  const canApproveEncashment = user?.role === 'HR_DIRECTOR' || 
+                               user?.role === 'hr_director' ||
+                               user?.role === 'CHIEF_DIRECTOR' ||
+                               user?.role === 'chief_director'
   const [formData, setFormData] = useState({
     staffId: '',
     leaveType: '',
@@ -440,25 +448,27 @@ export default function LeaveEncashmentManagement() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => handleApprove('reject')}
-                  disabled={loading}
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Reject
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => handleApprove('approve')}
-                  disabled={loading}
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Approve
-                </Button>
-              </div>
+              {canApproveEncashment && (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => handleApprove('reject')}
+                    disabled={loading}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Reject
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => handleApprove('approve')}
+                    disabled={loading}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Approve
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

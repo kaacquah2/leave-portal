@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 
 interface LeaveCalendarViewProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -75,35 +75,37 @@ export default function LeaveCalendarView({ store, userRole, staffId }: LeaveCal
     leavesByMonth[month].push(leave)
   })
 
-  // Get holidays for the year and deduplicate
-  const holidayMap = new Map<string, any>()
-  
-  // Process holidays and deduplicate by date
-  store.holidays.forEach((h: any) => {
-    const holidayDate = new Date(h.date)
-    if (h.recurring) {
-      // For recurring holidays, set to current year
-      holidayDate.setFullYear(currentYear)
-    } else if (h.year === currentYear) {
-      // Only include year-specific holidays for current year
-      // Keep the date as is
-    } else {
-      // Skip holidays not for current year
-      return
-    }
+  // Get holidays for the year and deduplicate - memoized to avoid recalculation on every render
+  const holidays = useMemo(() => {
+    const holidayMap = new Map<string, any>()
     
-    // Create a key based on month and day (ignoring year)
-    const monthDay = `${holidayDate.getMonth()}-${holidayDate.getDate()}`
+    // Process holidays and deduplicate by date
+    store.holidays.forEach((h: any) => {
+      const holidayDate = new Date(h.date)
+      if (h.recurring) {
+        // For recurring holidays, set to current year
+        holidayDate.setFullYear(currentYear)
+      } else if (h.year === currentYear) {
+        // Only include year-specific holidays for current year
+        // Keep the date as is
+      } else {
+        // Skip holidays not for current year
+        return
+      }
+      
+      // Create a key based on month and day (ignoring year)
+      const monthDay = `${holidayDate.getMonth()}-${holidayDate.getDate()}`
+      
+      // If we already have a holiday for this date, prefer year-specific over recurring
+      const existing = holidayMap.get(monthDay)
+      if (!existing || (existing.recurring && !h.recurring)) {
+        holidayMap.set(monthDay, { ...h, normalizedDate: holidayDate })
+      }
+    })
     
-    // If we already have a holiday for this date, prefer year-specific over recurring
-    const existing = holidayMap.get(monthDay)
-    if (!existing || (existing.recurring && !h.recurring)) {
-      holidayMap.set(monthDay, { ...h, normalizedDate: holidayDate })
-    }
-  })
-  
-  // Convert map to array
-  const holidays = Array.from(holidayMap.values())
+    // Convert map to array
+    return Array.from(holidayMap.values())
+  }, [store.holidays, currentYear])
 
   const getStatusColor = (status: string) => {
     switch (status) {

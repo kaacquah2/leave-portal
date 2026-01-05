@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { RefreshCw, Database, Server, HardDrive, Cpu, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 import { toast } from 'sonner'
 
 interface SystemHealth {

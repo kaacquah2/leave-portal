@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext, isHR } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { join } from 'path'

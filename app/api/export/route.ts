@@ -12,6 +12,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { createHash } from 'crypto'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
+import { buildStaffWhereClause, buildLeaveWhereClause } from '@/lib/data-scoping-utils'
 
 // Export control matrix by role
 
@@ -76,14 +77,29 @@ export async function POST(request: NextRequest) {
       return addCorsHeaders(response, request)
     }
 
-    // Build query based on export type
+    // Build query based on export type with proper data scoping
     let data: any[] = []
     let recordCount = 0
 
     switch (exportType) {
       case 'staff':
+        // Apply data scoping based on user role
+        const { where: staffScopedWhere, hasAccess: hasStaffAccess } = await buildStaffWhereClause({
+          id: user.id,
+          role: user.role,
+          staffId: user.staffId,
+        }, filters || {})
+        
+        if (!hasStaffAccess) {
+          const response = NextResponse.json(
+            { error: 'You do not have permission to export staff data in this scope' },
+            { status: 403 }
+          )
+          return addCorsHeaders(response, request)
+        }
+        
         const staffData = await prisma.staffMember.findMany({
-          where: filters || {},
+          where: staffScopedWhere,
           select: {
             staffId: true,
             firstName: true,
@@ -105,16 +121,72 @@ export async function POST(request: NextRequest) {
         break
 
       case 'leave':
+        // Apply data scoping based on user role
+        const { where: leaveScopedWhere, hasAccess: hasLeaveAccess } = await buildLeaveWhereClause({
+          id: user.id,
+          role: user.role,
+          staffId: user.staffId,
+        })
+        
+        if (!hasLeaveAccess) {
+          const response = NextResponse.json(
+            { error: 'You do not have permission to export leave data in this scope' },
+            { status: 403 }
+          )
+          return addCorsHeaders(response, request)
+        }
+        
+        // Merge scoped where clause with date range and additional filters
+        const leaveWhere: any = { ...leaveScopedWhere }
+        
+        if (dateRange) {
+          leaveWhere.createdAt = {
+            gte: new Date(dateRange.start),
+            lte: new Date(dateRange.end),
+          }
+        }
+        
+        // Apply additional filters that respect scoping
+        if (filters) {
+          // Only apply filters that don't conflict with scoping
+          // For example, status, leaveType are safe to apply
+          if (filters.status) {
+            leaveWhere.status = filters.status
+          }
+          if (filters.leaveType) {
+            leaveWhere.leaveType = filters.leaveType
+          }
+          // If staffId is in filters, verify it's within scope
+          if (filters.staffId) {
+            if (leaveScopedWhere.staffId) {
+              if (typeof leaveScopedWhere.staffId === 'string') {
+                if (leaveScopedWhere.staffId !== filters.staffId) {
+                  const response = NextResponse.json(
+                    { error: 'Requested staffId is outside your access scope' },
+                    { status: 403 }
+                  )
+                  return addCorsHeaders(response, request)
+                }
+                leaveWhere.staffId = filters.staffId
+              } else if (leaveScopedWhere.staffId.in) {
+                if (!leaveScopedWhere.staffId.in.includes(filters.staffId)) {
+                  const response = NextResponse.json(
+                    { error: 'Requested staffId is outside your access scope' },
+                    { status: 403 }
+                  )
+                  return addCorsHeaders(response, request)
+                }
+                leaveWhere.staffId = filters.staffId
+              }
+            } else {
+              // No staffId filter means user can see all (HR roles)
+              leaveWhere.staffId = filters.staffId
+            }
+          }
+        }
+        
         const leaveData = await prisma.leaveRequest.findMany({
-          where: {
-            ...(dateRange ? {
-              createdAt: {
-                gte: new Date(dateRange.start),
-                lte: new Date(dateRange.end),
-              },
-            } : {}),
-            ...(filters || {}),
-          },
+          where: leaveWhere,
           include: {
             staff: {
               select: {

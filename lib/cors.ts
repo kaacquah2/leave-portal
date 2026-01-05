@@ -97,27 +97,21 @@ export function addCorsHeaders<T = any>(
   let corsOrigin: string
   let allowCredentials = false
   
-  // Check for null origin (Electron file:// or app:// protocol)
-  // The browser sends the string 'null' as the origin for these protocols
-  if (origin === 'null' || origin === null) {
-    // For null origins (file:// or app:// protocol from Electron), we must return
-    // 'null' as the Access-Control-Allow-Origin value to match the request origin.
-    // This is required by CORS spec - the header must match the request origin exactly.
-    // We can still allow credentials with null origin.
-    corsOrigin = 'null'
-    allowCredentials = true
-    
-    // Log for debugging in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[CORS] Null origin detected, returning null as CORS origin')
-    }
-  } else if (!origin) {
-    // No origin header - same-origin request
+  // IMPORTANT: Distinguish between:
+  // 1. Missing origin header (same-origin request) → origin === null
+  // 2. Origin header with value "null" (file:// or app:// protocol) → origin === 'null'
+  
+  if (origin === null) {
+    // No origin header - same-origin request (browser doesn't send Origin for same-origin)
     // Try to get origin from request URL
     try {
       const url = new URL(request.url)
       corsOrigin = url.origin
       allowCredentials = true
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[CORS] Same-origin request detected, using origin: ${corsOrigin}`)
+      }
     } catch {
       // Fallback to wildcard if URL parsing fails (shouldn't happen in production)
       corsOrigin = '*'
@@ -125,6 +119,17 @@ export function addCorsHeaders<T = any>(
       if (process.env.NODE_ENV === 'development') {
         console.warn('[CORS] Failed to parse request URL, using wildcard')
       }
+    }
+  } else if (origin === 'null') {
+    // Origin header is the string 'null' - this is from file:// or app:// protocol (Electron)
+    // We must return 'null' as the Access-Control-Allow-Origin value to match the request origin.
+    // This is required by CORS spec - the header must match the request origin exactly.
+    corsOrigin = 'null'
+    allowCredentials = true
+    
+    // Log for debugging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[CORS] Null origin detected (file:///app:// protocol), returning null as CORS origin')
     }
   } else {
     // Check if origin is allowed using strict validation

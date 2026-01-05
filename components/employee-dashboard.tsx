@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Calendar, Clock, FileText, Plus, DollarSign, TrendingUp, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
 import LeaveForm from '@/components/leave-form'
-import { hasPermission, type UserRole } from '@/lib/permissions'
+import { hasPermission, type UserRole } from '@/lib/roles'
 
 interface EmployeeDashboardProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>

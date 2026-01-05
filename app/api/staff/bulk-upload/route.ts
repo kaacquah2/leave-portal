@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth'
 import { MOFA_UNITS, getUnitConfig } from '@/lib/mofa-unit-mapping'
 
 // POST bulk upload staff from CSV/Excel file

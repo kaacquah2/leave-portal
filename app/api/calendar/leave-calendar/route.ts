@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { mapToMoFARole } from '@/lib/role-mapping'
-import { hasPermission } from '@/lib/permissions'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { mapToMoFARole } from '@/lib/roles'
+import { hasPermission } from '@/lib/roles'
 import { getWeekendDates, formatCalendarDate } from '@/lib/calendar-utils'
 import { parseISO, startOfDay, endOfDay } from 'date-fns'
+import { buildLeaveWhereClause } from '@/lib/data-scoping-utils'
 
 // GET leave calendar data
 
@@ -45,91 +46,36 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     const startDate = parseISO(startDateStr)
     const endDate = parseISO(endDateStr)
     
-    // Get user's staff record for organizational filtering
-    let userStaff = null
-    if (user.staffId) {
-      userStaff = await prisma.staffMember.findUnique({
-        where: { staffId: user.staffId },
-        select: {
-          unit: true,
-          directorate: true,
-          dutyStation: true,
-          staffId: true,
-          immediateSupervisorId: true,
-          managerId: true,
-        },
-      })
+    // Build where clause based on user role with proper data scoping
+    const { where: scopedWhere, hasAccess } = await buildLeaveWhereClause({
+      id: user.id,
+      role: user.role,
+      staffId: user.staffId,
+    })
+    
+    if (!hasAccess) {
+      return NextResponse.json({ leaves: [], holidays: [], conflicts: [], weekends: [] })
     }
     
-    // Build where clause based on role and permissions
+    // Build where clause with date range and status filters
     let where: any = {
+      ...scopedWhere,
       startDate: { lte: endDate },
       endDate: { gte: startDate },
       status: { in: ['pending', 'approved'] }, // Only show pending and approved leaves
     }
     
-    // Apply role-based filtering
-    if (canViewOrg) {
-      // HR roles see all - no additional filter needed
-    } else if (canViewTeam) {
-      // Team-level access
-      if (normalizedRole === 'SUPERVISOR' || normalizedRole === 'supervisor' || normalizedRole === 'manager') {
-        // Direct reports only
-        if (user.staffId) {
-          const directReports = await prisma.staffMember.findMany({
-            where: {
-              OR: [
-                { managerId: user.staffId },
-                { immediateSupervisorId: user.staffId },
-              ],
-            },
-            select: { staffId: true },
-          })
-          const staffIds = directReports.map(s => s.staffId)
-          if (staffIds.length > 0) {
-            where.staffId = { in: staffIds }
-          } else {
-            where.staffId = { in: [] } // No direct reports
-          }
-        }
-      } else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
-        // Unit staff
-        // Note: division_head is mapped to UNIT_HEAD during normalization
-        if (userStaff?.unit) {
-          const unitStaff = await prisma.staffMember.findMany({
-            where: { unit: userStaff.unit },
-            select: { staffId: true },
-          })
-          where.staffId = { in: unitStaff.map(s => s.staffId) }
-        }
-      } else if (normalizedRole === 'DIRECTOR' || normalizedRole === 'directorate_head' || normalizedRole === 'deputy_director') {
-        // Note: regional_manager is mapped to DIRECTOR during normalization
-        if (userStaff?.directorate) {
-          const directorateStaff = await prisma.staffMember.findMany({
-            where: { directorate: userStaff.directorate },
-            select: { staffId: true },
-          })
-          where.staffId = { in: directorateStaff.map(s => s.staffId) }
-        }
-      }
-    } else if (canViewOwn) {
-      // Own leave only
-      if (user.staffId) {
-        where.staffId = user.staffId
-      } else {
-        return NextResponse.json({ leaves: [], holidays: [], conflicts: [], weekends: [] })
-      }
-    }
-    
-    // Apply additional filters
+    // Apply additional filters (must respect scoping)
     if (department) {
       const deptStaff = await prisma.staffMember.findMany({
-        where: { department },
+        where: { department, active: true },
         select: { staffId: true },
       })
       const deptStaffIds = deptStaff.map(s => s.staffId)
       if (where.staffId) {
-        where.staffId = { in: Array.isArray(where.staffId.in) ? where.staffId.in.filter((id: string) => deptStaffIds.includes(id)) : [] }
+        // Intersect with existing scope
+        const existingIds = Array.isArray(where.staffId.in) ? where.staffId.in : (where.staffId ? [where.staffId] : [])
+        where.staffId = { in: existingIds.filter((id: string) => deptStaffIds.includes(id)) }
       } else {
         where.staffId = { in: deptStaffIds }
       }
@@ -137,12 +83,14 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     
     if (unit) {
       const unitStaff = await prisma.staffMember.findMany({
-        where: { unit },
+        where: { unit, active: true },
         select: { staffId: true },
       })
       const unitStaffIds = unitStaff.map(s => s.staffId)
       if (where.staffId) {
-        where.staffId = { in: Array.isArray(where.staffId.in) ? where.staffId.in.filter((id: string) => unitStaffIds.includes(id)) : [] }
+        // Intersect with existing scope
+        const existingIds = Array.isArray(where.staffId.in) ? where.staffId.in : (where.staffId ? [where.staffId] : [])
+        where.staffId = { in: existingIds.filter((id: string) => unitStaffIds.includes(id)) }
       } else {
         where.staffId = { in: unitStaffIds }
       }

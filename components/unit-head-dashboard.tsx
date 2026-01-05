@@ -24,8 +24,8 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { useDataStore } from '@/lib/data-store'
-import { type UserRole } from '@/lib/permissions'
-import { apiRequest } from '@/lib/api-config'
+import { type UserRole } from '@/lib/roles'
+import { apiRequest } from '@/lib/api'
 import RoleQuickActions from '@/components/role-quick-actions'
 
 interface UnitHeadDashboardProps {
@@ -66,26 +66,23 @@ export default function UnitHeadDashboard({
       }
 
       // Fetch pending leave requests for unit using unit-head-specific endpoint
+      // SECURITY FIX: Removed client-side filtering - API enforces server-side scoping
       try {
         const pendingResponse = await apiRequest('/api/leaves/pending/unit-head')
         if (pendingResponse.ok) {
           const data = await pendingResponse.json()
           const unitHeadLeaves = data.leaves || data || []
-          // Filter by unit if not already filtered
-          const unitLeaves = unitHeadLeaves.filter((leave: any) => {
-            return leave.staff?.unit === unit
-          })
-          setPendingLeaves(unitLeaves.slice(0, 5))
+          // API already filters by unit - no client-side filtering needed
+          setPendingLeaves(unitHeadLeaves.slice(0, 5))
         } else {
-          // Fallback to general endpoint and filter
-          const leavesResponse = await apiRequest('/api/leaves?status=pending')
+          // If unit-head-specific endpoint fails, use general endpoint with status filter
+          // API will enforce server-side role-based scoping
+          const leavesResponse = await apiRequest('/api/leaves?status=pending&limit=5')
           if (leavesResponse.ok) {
-            const allLeaves = await leavesResponse.json()
-            const unitLeaves = allLeaves.filter((leave: any) => {
-              return leave.status === 'pending' && 
-                     leave.staff?.unit === unit
-            })
-            setPendingLeaves(unitLeaves.slice(0, 5))
+            const responseData = await leavesResponse.json()
+            const leaves = responseData.data || responseData || []
+            // No client-side filtering - API handles scoping
+            setPendingLeaves(leaves)
           }
         }
       } catch (leavesError) {

@@ -1,0 +1,43 @@
+{
+  "$schema": "../gen/schemas/capabilities.json",
+  "identifier": "main-capability",
+  "description": "Main window capabilities for HR Leave Portal desktop application. Restricts file system access to app data directory only.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    {
+      "identifier": "shell:scope",
+      "allow": [
+        "https://hr-leave-portal.vercel.app/**",
+        "http://localhost:3000/**"
+      ]
+    },
+    "dialog:allow-open",
+    "dialog:allow-save",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        "$APPDATA/**",
+        "$APPDATA/documents/**"
+      ],
+      "deny": [
+        "$APPDATA/**/*.exe",
+        "$APPDATA/**/*.dll",
+        "$APPDATA/**/*.bat",
+        "$APPDATA/**/*.cmd",
+        "$APPDATA/**/*.sh"
+      ]
+    },
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-read-dir",
+    "fs:allow-create",
+    "fs:allow-remove",
+    "fs:allow-exists",
+    "fs:allow-rename",
+    "fs:allow-copy-file",
+    "fs:allow-mkdir"
+  ]
+}
+

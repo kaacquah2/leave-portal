@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isAdmin, isHR } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isAdmin, isHR } from '@/lib/auth'
 import { hashPassword } from '@/lib/auth'
 import { sendEmail, generateNewUserCredentialsEmail } from '@/lib/email'
 import { validatePasswordComplexity, addPasswordToHistory, setPasswordExpiry } from '@/lib/password-policy'
-import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
+import { ADMIN_ROLES, HR_ROLES } from '@/lib/roles'
 import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
 
 // Force static export configuration (required for static export mode)

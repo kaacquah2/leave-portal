@@ -19,7 +19,7 @@ import { prisma } from '@/lib/prisma'
 export function generateStaticParams() {
   return [{ staffId: 'dummy' }]
 }
-import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth'
 import { logDataAccess } from '@/lib/data-access-logger'
 
 /**

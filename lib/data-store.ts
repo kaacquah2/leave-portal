@@ -1,100 +1,14 @@
 // Client-side data store with Neon database API calls
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { applySelectiveUpdate, updateItemInArray, addItemToArray, removeItemFromArray } from './update-diff'
-import { apiRequest, API_BASE_URL } from './api-config'
+import { apiRequest, API_BASE_URL } from './api/api-config'
+import type { StaffMember, LeaveRequest, LeaveBalance, AuditLog, Payslip, PerformanceReview, LeaveApprovalLevel } from './types/common'
 
-export interface StaffMember {
-  id: string
-  staffId: string
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  department: string
-  position: string
-  grade: string
-  level: string
-  rank?: string | null
-  step?: string | null
-  directorate?: string | null
-  division?: string | null
-  unit?: string | null
-  dutyStation?: string | null
-  photoUrl?: string
-  active: boolean
-  employmentStatus?: string
-  terminationDate?: string
-  terminationReason?: string
-  joinDate: string
-  managerId?: string | null
-  immediateSupervisorId?: string | null
-  createdAt: string
-  updatedAt?: string
-}
+// Re-export types for backward compatibility
+export type { StaffMember, LeaveRequest, LeaveBalance, AuditLog, Payslip, PerformanceReview, LeaveApprovalLevel }
 
-export interface LeaveRequest {
-  id: string
-  staffId: string
-  staffName: string
-  leaveType: 'Annual' | 'Sick' | 'Unpaid' | 'Special Service' | 'Training' | 'Study' | 'Maternity' | 'Paternity' | 'Compassionate'
-  startDate: string
-  endDate: string
-  days: number
-  reason: string
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
-  approvedBy?: string
-  approvalDate?: string
-  approvalLevels?: LeaveApprovalLevel[]
-  templateId?: string
-  officerTakingOver?: string
-  handoverNotes?: string
-  declarationAccepted?: boolean
-  payrollImpactFlag?: boolean
-  locked?: boolean
-  createdAt: string
-  updatedAt?: string
-}
-
-export interface LeaveBalance {
-  id?: string
-  staffId: string
-  annual: number
-  sick: number
-  unpaid: number
-  specialService: number
-  training: number
-  study: number
-  maternity: number
-  paternity: number
-  compassionate: number
-}
-
-export interface AuditLog {
-  id: string
-  action: string
-  user: string
-  staffId?: string
-  details: string
-  timestamp: string
-  ip?: string
-}
-
-export interface Payslip {
-  id: string
-  staffId: string
-  month: string // YYYY-MM format
-  year: number
-  basicSalary: number
-  allowances: number
-  deductions: number
-  netSalary: number
-  tax: number
-  pension: number
-  createdAt: string
-  pdfUrl?: string
-}
-
-export interface PerformanceReview {
+// Additional types specific to data-store
+export interface LeaveRequestTemplate {
   id: string
   staffId: string
   reviewPeriod: string // e.g., "2024 Q1"
@@ -132,14 +46,7 @@ export interface Holiday {
   createdAt: string
 }
 
-export interface LeaveApprovalLevel {
-  level: number
-  approverRole: 'manager' | 'hr'
-  status: 'pending' | 'approved' | 'rejected'
-  approverName?: string
-  approvalDate?: string
-  comments?: string
-}
+// LeaveApprovalLevel is imported from types/common.ts above
 
 export interface LeaveRequestTemplate {
   id: string
@@ -150,6 +57,22 @@ export interface LeaveRequestTemplate {
   department?: string | null // optional: department-specific
   active: boolean
   createdAt: string
+}
+
+// Helper function to compare LeaveBalance objects without JSON.stringify
+function balancesEqual(a: LeaveBalance, b: LeaveBalance): boolean {
+  return (
+    a.staffId === b.staffId &&
+    a.annual === b.annual &&
+    a.sick === b.sick &&
+    a.unpaid === b.unpaid &&
+    a.specialService === b.specialService &&
+    a.training === b.training &&
+    a.study === b.study &&
+    a.maternity === b.maternity &&
+    a.paternity === b.paternity &&
+    a.compassionate === b.compassionate
+  )
 }
 
 // Helper function to transform database dates to strings
@@ -181,7 +104,7 @@ function transformDates(data: any): any {
   return data
 }
 
-import type { UserRole } from './permissions'
+import type { UserRole } from './roles/permissions'
 
 export function useDataStore(options?: { 
   enablePolling?: boolean
@@ -201,13 +124,19 @@ export function useDataStore(options?: {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
+  // Ref to track the current fetchAll promise to prevent duplicate concurrent calls
+  const fetchAllPromiseRef = useRef<Promise<void> | null>(null)
+  
   // Polling configuration
   const enablePolling = options?.enablePolling ?? true
   const pollingInterval = options?.pollingInterval ?? 60000 // Default: 60 seconds
   const userRole = options?.userRole
 
-  // Check if user has permission to view audit logs
-  const canViewAuditLogs = userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'admin' || userRole === 'SYSTEM_ADMIN' || userRole === 'SYS_ADMIN'
+  // Check if user has permission to view audit logs - memoized to prevent unnecessary re-renders
+  const canViewAuditLogs = useMemo(() => 
+    userRole === 'hr' || userRole === 'hr_assistant' || userRole === 'admin' || userRole === 'SYSTEM_ADMIN' || userRole === 'SYS_ADMIN',
+    [userRole]
+  )
 
 
   // Fetch all data from API
@@ -458,6 +387,8 @@ export function useDataStore(options?: {
     } finally {
       setLoading(false)
       setInitialized(true)
+      // Clear the promise ref so new requests can be made
+      fetchAllPromiseRef.current = null
     }
   }, [canViewAuditLogs])
 
@@ -489,10 +420,10 @@ export function useDataStore(options?: {
             processedStaffIds.add(item.staffId)
             const updatedItem = data.find(d => d.staffId === item.staffId)
             if (updatedItem) {
-              if (JSON.stringify(item) !== JSON.stringify(updatedItem)) {
+              if (!balancesEqual(item, updatedItem)) {
                 updated.push(updatedItem)
               } else {
-                updated.push(item) // Keep original reference
+                updated.push(item) // Keep original reference (React optimization)
               }
             }
           })

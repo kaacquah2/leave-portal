@@ -9,9 +9,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isHR, isHRDirector, isChiefDirector, isAuditor, isAdmin } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isHRDirector, isChiefDirector, isAuditor, isAdmin } from '@/lib/auth'
 import { validateLeavePolicyAgainstStatutoryMinimums, getStatutoryMinimum } from '@/lib/statutory-leave-validation'
-import { AUDIT_ROLES } from '@/lib/role-utils'
+import { AUDIT_ROLES } from '@/lib/roles'
 
 // Force dynamic - this route uses cookies via withAuth and cannot be statically pre-rendered
 

@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isHRDirector } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHRDirector } from '@/lib/auth'
 import { createAuditLog } from '@/lib/audit-logger'
 
 // Force static export configuration (required for static export mode)

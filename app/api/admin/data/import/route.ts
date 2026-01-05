@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isAdmin } from '@/lib/auth-proxy'
-import { ADMIN_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext, isAdmin } from '@/lib/auth'
+import { ADMIN_ROLES } from '@/lib/roles'
 import { hashPassword } from '@/lib/auth'
 
 // Force static export configuration

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isHR, isAdmin, isChiefDirector } from '@/lib/auth-proxy'
-import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext, isHR, isAdmin, isChiefDirector } from '@/lib/auth'
+import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 // GET all holidays - All authenticated users can view holidays

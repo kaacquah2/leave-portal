@@ -5,10 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission } from '@/lib/roles'
 import { sendNotification } from '@/lib/notification-service'
+import { buildLeaveWhereClause } from '@/lib/data-scoping-utils'
 
 // GET all deferment requests (filtered by role)
 
@@ -22,49 +23,69 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     const status = searchParams.get('status')
     const staffId = searchParams.get('staffId')
 
-    const currentUserStaff = await prisma.staffMember.findUnique({
-      where: { staffId: user.staffId || undefined },
-      select: { staffId: true, immediateSupervisorId: true, managerId: true },
+    // Build where clause based on user role with proper data scoping
+    const { where: scopedWhere, hasAccess } = await buildLeaveWhereClause({
+      id: user.id,
+      role: user.role,
+      staffId: user.staffId,
     })
-
-    if (!currentUserStaff) {
-      return NextResponse.json({ error: 'Staff record not found' }, { status: 404 })
+    
+    if (!hasAccess) {
+      return NextResponse.json([]) // Return empty array if no access
     }
 
+    // Build where clause for deferment requests
+    // buildLeaveWhereClause returns staffId filter, so we use that for deferment requests
     let where: any = {}
-
-    // Employees can only see their own requests
-    if (user.role === 'EMPLOYEE' || user.role === 'employee') {
-      where.staffId = currentUserStaff.staffId
-    }
-    // Supervisors can see their team's requests
-    else if (hasPermission(user.role as any, 'leave:view:team')) {
-      // Get team members (direct reports)
-      const teamMembers = await prisma.staffMember.findMany({
-        where: {
-          OR: [
-            { immediateSupervisorId: currentUserStaff.staffId },
-            { managerId: currentUserStaff.staffId },
-          ],
-        },
-        select: { staffId: true },
-      })
-      const teamStaffIds = teamMembers.map(m => m.staffId)
-      where.staffId = { in: [currentUserStaff.staffId, ...teamStaffIds] }
-    }
-    // HR can see all
-    else if (hasPermission(user.role as any, 'leave:view:all')) {
-      // No filter - see all
+    
+    if (scopedWhere.staffId) {
+      if (typeof scopedWhere.staffId === 'string') {
+        where.staffId = scopedWhere.staffId
+      } else if (scopedWhere.staffId.in) {
+        where.staffId = { in: scopedWhere.staffId.in }
+      } else {
+        where.staffId = scopedWhere.staffId
+      }
     } else {
-      where.staffId = currentUserStaff.staffId // Fallback to own only
+      // No staffId filter means user can see all (HR roles)
+      // No additional filter needed
     }
 
     if (status) {
       where.status = status
     }
 
-    if (staffId && (hasPermission(user.role as any, 'leave:view:all') || hasPermission(user.role as any, 'leave:view:team'))) {
-      where.staffId = staffId
+    // If specific staffId is requested and user has permission to view it
+    if (staffId) {
+      // Verify the requested staffId is within the user's scope
+      const requestedStaff = await prisma.staffMember.findUnique({
+        where: { staffId },
+        select: { staffId: true },
+      })
+      
+      if (requestedStaff) {
+        // Check if the requested staffId is in the scoped list
+        if (scopedWhere.staffId) {
+          if (typeof scopedWhere.staffId === 'string') {
+            if (scopedWhere.staffId === staffId) {
+              where.staffId = staffId
+            } else {
+              return NextResponse.json([]) // Requested staffId not in scope
+            }
+          } else if (scopedWhere.staffId.in) {
+            if (scopedWhere.staffId.in.includes(staffId)) {
+              where.staffId = staffId
+            } else {
+              return NextResponse.json([]) // Requested staffId not in scope
+            }
+          }
+        } else {
+          // No staffId filter means user can see all
+          where.staffId = staffId
+        }
+      } else {
+        return NextResponse.json([]) // Staff not found
+      }
     }
 
     const deferments = await prisma.leaveDefermentRequest.findMany({

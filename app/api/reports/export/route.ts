@@ -5,10 +5,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import ExcelJS from 'exceljs'
-import { jsPDF } from 'jspdf'
+// ExcelJS and jsPDF are imported dynamically to reduce bundle size
 
 // Force static export configuration (required for static export mode)
 
@@ -88,7 +87,8 @@ export async function POST(request: NextRequest) {
       }
 
       if (format === 'excel') {
-        // Generate Excel file
+        // Generate Excel file - lazy load ExcelJS to reduce bundle size
+        const ExcelJS = (await import('exceljs')).default
         const workbook = new ExcelJS.Workbook()
         const worksheet = workbook.addWorksheet('Report')
 
@@ -121,7 +121,9 @@ export async function POST(request: NextRequest) {
           },
         })
       } else if (format === 'pdf') {
-        // Generate PDF
+        // Generate PDF - lazy load jsPDF to reduce bundle size
+        const jsPDFModule = await import('jspdf')
+        const jsPDF = jsPDFModule.default || (jsPDFModule as any).jsPDF || jsPDFModule
         const doc = new jsPDF()
         let y = 20
 

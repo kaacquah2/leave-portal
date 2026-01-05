@@ -1,6 +1,6 @@
 'use client'
 
-import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
+import { hasPermission, type UserRole, type Permission } from '@/lib/roles'
 
 interface PermissionGateProps {
   role: UserRole

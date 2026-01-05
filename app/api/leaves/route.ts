@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isEmployee, isManager } from '@/lib/auth-proxy'
-import { READ_ONLY_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { READ_ONLY_ROLES } from '@/lib/roles'
 import { calculateLeaveDays } from '@/lib/leave-calculation-utils'
 import { validateLeaveBalance, checkOverlappingLeaves } from '@/lib/leave-balance-utils'
 import { getNextApprovers } from '@/lib/approval-workflow'
@@ -13,7 +13,8 @@ import {
 import { createApprovalSteps } from '@/lib/ghana-civil-service-approval-workflow-db'
 import { logLeaveSubmission } from '@/lib/audit-logger'
 import { notifyLeaveSubmission } from '@/lib/notification-service'
-import { getUserRBACContext, canCreateLeaveRequest } from '@/lib/mofa-rbac-middleware'
+import { getUserRBACContext, canCreateLeaveRequest } from '@/lib/roles'
+import { parsePaginationParams, createPaginatedResponse, validatePaginationParams } from '@/lib/pagination-utils'
 
 // Force static export configuration (required for static export mode)
 export const dynamic = 'force-static'
@@ -26,18 +27,26 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
     const status = searchParams.get('status')
     const leaveType = searchParams.get('leaveType')
     
-    // Build where clause based on user role
-    let where: any = {}
-    
-    // Employees can only view their own leaves
-    if (isEmployee(user) && user.staffId) {
-      where.staffId = user.staffId
-    } else if (isManager(user) && user.staffId) {
-      // Managers and deputy directors see their team/directorate leaves
-      // In a full implementation, this would filter by managerId or department
-      // For now, they see all (can be enhanced later)
+    // Parse pagination parameters
+    const paginationParams = parsePaginationParams(searchParams)
+    const validation = validatePaginationParams(paginationParams)
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error || 'Invalid pagination parameters' },
+        { status: 400 }
+      )
     }
-    // HR, HR Assistant, and admin see all (no where clause)
+    
+    // Build where clause based on user role with proper data scoping
+    // SECURITY FIX: This ensures managers only see their team's leaves
+    const { buildLeaveWhereClause } = await import('@/lib/data-scoping-utils')
+    const { where: scopedWhere, hasAccess } = await buildLeaveWhereClause(user)
+    
+    if (!hasAccess) {
+      return NextResponse.json(createPaginatedResponse([], 0, paginationParams))
+    }
+    
+    let where: any = { ...scopedWhere }
     
     // Apply filters from query parameters
     if (staffId) {
@@ -50,25 +59,50 @@ export const GET = withAuth(async ({ user, request }: AuthContext) => {
       where.leaveType = leaveType
     }
 
-    const leaves = await prisma.leaveRequest.findMany({
-      where,
-      include: {
-        staff: {
-          select: {
-            staffId: true,
-            firstName: true,
-            lastName: true,
-            department: true,
-            position: true,
-            email: true,
+    // PERFORMANCE FIX: Add pagination and reduce overfetching
+    const [leaves, total] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where,
+        select: {
+          id: true,
+          staffId: true,
+          staffName: true,
+          leaveType: true,
+          startDate: true,
+          endDate: true,
+          days: true,
+          reason: true,
+          status: true,
+          approvedBy: true,
+          approvalDate: true,
+          createdAt: true,
+          updatedAt: true,
+          staff: {
+            select: {
+              staffId: true,
+              firstName: true,
+              lastName: true,
+              department: true,
+              position: true,
+              // Removed email - not needed for list view
+            },
           },
+          // Removed template - not needed for list view, only ID if needed
+          templateId: true,
         },
-        template: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+        orderBy: { createdAt: 'desc' },
+        take: paginationParams.limit,
+        skip: paginationParams.offset,
+      }),
+      prisma.leaveRequest.count({ where }),
+    ])
     
-    return NextResponse.json(leaves)
+    const response = NextResponse.json(createPaginatedResponse(leaves, total, paginationParams))
+    
+    // Add cache headers for GET requests (5 minutes)
+    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600')
+    
+    return response
   } catch (error) {
     console.error('Error fetching leaves:', error)
     return NextResponse.json({ error: 'Failed to fetch leave requests' }, { status: 500 })

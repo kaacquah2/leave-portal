@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { mapToMoFARole } from '@/lib/role-mapping'
-import { hasPermission } from '@/lib/permissions'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { mapToMoFARole } from '@/lib/roles'
+import { hasPermission } from '@/lib/roles'
 import { calculateConflicts, DEFAULT_THRESHOLDS } from '@/lib/conflict-detection'
 import { eachDayOfInterval, format, parseISO } from 'date-fns'
 

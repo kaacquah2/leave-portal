@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 
 interface UseApiOptions {
   onSuccess?: (data: any) => void

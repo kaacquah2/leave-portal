@@ -95,11 +95,11 @@ export default function ManagerTeamView({ managerStaffId }: ManagerTeamViewProps
         team.map(async (member: any) => {
           try {
             const [balanceRes, leavesRes] = await Promise.all([
-              apiRequest(`/api/balances/${member.staffId}`).catch((err) => {
+              apiRequest(`/api/balances/${member.staffId}`).catch((err: unknown) => {
                 console.warn(`[ManagerTeamView] Failed to fetch balance for ${member.staffId}:`, err);
                 return { ok: false } as Response;
               }),
-              apiRequest(`/api/leaves?staffId=${member.staffId}`).catch((err) => {
+              apiRequest(`/api/leaves?staffId=${member.staffId}`).catch((err: unknown) => {
                 console.warn(`[ManagerTeamView] Failed to fetch leaves for ${member.staffId}:`, err);
                 return { ok: false } as Response;
               }),

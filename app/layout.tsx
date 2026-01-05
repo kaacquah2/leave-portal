@@ -57,12 +57,13 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="HR Portal" />
         {/* CSP meta tag for Electron builds (static export doesn't support headers()) */}
         {/* This is evaluated at build time when ELECTRON=1, so it's safe to use process.env */}
+        {/* Note: 'unsafe-eval' is required for Next.js webpack code splitting in static exports */}
         {typeof process !== 'undefined' && process.env.ELECTRON === '1' && (
           <meta
             httpEquiv="Content-Security-Policy"
             content={
               "default-src 'self' app:; " +
-              "script-src 'self' app: 'unsafe-inline'; " +
+              "script-src 'self' app: 'unsafe-inline' 'unsafe-eval'; " +
               "style-src 'self' app: 'unsafe-inline'; " +
               "style-src-elem 'self' app: 'unsafe-inline'; " +
               "img-src 'self' app: data: https:; " +

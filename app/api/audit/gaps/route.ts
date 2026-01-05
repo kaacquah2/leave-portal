@@ -6,9 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { AUDITOR, HR_DIRECTOR, SYSTEM_ADMIN } from '@/lib/role-utils'
+import { AUDITOR, HR_DIRECTOR, SYSTEM_ADMIN } from '@/lib/roles'
 import { readdir, readFile } from 'fs/promises'
 import { join } from 'path'
 

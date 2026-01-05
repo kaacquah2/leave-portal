@@ -4,9 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission } from '@/lib/roles'
 import { sendNotification } from '@/lib/notification-service'
 
 // Force static export configuration (required for static export mode)

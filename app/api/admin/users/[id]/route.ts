@@ -7,8 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isAdmin } from '@/lib/auth-proxy'
-import { ADMIN_ROLES, VALID_USER_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext, isAdmin } from '@/lib/auth'
+import { ADMIN_ROLES, VALID_USER_ROLES } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 // For static export, API routes are not generated but need generateStaticParams

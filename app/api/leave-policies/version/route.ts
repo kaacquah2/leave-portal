@@ -9,10 +9,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isHROfficer, isHRDirector, isChiefDirector, isAuditor, isAdmin } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHROfficer, isHRDirector, isChiefDirector, isAuditor, isAdmin } from '@/lib/auth'
 import { validateLeavePolicyAgainstStatutoryMinimums } from '@/lib/statutory-leave-validation'
 import { createAuditLog } from '@/lib/audit-logger'
-import { HR_ROLES, AUDIT_ROLES } from '@/lib/role-utils'
+import { HR_ROLES, AUDIT_ROLES } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 

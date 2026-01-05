@@ -1,6 +1,5 @@
-// Note: jsPDF should be imported dynamically in client components
+// Note: jsPDF and ExcelJS should be imported dynamically to reduce bundle size
 // This file contains utility functions for report generation
-import ExcelJS from 'exceljs'
 
 export interface ReportData {
   title: string
@@ -98,8 +97,11 @@ export async function generatePDFReport(reportData: ReportData): Promise<Blob> {
 
 /**
  * Generate Excel report
+ * ExcelJS is lazy loaded to reduce initial bundle size (~500KB)
  */
 export async function generateExcelReport(reportData: ReportData): Promise<Blob> {
+  // Lazy load ExcelJS only when needed
+  const ExcelJS = (await import('exceljs')).default
   const workbook = new ExcelJS.Workbook()
 
   // Create summary sheet if available

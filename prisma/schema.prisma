@@ -266,6 +266,9 @@ model LeaveRequest {
   hrValidatedAt DateTime? /// Date when HR validation was completed
   locked          Boolean @default(false) /// Lock approved records from editing - prevents modification after approval
   version         Int     @default(0) /// Optimistic locking version field - increments on each update to detect concurrent modifications
+  // Resubmission tracking
+  resubmittedFromId String? /// Link to original rejected request (for resubmissions)
+  resubmissionCount Int @default(0) /// Track number of resubmission attempts (max 3)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
@@ -275,12 +278,15 @@ model LeaveRequest {
   @@index([startDate, endDate])
   @@index([leaveType, status])
   @@index([approvedBy])
+  @@index([resubmittedFromId])
 
   // Relations
   staff StaffMember @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
   template LeaveRequestTemplate? @relation(fields: [templateId], references: [id])
   approvalHistory LeaveApprovalHistory[]
   approvalSteps ApprovalStep[] @relation("ApprovalSteps")
+  resubmittedFrom LeaveRequest? @relation("Resubmissions", fields: [resubmittedFromId], references: [id])
+  resubmissions LeaveRequest[] @relation("Resubmissions")
 }
 
 /// Leave balance tracking for each staff member

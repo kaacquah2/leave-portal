@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
-import { AUDIT_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth'
+import { AUDIT_ROLES } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 export const dynamic = 'force-static'

@@ -4,7 +4,9 @@
  * 1. Escalation reminders for pending approvals
  * 2. Leave start date reminders (3 days before)
  * 3. Year-end notifications (when within 30 days of year-end)
- * 4. Year-end processing (on December 31st)
+ * 
+ * Note: Year-end processing is now manual-only and must be triggered by HR Officer or HR Director
+ * through the UI at /api/leave-rules/year-end
  * 
  * Schedule: Daily at 9 AM
  * Vercel Cron Configuration (vercel.json):
@@ -18,7 +20,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { processYearEndForAllStaff } from '@/lib/leave-rules'
 import { 
   checkAndSendEscalationReminders,
   sendNotification,
@@ -29,12 +30,14 @@ import {
 
 // Force static export configuration (required for static export mode)
 export const dynamic = 'force-static'
+export const runtime = 'nodejs' // Explicitly set to nodejs runtime
 
 export async function GET(request: NextRequest) {
   // During static export build, return early without accessing headers
-  const isBuild = typeof process !== 'undefined' && 
-                  process.env.ELECTRON === '1' && 
-                  (process.env.NEXT_PHASE === 'phase-production-build' || !globalThis.window)
+  const isBuild = 
+    (typeof process !== 'undefined' && process.env.NEXT_PHASE === 'phase-production-build') ||
+    (typeof process !== 'undefined' && process.env.NEXT_PHASE === 'phase-export') ||
+    (typeof process !== 'undefined' && !process.env.DATABASE_URL)
   
   if (isBuild) {
     return NextResponse.json({
@@ -229,7 +232,17 @@ export async function GET(request: NextRequest) {
           let staffWithHighBalances = 0
           let totalUnusedLeave = 0
 
-          // Process each staff member
+          // PERFORMANCE FIX: Collect all notifications first, then batch send
+          const notificationsToSend: Array<{
+            staffId: string
+            staffName: string
+            daysUntilYearEnd: number
+            unusedLeave: number
+            maxCarryForward: number
+            leaveType: string
+          }> = []
+
+          // Process each staff member (collect notifications, don't send yet)
           for (const staff of allStaff) {
             if (!staff.user || !staff.leaveBalance) continue
 
@@ -253,8 +266,8 @@ export async function GET(request: NextRequest) {
                     staffWithHighBalances++
                   }
 
-                  // Send notification for this leave type
-                  await notifyYearEndApproaching({
+                  // Collect notification data (don't send yet)
+                  notificationsToSend.push({
                     staffId: staff.staffId,
                     staffName: `${staff.firstName} ${staff.lastName}`,
                     daysUntilYearEnd,
@@ -267,8 +280,21 @@ export async function GET(request: NextRequest) {
 
               notifiedCount++
             } catch (error) {
-              console.error(`Error notifying staff ${staff.staffId}:`, error)
+              console.error(`Error processing staff ${staff.staffId}:`, error)
             }
+          }
+
+          // Batch send notifications (process in chunks to avoid overwhelming the system)
+          const batchSize = 50
+          for (let i = 0; i < notificationsToSend.length; i += batchSize) {
+            const batch = notificationsToSend.slice(i, i + batchSize)
+            await Promise.all(
+              batch.map(notification => 
+                notifyYearEndApproaching(notification).catch(error => {
+                  console.error(`Error notifying staff ${notification.staffId}:`, error)
+                })
+              )
+            )
           }
 
           // Group team members by supervisor
@@ -358,93 +384,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 4. Process year-end processing if it's December 31st
+    // 4. Year-end processing notification (removed automatic processing)
+    // Year-end processing must be manually triggered by HR Officer or HR Director
+    // Only send notification reminder if it's approaching year-end
     if (isYearEnd) {
-      try {
-        console.log('[Year-End Processing] Starting automatic year-end processing...')
-        const year = new Date().getFullYear()
-
-        // Process year-end for all staff
-        const yearEndResults = await processYearEndForAllStaff()
-
-        // Calculate summary statistics
-        let totalCarryForward = 0
-        let totalForfeited = 0
-
-        yearEndResults.forEach((result) => {
-          result.results.forEach((r) => {
-            totalCarryForward += r.carryForwardDays || 0
-            totalForfeited += r.forfeitedDays || 0
-          })
-        })
-
-        // Create audit log
-        await prisma.auditLog.create({
-          data: {
-            action: 'YEAR_END_PROCESSING_COMPLETED',
-            user: 'system',
-            userRole: 'SYSTEM',
-            details: JSON.stringify({
-              year,
-              processedBy: 'system',
-              processAll: true,
-              staffProcessed: yearEndResults.length,
-              totalCarryForward,
-              totalForfeited,
-              timestamp: new Date().toISOString(),
-            }),
-          },
-        })
-
-        // Notify HR about completion
-        const hrUsers = await prisma.user.findMany({
-          where: {
-            role: { in: ['HR_OFFICER', 'HR_DIRECTOR', 'hr', 'hr_officer', 'hr_director'] },
-            active: true,
-          },
-        })
-
-        const portalUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-        for (const hrUser of hrUsers) {
-          await sendNotification({
-            userId: hrUser.id,
-            type: 'system',
-            title: '✅ Year-End Processing Completed',
-            message: `Year-end processing completed automatically. ${yearEndResults.length} staff members processed. ${totalCarryForward.toFixed(1)} days carried forward, ${totalForfeited.toFixed(1)} days forfeited.`,
-            link: portalUrl ? `${portalUrl}/year-end` : '/year-end',
-            priority: 'normal',
-          })
-        }
-
-        console.log(`[Year-End Processing] Completed: ${yearEndResults.length} staff processed, ${totalCarryForward} days carried forward, ${totalForfeited} days forfeited`)
-
-        results.yearEndProcessing = {
-          success: true,
-          message: `Year-end processing completed. ${yearEndResults.length} staff processed.`,
-          processed: true,
-        }
-      } catch (error: any) {
-        console.error('[Year-End Processing] Error:', error)
-
-        // Create error audit log
-        await prisma.auditLog.create({
-          data: {
-            action: 'YEAR_END_PROCESSING_FAILED',
-            user: 'system',
-            userRole: 'SYSTEM',
-            details: JSON.stringify({
-              error: error.message,
-              year: new Date().getFullYear(),
-              timestamp: new Date().toISOString(),
-            }),
-          },
-        })
-
-        results.yearEndProcessing = {
-          success: false,
-          message: error?.message || 'Failed to process year-end',
-          processed: false,
-        }
+      results.yearEndProcessing = {
+        success: true,
+        message: 'Year-end date detected. Year-end processing must be manually triggered by HR Officer or HR Director through the UI. Automatic year-end processing is disabled. Please use the Year-End Processing page to manually trigger processing.',
+        processed: false,
       }
     } else {
       results.yearEndProcessing = {

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle, Download } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 
 interface BulkUploadResult {
   success: number

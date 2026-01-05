@@ -5,7 +5,7 @@ import { LayoutDashboard, Users, FileText, Settings, LogOut, Shield, KeyRound, M
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
-import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
+import { hasPermission, type UserRole, type Permission } from '@/lib/roles'
 
 interface AdminNavigationProps {
   activeTab: string

@@ -15,8 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import { type UserRole } from '@/lib/permissions'
-import { apiRequest } from '@/lib/api-config'
+import { type UserRole } from '@/lib/roles'
+import { apiRequest } from '@/lib/api'
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isSameMonth, isSameDay, parseISO } from 'date-fns'
 import { getLeaveTypeColor } from '@/lib/calendar-utils'
 

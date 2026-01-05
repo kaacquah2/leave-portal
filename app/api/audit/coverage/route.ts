@@ -6,9 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { getAuditCoverageReport } from '@/lib/comprehensive-audit'
-import { AUDITOR, HR_DIRECTOR, SYSTEM_ADMIN } from '@/lib/role-utils'
+import { AUDITOR, HR_DIRECTOR, SYSTEM_ADMIN } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 export const dynamic = 'force-static'

@@ -18,7 +18,7 @@ import {
   Download,
   AlertCircle
 } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 import { toast } from 'sonner'
 
 interface ComplianceDashboardData {

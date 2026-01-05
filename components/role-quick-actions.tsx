@@ -23,7 +23,7 @@ import {
   X
 } from 'lucide-react'
 import { getRolePortalConfig } from '@/lib/role-portals-config'
-import { type UserRole } from '@/lib/permissions'
+import { type UserRole } from '@/lib/roles'
 import { useRouter } from 'next/navigation'
 
 interface RoleQuickActionsProps {

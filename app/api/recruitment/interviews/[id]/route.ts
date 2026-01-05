@@ -6,9 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 // Generate static params for dynamic route (empty array = skip static generation)

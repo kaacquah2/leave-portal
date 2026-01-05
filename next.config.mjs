@@ -51,6 +51,10 @@ const nextConfig = {
   // For Web (non-static): headers() provides runtime CSP injection
   ...(process.env.TAURI !== '1' ? {
     async headers() {
+    // Allow 'unsafe-eval' for Next.js webpack HMR and code splitting
+    // Required for Next.js development and production builds
+    const scriptSrc = "'self' app: 'unsafe-inline' 'unsafe-eval'"
+    
     return [
       {
         source: '/(.*)',
@@ -59,8 +63,8 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value:
               "default-src 'self' app:; " +
-              // Allow inline scripts for Next.js hydration and chunk loading
-              "script-src 'self' app: 'unsafe-inline'; " +
+              // Allow inline scripts and eval for Next.js hydration, chunk loading, and HMR
+              `script-src ${scriptSrc}; ` +
               // Allow inline styles for component libraries and dynamic styling
               "style-src 'self' app: 'unsafe-inline'; " +
               // Allow inline <style> tags (required for Tailwind/Next.js)

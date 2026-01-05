@@ -4,9 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { activateWorkflowVersion } from '@/lib/workflow-engine'
-import { HR_DIRECTOR, SYSTEM_ADMIN } from '@/lib/role-utils'
+import { HR_DIRECTOR, SYSTEM_ADMIN } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 export const dynamic = 'force-static'

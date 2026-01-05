@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { logSyncOperation } from '@/lib/comprehensive-audit'
 
 // Force static export configuration (required for static export mode)

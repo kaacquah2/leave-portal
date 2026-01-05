@@ -6,7 +6,7 @@ import LeaveManagement from '@/components/leave-management'
 import LeaveCalendarView from '@/components/leave-calendar-view'
 import LeavePolicyManagement from '@/components/leave-policy-management'
 
-import type { UserRole } from '@/lib/permissions'
+import type { UserRole } from '@/lib/roles'
 
 interface UnifiedLeaveManagementProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>

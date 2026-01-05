@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
 import { restoreLeaveBalance } from '@/lib/leave-balance-utils'
-import { isEmployee } from '@/lib/auth-proxy'
+import { isEmployee } from '@/lib/auth'
 
 // Force dynamic - this route uses cookies via getTokenFromRequest and cannot be statically pre-rendered
 // Generate static params for dynamic route (empty array = skip static generation)

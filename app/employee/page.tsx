@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import EmployeePortal from '@/components/employee-portal'
 import { useAuth } from '@/hooks/use-auth'
 import { AuthLoadingSkeleton } from '@/components/loading-skeletons'
-import { type UserRole } from '@/lib/permissions'
+import { type UserRole } from '@/lib/roles'
 
 function EmployeePortalWrapper({ staffId, userRole, onLogout }: { staffId: string, userRole: UserRole, onLogout: () => void }) {
   return <EmployeePortal staffId={staffId} userRole={userRole} onLogout={onLogout} />

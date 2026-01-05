@@ -36,9 +36,10 @@ import {
   User,
   Filter
 } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
-import { type UserRole } from '@/lib/permissions'
+import { type UserRole } from '@/lib/roles'
+import { hasPermission } from '@/lib/permissions'
 
 interface DefermentRequest {
   id: string
@@ -164,12 +165,25 @@ export default function DefermentManagement({ userRole, staffId }: DefermentMana
   }
 
   const canApprove = (deferment: DefermentRequest) => {
-    if (userRole === 'HR_OFFICER' || userRole === 'hr_officer' || userRole === 'hr') {
-      return deferment.status === 'supervisor_approved'
+    // Check permissions instead of hardcoded roles
+    const canApproveAll = hasPermission(userRole, 'leave:approve:all')
+    const canApproveTeam = hasPermission(userRole, 'leave:approve:team')
+    
+    // If user doesn't have approval permissions, return false
+    if (!canApproveAll && !canApproveTeam) {
+      return false
     }
-    if (userRole === 'SUPERVISOR' || userRole === 'supervisor' || userRole === 'UNIT_HEAD' || userRole === 'unit_head') {
+    
+    // HR roles (with approve:all) can approve after supervisor approval
+    if (canApproveAll) {
+      return deferment.status === 'supervisor_approved' || deferment.status === 'pending'
+    }
+    
+    // Team approvers (with approve:team) can approve pending requests
+    if (canApproveTeam) {
       return deferment.status === 'pending'
     }
+    
     return false
   }
 

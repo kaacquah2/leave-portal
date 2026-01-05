@@ -7,9 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { AUDIT_ROLES } from '@/lib/role-utils'
-import { mapToMoFARole } from '@/lib/role-mapping'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { AUDIT_ROLES } from '@/lib/roles'
+import { mapToMoFARole } from '@/lib/roles'
 import { getRoleComplianceRestrictions, validateCompliance } from '@/lib/compliance-utils'
 
 // Force static export configuration (required for static export mode)

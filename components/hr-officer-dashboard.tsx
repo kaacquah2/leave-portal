@@ -26,8 +26,8 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { useDataStore } from '@/lib/data-store'
-import { type UserRole } from '@/lib/permissions'
-import { apiRequest } from '@/lib/api-config'
+import { type UserRole } from '@/lib/roles'
+import { apiRequest } from '@/lib/api'
 import RoleQuickActions from '@/components/role-quick-actions'
 
 interface HROfficerDashboardProps {

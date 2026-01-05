@@ -3,9 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, CheckCircle, XCircle, Clock, Download } from 'lucide-react'
+import { Plus, CheckCircle, XCircle, Clock, Download, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import LeaveForm from './leave-form'
+import { useToast } from '@/hooks/use-toast'
 
 interface EmployeeLeaveHistoryProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>
@@ -15,6 +16,8 @@ interface EmployeeLeaveHistoryProps {
 export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHistoryProps) {
   const [showForm, setShowForm] = useState(false)
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+  const [resubmitting, setResubmitting] = useState<string | null>(null)
+  const { toast } = useToast()
   
   const myLeaves = store.leaves
     .filter((l: any) => l.staffId === staffId)
@@ -31,6 +34,52 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
         return <Clock className="w-4 h-4 text-yellow-600" />
       default:
         return null
+    }
+  }
+
+  const handleResubmit = async (leaveId: string, resubmissionCount: number = 0) => {
+    if (resubmissionCount >= 3) {
+      toast({
+        title: 'Resubmission Limit Reached',
+        description: 'Maximum resubmission attempts (3) reached. Please create a new leave request.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setResubmitting(leaveId)
+    try {
+      const { apiRequest } = await import('@/lib/api-config')
+      const response = await apiRequest(`/api/leaves/${leaveId}/resubmit`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast({
+          title: 'Leave Resubmitted',
+          description: `Your leave request has been resubmitted successfully. Resubmission count: ${data.resubmissionCount}`,
+        })
+        // Refresh the store
+        await store.refresh()
+      } else {
+        const error = await response.json().catch(() => ({ error: 'Failed to resubmit leave request' }))
+        toast({
+          title: 'Resubmission Failed',
+          description: error.error || 'Failed to resubmit leave request',
+          variant: 'destructive',
+        })
+      }
+    } catch (error: any) {
+      console.error('Error resubmitting leave:', error)
+      toast({
+        title: 'Resubmission Failed',
+        description: error.message || 'Failed to resubmit leave request',
+        variant: 'destructive',
+      })
+    } finally {
+      setResubmitting(null)
     }
   }
 
@@ -184,8 +233,8 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
                         </div>
                       )}
                     </div>
-                    {leave.status === 'approved' && (
-                      <div className="mt-3">
+                    <div className="mt-3 flex gap-2">
+                      {leave.status === 'approved' && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -239,8 +288,24 @@ export default function EmployeeLeaveHistory({ store, staffId }: EmployeeLeaveHi
                           <Download className="w-4 h-4" />
                           Download Approval Letter
                         </Button>
-                      </div>
-                    )}
+                      )}
+                      {leave.status === 'rejected' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => handleResubmit(leave.id, leave.resubmissionCount || 0)}
+                          disabled={resubmitting === leave.id || (leave.resubmissionCount || 0) >= 3}
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          {resubmitting === leave.id
+                            ? 'Resubmitting...'
+                            : (leave.resubmissionCount || 0) >= 3
+                            ? 'Max Resubmissions Reached'
+                            : `Resubmit Leave${leave.resubmissionCount ? ` (${leave.resubmissionCount}/3)` : ''}`}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))

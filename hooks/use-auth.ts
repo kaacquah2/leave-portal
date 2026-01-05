@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, logout as logoutClient, type AuthUser } from '@/lib/auth-client'
-import { type UserRole } from '@/lib/permissions'
+import { getCurrentUser, logout as logoutClient, type AuthUser } from '@/lib/auth'
+import { type UserRole } from '@/lib/roles'
 
 interface UseAuthReturn {
   user: AuthUser | null

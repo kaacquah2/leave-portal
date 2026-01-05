@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
-import { hasPermission, hasAnyPermission, hasAllPermissions, getRolePermissions, type UserRole, type Permission } from '@/lib/permissions'
-import { PermissionChecks } from '@/lib/permissions'
+import { hasPermission, hasAnyPermission, hasAllPermissions, getRolePermissions, type UserRole, type Permission } from '@/lib/roles'
+import { PermissionChecks } from '@/lib/roles'
 
 /**
  * Hook to check if user has a specific permission

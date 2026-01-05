@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runHealthChecks } from '@/lib/monitoring'
-import { HR_ROLES, ADMIN_ROLES } from '@/lib/role-utils'
-import type { AuthContext } from '@/lib/auth-proxy'
+import { HR_ROLES, ADMIN_ROLES } from '@/lib/roles'
+import type { AuthContext } from '@/lib/auth'
 
 // Force static export configuration (required for static export mode)
 // Note: This route uses cookies via withAuth, but is marked as force-static

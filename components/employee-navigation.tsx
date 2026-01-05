@@ -5,7 +5,7 @@ import { LayoutDashboard, Calendar, FileText, User, LogOut, Bell, Menu, Plus, Do
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/components/ui/use-mobile'
-import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
+import { hasPermission, type UserRole, type Permission } from '@/lib/roles'
 
 interface EmployeeNavigationProps {
   activeTab: string

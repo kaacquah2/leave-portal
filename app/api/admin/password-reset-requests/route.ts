@@ -7,8 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { ADMIN_ROLES, HR_ROLES } from '@/lib/role-utils'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { ADMIN_ROLES, HR_ROLES } from '@/lib/roles'
 import { prisma } from '@/lib/prisma'
 import { createPasswordResetToken } from '@/lib/auth'
 import { sendEmail, generatePasswordResetEmail, getAppUrl } from '@/lib/email'

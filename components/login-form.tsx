@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { APP_CONFIG } from '@/lib/app-config'
-import { getRoleRoute, mapToMoFARole } from '@/lib/role-mapping'
+import { getRoleRoute, mapToMoFARole } from '@/lib/roles'
 
 interface LoginFormProps {
   onLoginSuccess?: (role: 'hr' | 'manager' | 'employee' | 'admin', staffId?: string) => void
@@ -101,6 +101,15 @@ export default function LoginForm({ onLoginSuccess, onBack }: LoginFormProps) {
       const userRole = data.user.role as string
       const moFARole = mapToMoFARole(userRole)
       const redirectPath = getRoleRoute(moFARole)
+      
+      // Debug logging in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Login] Role mapping:', {
+          originalRole: userRole,
+          mappedRole: moFARole,
+          redirectPath: redirectPath,
+        })
+      }
       
       // Call callback if provided (for backward compatibility)
       // Use legacy role format for callback compatibility

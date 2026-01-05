@@ -5,8 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { getUserRBACContext } from '@/lib/mofa-rbac-middleware'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { getUserRBACContext } from '@/lib/roles'
 import { getApprovalSteps } from '@/lib/ghana-civil-service-approval-workflow-db'
 
 // Force static export configuration

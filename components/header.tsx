@@ -7,7 +7,7 @@ import { APP_CONFIG } from '@/lib/app-config'
 import { useIsMobile } from '@/components/ui/use-mobile'
 import NavigationControls from '@/components/navigation-controls'
 
-import type { UserRole } from '@/lib/permissions'
+import type { UserRole } from '@/lib/roles'
 
 interface HeaderProps {
   onLogout?: () => void

@@ -26,8 +26,8 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { useDataStore } from '@/lib/data-store'
-import { type UserRole } from '@/lib/permissions'
-import { apiRequest } from '@/lib/api-config'
+import { type UserRole } from '@/lib/roles'
+import { apiRequest } from '@/lib/api'
 import RoleQuickActions from '@/components/role-quick-actions'
 
 interface SupervisorDashboardProps {
@@ -66,23 +66,23 @@ export default function SupervisorDashboard({
       }
 
       // Fetch pending leave requests for direct reports using supervisor-specific endpoint
+      // SECURITY FIX: Removed client-side filtering - API enforces server-side scoping
       try {
         const pendingResponse = await apiRequest('/api/leaves/pending/supervisor')
         if (pendingResponse.ok) {
           const data = await pendingResponse.json()
           const supervisorLeaves = data.leaves || data || []
+          // API already filters by supervisor's direct reports - no client-side filtering needed
           setPendingLeaves(supervisorLeaves.slice(0, 5))
         } else {
-          // Fallback to general endpoint and filter
-          const leavesResponse = await apiRequest('/api/leaves?status=pending')
+          // If supervisor-specific endpoint fails, use general endpoint with status filter
+          // API will enforce server-side role-based scoping
+          const leavesResponse = await apiRequest('/api/leaves?status=pending&limit=5')
           if (leavesResponse.ok) {
-            const allLeaves = await leavesResponse.json()
-            // Filter for direct reports
-            const directReportsLeaves = allLeaves.filter((leave: any) => {
-              return leave.status === 'pending' && 
-                     leave.staff?.immediateSupervisorId === staffId
-            })
-            setPendingLeaves(directReportsLeaves.slice(0, 5))
+            const responseData = await leavesResponse.json()
+            const leaves = responseData.data || responseData || []
+            // No client-side filtering - API handles scoping
+            setPendingLeaves(leaves)
           }
         }
       } catch (leavesError) {

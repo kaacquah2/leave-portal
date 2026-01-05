@@ -9,8 +9,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Plus, Edit2, AlertCircle, UserX, Building2, MapPin } from 'lucide-react'
 import StaffForm from './staff-form'
 import TerminateStaffDialog from './terminate-staff-dialog'
-import { PermissionChecks, UnitBasedPermissions, type UserRole, hasPermission } from '@/lib/permissions'
-import { mapToMoFARole, getRoleDisplayName } from '@/lib/role-mapping'
+import { PermissionChecks, UnitBasedPermissions, type UserRole, hasPermission } from '@/lib/roles'
+import { mapToMoFARole, getRoleDisplayName } from '@/lib/roles'
 
 interface StaffManagementProps {
   store: ReturnType<typeof import('@/lib/data-store').useDataStore>

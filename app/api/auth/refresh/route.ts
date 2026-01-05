@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTokenFromRequest, getUserFromToken, createToken, createSession } from '@/lib/auth'
-import { withAuth, addCorsHeaders, handleCorsPreflight } from '@/lib/auth-proxy'
+import { withAuth, addCorsHeaders, handleCorsPreflight } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // Handle OPTIONS preflight requests

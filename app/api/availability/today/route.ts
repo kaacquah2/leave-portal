@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
-import { mapToMoFARole } from '@/lib/role-mapping'
-import { hasPermission } from '@/lib/permissions'
+import { withAuth, type AuthContext } from '@/lib/auth'
+import { mapToMoFARole } from '@/lib/roles'
+import { hasPermission } from '@/lib/roles'
 import { format, startOfDay, endOfDay, parseISO } from 'date-fns'
+import { buildStaffWhereClause } from '@/lib/data-scoping-utils'
 
 // Force static export configuration (required for static export mode)
 export const dynamic = 'force-static'
@@ -34,70 +35,32 @@ export const GET = withAuth(async ({ user, request }: AuthContext): Promise<Next
     const todayStart = startOfDay(today)
     const todayEnd = endOfDay(today)
     
-    // Get user's staff record
-    let userStaff = null
-    if (user.staffId) {
-      userStaff = await prisma.staffMember.findUnique({
-        where: { staffId: user.staffId },
-        select: {
-          unit: true,
-          directorate: true,
-          dutyStation: true,
-          staffId: true,
-          immediateSupervisorId: true,
-          managerId: true,
-        },
-      })
-    }
-    
-    // Build staff filter based on role
-    let staffWhere: any = { active: true }
-    
-    if (canViewAll) {
-      // All staff - no filter
-    } else if (canViewTeam) {
-      // Team-level access
-      if (normalizedRole === 'SUPERVISOR' || normalizedRole === 'supervisor' || normalizedRole === 'manager') {
-        if (user.staffId) {
-          staffWhere.OR = [
-            { managerId: user.staffId },
-            { immediateSupervisorId: user.staffId },
-          ]
-        }
-      } else if (normalizedRole === 'UNIT_HEAD' || normalizedRole === 'unit_head') {
-        // Note: division_head is mapped to UNIT_HEAD during normalization
-        if (userStaff?.unit) {
-          staffWhere.unit = userStaff.unit
-        }
-      } else if (normalizedRole === 'DIRECTOR' || normalizedRole === 'directorate_head' || normalizedRole === 'deputy_director') {
-        // Note: regional_manager is mapped to DIRECTOR during normalization
-        if (userStaff?.directorate) {
-          staffWhere.directorate = userStaff.directorate
-        }
-      }
-    } else if (canViewOwn) {
-      if (user.staffId) {
-        staffWhere.staffId = user.staffId
-      } else {
-        return NextResponse.json({
-          date: format(today, 'yyyy-MM-dd'),
-          totalStaff: 0,
-          staffOnLeaveCount: 0,
-          staffAvailable: 0,
-          availabilityRate: 0,
-          staffOnLeave: [],
-          byDepartment: [],
-          byUnit: [],
-        })
-      }
-    }
-    
-    // Apply additional filters
+    // Build staff filter based on role with proper data scoping
+    const additionalFilters: Record<string, any> = {}
     if (department) {
-      staffWhere.department = department
+      additionalFilters.department = department
     }
     if (unit) {
-      staffWhere.unit = unit
+      additionalFilters.unit = unit
+    }
+    
+    const { where: staffWhere, hasAccess } = await buildStaffWhereClause({
+      id: user.id,
+      role: user.role,
+      staffId: user.staffId,
+    }, additionalFilters)
+    
+    if (!hasAccess) {
+      return NextResponse.json({
+        date: format(today, 'yyyy-MM-dd'),
+        totalStaff: 0,
+        staffOnLeaveCount: 0,
+        staffAvailable: 0,
+        availabilityRate: 0,
+        staffOnLeave: [],
+        byDepartment: [],
+        byUnit: [],
+      })
     }
     
     // Get total staff count

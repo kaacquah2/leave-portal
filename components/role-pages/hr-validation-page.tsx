@@ -17,7 +17,7 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react'
-import { apiRequest } from '@/lib/api-config'
+import { apiRequest } from '@/lib/api'
 
 export default function HRValidationPage() {
   const [leaves, setLeaves] = useState<any[]>([])

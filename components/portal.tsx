@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useDataStore } from '@/lib/data-store'
 import { useRealtime } from '@/lib/use-realtime'
 import Header from '@/components/header'
 import Navigation from '@/components/navigation'
-import Dashboard from '@/components/dashboard'
+import RoleFallbackDashboard from '@/components/role-fallback-dashboard'
 import StaffManagement from '@/components/staff-management'
 import ManagerTeamView from '@/components/manager-team-view'
 import ManagerLeaveApproval from '@/components/manager-leave-approval'
@@ -19,27 +20,58 @@ import DelegationManagement from '@/components/delegation-management'
 import YearEndProcessing from '@/components/year-end-processing'
 import ManagerAssignment from '@/components/manager-assignment'
 
-import AdminPortal from '@/components/admin-portal'
-import AuditorPortal from '@/components/auditor-portal'
-import OrganizationalStructure from '@/components/organizational-structure'
-import SupervisorDashboard from '@/components/supervisor-dashboard'
-import UnitHeadDashboard from '@/components/unit-head-dashboard'
-import DirectorDashboard from '@/components/director-dashboard'
-import HROfficerDashboard from '@/components/hr-officer-dashboard'
-import HRDirectorDashboard from '@/components/hr-director-dashboard'
-import ChiefDirectorDashboard from '@/components/chief-director-dashboard'
-import LeaveDefermentRequest from '@/components/leave-deferment-request'
-import DefermentManagement from '@/components/deferment-management'
-import LeaveEncashmentManagement from '@/components/leave-encashment-management'
-import TeamLeaveCalendar from '@/components/team-leave-calendar'
-import WorkforceAvailabilityDashboard from '@/components/workforce-availability-dashboard'
+// Code splitting: Lazy load heavy components for faster initial load
+const AdminPortal = dynamic(() => import('@/components/admin-portal'), {
+  loading: () => <div className="min-h-screen flex items-center justify-center">Loading...</div>,
+  ssr: false
+})
+const AuditorPortal = dynamic(() => import('@/components/auditor-portal'), {
+  loading: () => <div className="min-h-screen flex items-center justify-center">Loading...</div>,
+  ssr: false
+})
+const OrganizationalStructure = dynamic(() => import('@/components/organizational-structure'), {
+  ssr: false
+})
+const SupervisorDashboard = dynamic(() => import('@/components/supervisor-dashboard'), {
+  ssr: false
+})
+const UnitHeadDashboard = dynamic(() => import('@/components/unit-head-dashboard'), {
+  ssr: false
+})
+const DirectorDashboard = dynamic(() => import('@/components/director-dashboard'), {
+  ssr: false
+})
+const HROfficerDashboard = dynamic(() => import('@/components/hr-officer-dashboard'), {
+  ssr: false
+})
+const HRDirectorDashboard = dynamic(() => import('@/components/hr-director-dashboard'), {
+  ssr: false
+})
+const ChiefDirectorDashboard = dynamic(() => import('@/components/chief-director-dashboard'), {
+  ssr: false
+})
+const LeaveDefermentRequest = dynamic(() => import('@/components/leave-deferment-request'), {
+  ssr: false
+})
+const DefermentManagement = dynamic(() => import('@/components/deferment-management'), {
+  ssr: false
+})
+const LeaveEncashmentManagement = dynamic(() => import('@/components/leave-encashment-management'), {
+  ssr: false
+})
+const TeamLeaveCalendar = dynamic(() => import('@/components/team-leave-calendar'), {
+  ssr: false
+})
+const WorkforceAvailabilityDashboard = dynamic(() => import('@/components/workforce-availability-dashboard'), {
+  ssr: false
+})
 import HRValidationPage from '@/components/role-pages/hr-validation-page'
 import PendingApprovalsPage from '@/components/role-pages/pending-approvals-page'
-import { hasPermission, type UserRole, type Permission } from '@/lib/permissions'
+import { hasPermission, type UserRole, type Permission } from '@/lib/roles'
 import { Card, CardContent } from '@/components/ui/card'
 import UnauthorizedMessage from '@/components/unauthorized-message'
 
-import { mapToMoFARole, getRoleDisplayName, isReadOnlyRole } from '@/lib/role-mapping'
+import { mapToMoFARole, getRoleDisplayName, isReadOnlyRole } from '@/lib/roles'
 
 interface PortalProps {
   userRole: UserRole
@@ -130,12 +162,15 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
   }
 
   const renderContent = () => {
-    const renderUnauthorized = (message: string, permission?: string, role?: string) => (
-      <UnauthorizedMessage message={message} requiredPermission={permission} requiredRole={role} />
+    const renderUnauthorized = (message: string, permission?: string, userRole?: string) => (
+      <UnauthorizedMessage message={message} requiredPermission={permission} requiredRole={userRole} />
     )
 
-    // Get current user's staff info if available (used for role-specific dashboards)
-    const currentStaff = staffId ? store.staff?.find((s: any) => s.staffId === staffId) : null
+    // Get current user's staff info if available (used for role-specific dashboards) - memoized
+    const currentStaff = useMemo(() => 
+      staffId ? store.staff?.find((s: any) => s.staffId === staffId) : null,
+      [staffId, store.staff]
+    )
 
     switch (activeTab) {
       case 'dashboard':
@@ -146,6 +181,9 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
           return <UnitHeadDashboard staffId={staffId} userRole={userRole} unit={currentStaff?.unit || null} onNavigate={setActiveTab} />
         } else if (normalizedRole === 'HEAD_OF_INDEPENDENT_UNIT') {
           return <UnitHeadDashboard staffId={staffId} userRole={userRole} unit={currentStaff?.unit || null} onNavigate={setActiveTab} />
+        } else if (normalizedRole === 'HEAD_OF_DEPARTMENT' || normalizedRole === 'head_of_department' || normalizedRole === 'hod') {
+          // Head of Department uses Director dashboard (similar scope - directorate-level management)
+          return <DirectorDashboard staffId={staffId} userRole={userRole} directorate={currentStaff?.directorate || null} onNavigate={setActiveTab} />
         } else if ((normalizedRole as string) === 'DIVISION_HEAD' || (normalizedRole as string) === 'division_head') {
           // Division Head uses Director dashboard (similar scope)
           return <DirectorDashboard staffId={staffId} userRole={userRole} directorate={currentStaff?.directorate || null} onNavigate={setActiveTab} />
@@ -174,8 +212,8 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
           return <AuditorPortal userRole={userRole} onLogout={onLogout} />
         }
         // Last resort fallback - should not happen for MoFA roles
-        console.warn(`No specific dashboard found for role: ${userRole}, using generic dashboard`)
-        return <Dashboard store={store} userRole={userRole} onNavigate={setActiveTab} />
+        console.warn(`No specific dashboard found for role: ${userRole}, using fallback dashboard`)
+        return <RoleFallbackDashboard userRole={userRole} onNavigate={setActiveTab} />
       
       case 'staff':
         if (!hasPermission(userRole as UserRole, 'employee:view:all') && 
@@ -368,7 +406,7 @@ function PortalContent({ userRole, onLogout, staffId }: PortalProps) {
         )
       
       default:
-        return <Dashboard store={store} userRole={userRole} onNavigate={setActiveTab} />
+        return <RoleFallbackDashboard userRole={userRole} onNavigate={setActiveTab} />
     }
   }
 

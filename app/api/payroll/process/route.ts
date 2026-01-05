@@ -15,10 +15,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { withAuth, type AuthContext } from '@/lib/auth-proxy'
+import { withAuth, type AuthContext } from '@/lib/auth'
 import { logDataAccess } from '@/lib/data-access-logger'
-import { hasPermission } from '@/lib/permissions'
-import { mapToMoFARole } from '@/lib/role-mapping'
+import { hasPermission } from '@/lib/roles'
+import { mapToMoFARole } from '@/lib/roles'
 
 // GRA Tax Brackets (same as tax-calculate route)
 
@@ -127,22 +127,70 @@ export async function POST(request: NextRequest) {
       const processedPayrolls: any[] = []
       const errors: any[] = []
 
-      // Process payroll for each staff member
+      // PERFORMANCE FIX: Batch queries to avoid N+1 problem
+      const staffIdsToProcess = staffMembers.map(s => s.staffId)
+      
+      // Check for existing payroll items in batch
+      const existingPayrollItems = await prisma.payrollItem.findMany({
+        where: {
+          staffId: { in: staffIdsToProcess },
+          payroll: {
+            period: payPeriod,
+          },
+        },
+        select: { staffId: true },
+      })
+      const existingStaffIds = new Set(existingPayrollItems.map(p => p.staffId))
+      
+      // Get all salary structures in batch
+      const allSalaryStructures = await prisma.salaryStructure.findMany({
+        where: {
+          staffId: { in: staffIdsToProcess },
+          OR: [
+            { endDate: null },
+            { endDate: { gt: new Date() } }
+          ],
+        },
+        orderBy: [
+          { staffId: 'asc' },
+          { effectiveDate: 'desc' },
+        ],
+      })
+      
+      // Create map of staffId -> salary structure (get most recent per staff)
+      const salaryStructureMap = new Map<string, typeof allSalaryStructures[0]>()
+      for (const structure of allSalaryStructures) {
+        if (!salaryStructureMap.has(structure.staffId)) {
+          salaryStructureMap.set(structure.staffId, structure)
+        }
+      }
+
+      // Get or create payroll period record (once, not per staff)
+      const [month, year] = payPeriod.split('-').map(Number)
+      let payrollPeriod = await prisma.payroll.findUnique({
+        where: { period: payPeriod }
+      })
+
+      if (!payrollPeriod) {
+        payrollPeriod = await prisma.payroll.create({
+          data: {
+            period: payPeriod,
+            month,
+            year,
+            totalStaff: 0,
+            totalAmount: 0,
+            status: 'processing',
+            processedBy: user.id,
+            processedAt: new Date(),
+          },
+        })
+      }
+
+      // Process payroll for each staff member (using batched data)
       for (const staff of staffMembers) {
         try {
           // Check if payroll already exists for this period
-          const existing = await prisma.$queryRaw`
-            SELECT * FROM "Payroll" 
-            WHERE "period" = ${payPeriod}
-          `.catch(async () => {
-            return await prisma.payroll.findFirst({
-              where: {
-                period: payPeriod,
-              },
-            })
-          })
-
-          if (existing) {
+          if (existingStaffIds.has(staff.staffId)) {
             errors.push({
               staffId: staff.staffId,
               error: 'Payroll already exists for this period',
@@ -150,17 +198,8 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          // Get salary structure for staff
-          const salaryStructure = await prisma.salaryStructure.findFirst({
-            where: {
-              staffId: staff.staffId,
-              OR: [
-                { endDate: null },
-                { endDate: { gt: new Date() } }
-              ],
-            },
-            orderBy: { effectiveDate: 'desc' },
-          })
+          // Get salary structure from map (O(1) lookup)
+          const salaryStructure = salaryStructureMap.get(staff.staffId)
 
           if (!salaryStructure) {
             errors.push({
@@ -200,28 +239,7 @@ export async function POST(request: NextRequest) {
           // Calculate net salary
           const netSalary = grossSalary - taxDeduction - pensionDeduction - otherDeductions
 
-          // Get or create payroll period record
-          const [month, year] = payPeriod.split('-').map(Number)
-          let payrollPeriod = await prisma.payroll.findUnique({
-            where: { period: payPeriod }
-          })
-
-          if (!payrollPeriod) {
-            payrollPeriod = await prisma.payroll.create({
-              data: {
-                period: payPeriod,
-                month,
-                year,
-                totalStaff: 0,
-                totalAmount: 0,
-                status: 'processing',
-                processedBy: user.id,
-                processedAt: new Date(),
-              },
-            })
-          }
-
-          // Create payroll item for this staff
+          // Create payroll item for this staff (payrollPeriod already created above)
           const payrollItem = await prisma.payrollItem.create({
             data: {
               payrollId: payrollPeriod.id,

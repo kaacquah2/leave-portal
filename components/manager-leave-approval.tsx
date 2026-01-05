@@ -59,11 +59,13 @@ export default function ManagerLeaveApproval() {
         throw new Error(`Failed to fetch leaves: ${response.status} ${errorText}`)
       }
       
-      const data = await response.json()
+      const responseData = await response.json()
+      // SECURITY FIX: API now enforces server-side role-based filtering
+      // No client-side filtering needed - API returns only leaves user can access
+      const data = responseData.data || responseData || []
       console.log('[ManagerLeaveApproval] Loaded', data.length, 'leave requests');
       
-      // Filter to show only team members' leaves
-      // In production, filter by manager's department/team
+      // API handles filtering by manager's direct reports via buildLeaveWhereClause
       setLeaves(data)
     } catch (error) {
       console.error('[ManagerLeaveApproval] Error fetching leaves:', error)
