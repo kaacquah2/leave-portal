@@ -12,8 +12,10 @@ import { AUDIT_ROLES, mapToMoFARole, canViewAuditLogs, isHRRole, isAdminRole } f
 
 // Force static export configuration (required for static export mode)
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     // Only authorized roles can access reports

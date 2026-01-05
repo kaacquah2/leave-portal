@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession, authOptions } from '@/lib/auth'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 // Generate static params for dynamic route (empty array = skip static generation)
 export function generateStaticParams() {

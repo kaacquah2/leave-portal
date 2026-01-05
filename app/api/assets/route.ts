@@ -18,8 +18,10 @@ import { logDataAccess } from '@/lib/data-access-logger'
 import { hasPermission } from '@/lib/roles'
 import { mapToMoFARole } from '@/lib/roles'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 /**
  * GET /api/assets

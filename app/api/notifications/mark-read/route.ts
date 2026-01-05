@@ -7,8 +7,9 @@ import { getTokenFromRequest, getUserFromToken } from '@/lib/auth'
 
 // Force dynamic - this route uses cookies via getTokenFromRequest and cannot be statically pre-rendered
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 export async function POST(request: NextRequest) {
   try {
     const token = getTokenFromRequest(request)

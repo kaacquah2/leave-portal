@@ -6,8 +6,10 @@ import { determineCivilServiceApprovalWorkflow } from '@/lib/ghana-civil-service
 import { logComprehensiveAudit } from '@/lib/comprehensive-audit'
 import { notifyLeaveSubmission } from '@/lib/notification-service'
 
-// Force static export configuration
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 export async function POST(
   request: NextRequest,

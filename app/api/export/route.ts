@@ -16,8 +16,10 @@ import { buildStaffWhereClause, buildLeaveWhereClause } from '@/lib/data-scoping
 
 // Export control matrix by role
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const EXPORT_PERMISSIONS: Record<string, string[]> = {
   HR_DIRECTOR: ['staff', 'leave', 'payroll', 'audit', 'custom'],
   HR_OFFICER: ['staff', 'leave', 'payroll'],

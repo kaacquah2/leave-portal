@@ -16,8 +16,10 @@ import { notifyLeaveSubmission } from '@/lib/notification-service'
 import { getUserRBACContext, canCreateLeaveRequest } from '@/lib/roles'
 import { parsePaginationParams, createPaginatedResponse, validatePaginationParams } from '@/lib/pagination-utils'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 // GET all leave requests
 export const GET = withAuth(async ({ user, request }: AuthContext) => {

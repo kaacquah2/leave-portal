@@ -8,8 +8,10 @@ import { calculateInitialLeaveBalances } from '@/lib/leave-accrual'
 import { validatePasswordComplexity, addPasswordToHistory, setPasswordExpiry } from '@/lib/password-policy'
 import { getUnitConfig, getDirectorateForUnit, MOFA_UNITS } from '@/lib/mofa-unit-mapping'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 // GET all users (admin only)
 export const GET = withAuth(async ({ user }: AuthContext) => {

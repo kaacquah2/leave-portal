@@ -4,8 +4,9 @@ import { withAuth, type AuthContext } from '@/lib/auth'
 import { sendEmail } from '@/lib/email'
 import { HR_ROLES, ADMIN_ROLES } from '@/lib/roles'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 // GET pending approvals that need reminders
 export async function GET(request: NextRequest) {

@@ -14,8 +14,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { processNotificationQueue, getQueueStatistics } from '@/lib/notification-queue'
 import { getServerSession, authOptions } from '@/lib/auth'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
   // During static export build, return early without accessing headers
   const isBuild = typeof process !== 'undefined' && 

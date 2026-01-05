@@ -4,8 +4,10 @@ import { withAuth, type AuthContext, isAdmin } from '@/lib/auth'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { hashPassword } from '@/lib/auth'
 
-// Force static export configuration
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 // POST import data
 export const POST = withAuth(async ({ user, request }: AuthContext) => {

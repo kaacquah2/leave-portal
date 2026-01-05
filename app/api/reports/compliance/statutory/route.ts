@@ -15,8 +15,9 @@ import { AUDIT_ROLES } from '@/lib/roles'
 
 // Force dynamic - this route uses cookies via withAuth and cannot be statically pre-rendered
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 /**
  * GET /api/reports/compliance/statutory
  * Generate statutory compliance report

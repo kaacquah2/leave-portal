@@ -13,8 +13,10 @@ import { withAuth, type AuthContext, isHROfficer, isHRDirector } from '@/lib/aut
 import { createAuditLog } from '@/lib/audit-logger'
 import { HR_ROLES } from '@/lib/roles'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 /**
  * POST /api/balances/override

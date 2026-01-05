@@ -14,8 +14,9 @@ import { createAuditLog } from '@/lib/audit-logger'
 
 // Force static export configuration (required for static export mode)
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 /**
  * POST /api/privacy/acknowledge
  * Acknowledge privacy notice (required on first login)

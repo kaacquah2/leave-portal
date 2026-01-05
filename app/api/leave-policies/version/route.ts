@@ -16,8 +16,9 @@ import { HR_ROLES, AUDIT_ROLES } from '@/lib/roles'
 
 // Force static export configuration (required for static export mode)
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 /**
  * POST /api/leave-policies/version
  * Create a new version of a leave policy (requires HR Director approval)

@@ -12,8 +12,9 @@ import { isHRMD } from '@/lib/ghana-civil-service-unit-mapping'
 
 // Force static export configuration
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 export function generateStaticParams() {
   return []
 }

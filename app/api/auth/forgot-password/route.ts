@@ -13,8 +13,9 @@ import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 // Handle OPTIONS preflight requests
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreflight(request) || new NextResponse(null, { status: 204 })
 }

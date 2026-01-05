@@ -6,8 +6,9 @@ import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/roles'
 // Force static export configuration (required for static export mode)
 // GET all holidays - All authenticated users can view holidays
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 export const GET = withAuth(async ({ user, request }: AuthContext) => {
   try {
     const holidays = await prisma.holiday.findMany({

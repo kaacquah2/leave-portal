@@ -5,8 +5,10 @@ import { READ_ONLY_ROLES, HR_ROLES, ADMIN_ROLES } from '@/lib/roles'
 import { parsePaginationParams, createPaginatedResponse, validatePaginationParams } from '@/lib/pagination-utils'
 import { buildStaffWhereClause } from '@/lib/data-scoping-utils'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 // GET all leave balances
 export const GET = withAuth(async ({ user, request }: AuthContext) => {

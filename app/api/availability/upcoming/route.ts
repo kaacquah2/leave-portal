@@ -6,8 +6,10 @@ import { hasPermission } from '@/lib/roles'
 import { format, addDays, startOfDay, parseISO } from 'date-fns'
 import { buildStaffWhereClause } from '@/lib/data-scoping-utils'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 // GET upcoming critical absences
 export const GET = withAuth(async ({ user, request }: AuthContext) => {

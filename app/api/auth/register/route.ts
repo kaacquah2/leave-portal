@@ -4,8 +4,9 @@ import { hashPassword, createToken, createSession } from '@/lib/auth'
 import { addCorsHeaders, handleCorsPreflight } from '@/lib/cors'
 
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 export async function POST(request: NextRequest) {
   // Handle CORS preflight requests
   const preflightResponse = handleCorsPreflight(request)

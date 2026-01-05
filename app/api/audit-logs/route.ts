@@ -3,8 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { withAuth, type AuthContext, isHR, isAdmin } from '@/lib/auth'
 import { AUDIT_ROLES } from '@/lib/roles'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 
 // GET audit logs
 export async function GET(request: NextRequest) {

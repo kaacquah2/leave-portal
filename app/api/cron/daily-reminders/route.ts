@@ -28,8 +28,8 @@ import {
   notifyHRYearEndApproaching
 } from '@/lib/notification-service'
 
-// Force static export configuration (required for static export mode)
-export const dynamic = 'force-static'
+// API routes are dynamic by default - explicitly mark as dynamic to prevent prerendering
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs' // Explicitly set to nodejs runtime
 
 export async function GET(request: NextRequest) {
