@@ -151,9 +151,9 @@ export async function middleware(request: NextRequest) {
     
     // Get session token from cookie or Bearer header (supports both web and desktop)
     // Web clients use httpOnly cookies, desktop clients use Bearer tokens
-    // Use Edge-compatible functions for middleware
-    const { getTokenFromRequestEdge, getUserFromTokenEdge } = await import('@/lib/auth')
-    const sessionToken = getTokenFromRequestEdge(request)
+    // Use Edge-compatible functions for middleware - import directly to avoid Prisma dependency
+    const { getTokenFromRequest, getUserFromToken } = await import('@/lib/auth/auth-edge')
+    const sessionToken = getTokenFromRequest(request)
     
     if (!sessionToken) {
       // No session - redirect to login
@@ -164,7 +164,7 @@ export async function middleware(request: NextRequest) {
     
     // Verify token and check role (lightweight check - full auth in page component)
     try {
-      const user = await getUserFromTokenEdge(sessionToken)
+      const user = await getUserFromToken(sessionToken)
       
       if (!user) {
         // Invalid token - redirect to login

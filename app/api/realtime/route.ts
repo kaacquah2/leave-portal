@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getUserFromToken } from '@/lib/auth'
+// Note: getUserFromToken is imported dynamically in runtimeHandler to avoid Edge Runtime issues
 
 
 // Server-Sent Events endpoint for real-time updates
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   // Get token from cookies (EventSource sends cookies automatically for same-origin requests)
   // Wrap in runtime handler to avoid static analysis
   const runtimeHandler = async () => {
-    const { getTokenFromRequest } = await import('@/lib/auth')
+    const { getTokenFromRequest, getUserFromToken } = await import('@/lib/auth')
     const token = getTokenFromRequest(request)
 
     if (!token) {

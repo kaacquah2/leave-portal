@@ -50,6 +50,8 @@ export {
 } from './auth-proxy'
 
 // Edge-compatible auth (for middleware)
+// IMPORTANT: For Edge Runtime (middleware.ts), import directly from './auth-edge'
+// to avoid pulling in Prisma dependencies. Do NOT import from this barrel file in Edge Runtime.
 export {
   verifyToken as verifyTokenEdge,
   getTokenFromRequest as getTokenFromRequestEdge,
